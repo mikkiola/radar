@@ -1,0 +1,110 @@
+import requests
+import time
+
+def fetch_hacker_news():
+    print("\n📡 Hacker News...")
+    url = "https://hn.algolia.com/api/v1/search"
+    params = {
+        "query": "open source AI agents MCP automation",
+        "tags": "story",
+        "hitsPerPage": 30,
+    }
+    try:
+        r = requests.get(url, params=params, timeout=10)
+        r.raise_for_status()
+        hits = r.json().get("hits", [])
+        projects = []
+        for h in hits:
+            title = h.get("title", "")
+            url_item = h.get("url", "")
+            points = h.get("points", 0)
+            if url_item and points > 10:
+                projects.append({"title": title, "url": url_item, "score": points, "source": "HN"})
+        print(f"   Найдено: {len(projects)}")
+        return projects
+    except Exception as e:
+        print(f"   Ошибка: {e}")
+        return []
+
+def fetch_reddit():
+    print("\n📡 Reddit...")
+    subreddits = ["MachineLearning", "LocalLLaMA", "selfhosted"]
+    projects = []
+    headers = {"User-Agent": "opensource-radar/0.1"}
+    for sub in subreddits:
+        url = f"https://www.reddit.com/r/{sub}/search.json"
+        params = {"q": "open source", "sort": "hot", "t": "week", "limit": 15, "restrict_sr": 1}
+        try:
+            r = requests.get(url, params=params, headers=headers, timeout=10)
+            r.raise_for_status()
+            posts = r.json().get("data", {}).get("children", [])
+            for p in posts:
+                d = p.get("data", {})
+                title = d.get("title", "")
+                link = d.get("url", "")
+                score = d.get("score", 0)
+                if score > 20 and ("github.com" in link or "gitlab.com" in link):
+                    projects.append({"title": title, "url": link, "score": score, "source": f"Reddit/{sub}"})
+            time.sleep(1)
+        except Exception as e:
+            print(f"   Ошибка {sub}: {e}")
+    print(f"   Найдено: {len(projects)}")
+    return projects
+
+def fetch_github():
+    print("\n📡 GitHub Search...")
+    url = "https://api.github.com/search/repositories"
+    queries = ["topic:ai-agents pushed:>2025-05-01", "topic:mcp-server pushed:>2025-05-01", "topic:llm-tools pushed:>2025-05-01"]
+    projects = []
+    headers = {"Accept": "application/vnd.github.v3+json"}
+    for q in queries:
+        params = {"q": q + " is:public fork:false archived:false", "sort": "stars", "order": "desc", "per_page": 15}
+        try:
+            r = requests.get(url, params=params, headers=headers, timeout=10)
+            r.raise_for_status()
+            items = r.json().get("items", [])
+            for item in items:
+                if item.get("stargazers_count", 0) >= 50:
+                    projects.append({"title": item["full_name"], "description": item.get("description", ""), "url": item["html_url"], "score": item["stargazers_count"], "source": "GitHub"})
+            time.sleep(1)
+        except Exception as e:
+            print(f"   Ошибка '{q}': {e}")
+    print(f"   Найдено: {len(projects)}")
+    return projects
+
+def deduplicate(projects):
+    seen = set()
+    unique = []
+    for p in projects:
+        url = p["url"].rstrip("/").lower()
+        if url not in seen:
+            seen.add(url)
+            unique.append(p)
+    return unique
+
+def print_results(projects):
+    print(f"\n{'='*60}")
+    print(f"ИТОГО: {len(projects)} уникальных проектов")
+    print(f"{'='*60}")
+    projects.sort(key=lambda x: x.get("score", 0), reverse=True)
+    for i, p in enumerate(projects[:30], 1):
+        title = p["title"][:55]
+        source = p["source"]
+        score = p.get("score", 0)
+        desc = p.get("description", "")[:60]
+        print(f"\n{i:2}. [{source}] ★{score}")
+        print(f"    {title}")
+        if desc:
+            print(f"    {desc}")
+        print(f"    {p['url']}")
+
+if __name__ == "__main__":
+    print("🔍 Радар опенсорса — шаг 0 (без ключей)")
+    print("Собираем проекты из открытых источников...")
+    all_projects = []
+    all_projects += fetch_hacker_news()
+    all_projects += fetch_reddit()
+    all_projects += fetch_github()
+    unique = deduplicate(all_projects)
+    print_results(unique)
+    print(f"\n✅ Готово.")
