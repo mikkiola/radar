@@ -8,5 +8,8 @@ radar:
   script:
     - pip install requests --quiet
     - python3 radar_step0.py
+    - python3 update_assessments.py
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
+  variables:
+    ANTHROPIC_API_KEY: $ANTHROPIC_API_KEY
