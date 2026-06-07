@@ -3,7 +3,7 @@ import os
 from datetime import date
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
-VAULT_PATH = os.path.expanduser("~/radar/01_Assessments")
+VAULT_PATH = os.path.expanduser("~/radar/radar/01_Assessments")
 
 def analyze_and_save(projects):
     today = date.today().strftime("%Y-%m-%d")
@@ -89,12 +89,21 @@ URL: {url}
 **Если права:** {esli_prava}
 **Если ошиблась:** {esli_oshiblas}
 
+## Оценка Claude
+- {today} — {ocenka}: первая оценка автоматически
+
+## Правка человека
+<!-- Не согласна с Claude? Добавь строку: - [дата] — [твоя оценка]: [почему] -->
+
 ## История оценок
 - {today} — {ocenka}: первая оценка
 
 ## Связи
 """
             
+            if os.path.exists(filepath):
+                print(f"   Файл уже существует, пропускаем: {filename}")
+                continue
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(content)
             

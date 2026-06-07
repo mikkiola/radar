@@ -3,7 +3,7 @@ import os
 from datetime import date, datetime
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
-VAULT_PATH = os.path.expanduser("~/radar/01_Assessments")
+VAULT_PATH = os.path.expanduser("~/radar/radar/01_Assessments")
 DAYS_THRESHOLD = 30
 
 def get_old_assessments():
