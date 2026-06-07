@@ -5,11 +5,7 @@ import time
 def fetch_hacker_news():
     print("\n📡 Hacker News...")
     url = "https://hn.algolia.com/api/v1/search"
-    params = {
-        "query": "open source AI agents MCP automation",
-        "tags": "story",
-        "hitsPerPage": 30,
-    }
+    params = {"query": "open source AI agents MCP automation", "tags": "story", "hitsPerPage": 30}
     try:
         r = requests.get(url, params=params, timeout=10)
         r.raise_for_status()
@@ -73,6 +69,34 @@ def fetch_github():
     print(f"   Найдено: {len(projects)}")
     return projects
 
+def fetch_awesome_lists():
+    print("\n📡 Awesome Lists...")
+    awesome_repos = [
+        "punkpeye/awesome-mcp-servers",
+        "e2b-dev/awesome-ai-agents",
+        "Hannibal046/Awesome-LLM",
+        "awesome-selfhosted/awesome-selfhosted",
+    ]
+    results = []
+    for repo in awesome_repos:
+        try:
+            url = f"https://api.github.com/repos/{repo}"
+            resp = requests.get(url, headers={"Accept": "application/vnd.github+json"}, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                results.append({
+                    "title": data.get("name", repo),
+                    "description": data.get("description", ""),
+                    "url": data.get("html_url", ""),
+                    "score": data.get("stargazers_count", 0),
+                    "topics": data.get("topics", []),
+                    "source": "AwesomeList"
+                })
+        except Exception as e:
+            print(f"   Ошибка {repo}: {e}")
+    print(f"   Найдено: {len(results)}")
+    return results
+
 def deduplicate(projects):
     seen = set()
     unique = []
@@ -106,9 +130,9 @@ if __name__ == "__main__":
     all_projects += fetch_hacker_news()
     all_projects += fetch_reddit()
     all_projects += fetch_github()
+    all_projects += fetch_awesome_lists()
     unique = deduplicate(all_projects)
     filtered = [p for p in unique if is_relevant(p)]
     print(f"После фильтра: {len(filtered)} из {len(unique)}")
     print_results(filtered)
     print(f"\n✅ Готово.")
-
