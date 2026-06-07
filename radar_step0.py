@@ -1,3 +1,4 @@
+from filter import is_relevant
 import requests
 import time
 
@@ -106,5 +107,8 @@ if __name__ == "__main__":
     all_projects += fetch_reddit()
     all_projects += fetch_github()
     unique = deduplicate(all_projects)
-    print_results(unique)
+    filtered = [p for p in unique if is_relevant(p)]
+    print(f"После фильтра: {len(filtered)} из {len(unique)}")
+    print_results(filtered)
     print(f"\n✅ Готово.")
+
