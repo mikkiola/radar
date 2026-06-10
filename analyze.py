@@ -5,20 +5,17 @@ from datetime import date
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar/01_Assessments"))
-PATTERNS_PATH = os.path.expanduser("~/radar/radar/02_Patterns")
+PATTERNS_PATH = os.environ.get("PATTERNS_PATH", os.path.expanduser("~/radar/radar/02_Patterns"))
 
 
 def get_existing_patterns():
-    """Получить список существующих паттернов из 02_Patterns/."""
     if not os.path.exists(PATTERNS_PATH):
         return []
     files = glob.glob(os.path.join(PATTERNS_PATH, "*.md"))
-    # Возвращаем имена файлов без расширения — именно так пишутся wikilinks
     return [os.path.splitext(os.path.basename(f))[0] for f in files]
 
 
 def get_existing_assessments():
-    """Получить список существующих оценок из 01_Assessments/."""
     if not os.path.exists(VAULT_PATH):
         return []
     files = glob.glob(os.path.join(VAULT_PATH, "*.md"))
@@ -26,18 +23,31 @@ def get_existing_assessments():
 
 
 def analyze_and_save(projects):
-    today = date.today().strftime("%Y-%m-%d")
+    if not ANTHROPIC_API_KEY:
+        print("ОШИБКА: ANTHROPIC_API_KEY не задан")
+        return
 
+    today = date.today().strftime("%Y-%m-%d")
     patterns = get_existing_patterns()
     assessments = get_existing_assessments()
 
     patterns_list = "\n".join(f"- {p}" for p in patterns) if patterns else "- паттернов пока нет"
     assessments_list = "\n".join(f"- {a}" for a in assessments[-20:]) if assessments else "- оценок пока нет"
 
-    for p in projects[:5]:
+    os.makedirs(VAULT_PATH, exist_ok=True)
+
+    for p in projects[:10]:
         title = p.get("title", "")
         desc = p.get("description", "")
         url = p.get("url", "")
+
+        safe_title = title.replace("/", "-").replace(" ", "_")[:50]
+        filename = f"{today} {safe_title}.md"
+        filepath = os.path.join(VAULT_PATH, filename)
+
+        if os.path.exists(filepath):
+            print(f"   Пропускаем (уже существует): {filename}")
+            continue
 
         prompt = f"""You are a measurement instrument for the AI and agent market ecosystem.
 Respond in Russian language only.
@@ -83,7 +93,7 @@ URL: {url}
             )
 
             if response.status_code != 200:
-                print(f"   Ошибка API для {title}: {response.status_code}")
+                print(f"   Ошибка API для {title}: {response.status_code} — {response.text[:100]}")
                 continue
 
             text = response.json()["content"][0]["text"]
@@ -102,18 +112,12 @@ URL: {url}
             esli_oshiblas = lines.get("ЕСЛИ_ОШИБЛАСЬ", "")
             svyazi_raw = lines.get("СВЯЗИ", "")
 
-            # Формируем wikilinks для блока Связи
             svyazi_block = ""
             if svyazi_raw and svyazi_raw.strip():
                 items = [s.strip() for s in svyazi_raw.split(",") if s.strip()]
                 for item in items:
-                    # Проверяем что такой паттерн или оценка реально существует
                     if item in patterns or any(item in a for a in assessments):
                         svyazi_block += f"- [[{item}]]\n"
-
-            safe_title = title.replace("/", "-").replace(" ", "_")[:50]
-            filename = f"{today} {safe_title}.md"
-            filepath = os.path.join(VAULT_PATH, filename)
 
             content = f"""# Оценка: {title}
 
@@ -144,10 +148,6 @@ URL: {url}
 ## Связи
 {svyazi_block}"""
 
-            if os.path.exists(filepath):
-                print(f"   Файл уже существует, пропускаем: {filename}")
-                continue
-
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(content)
 
@@ -158,11 +158,23 @@ URL: {url}
 
 
 if __name__ == "__main__":
-    test_projects = [
-        {"title": "github/github-mcp-server", "description": "GitHub's official MCP Server", "url": "https://github.com/github/github-mcp-server"},
-        {"title": "browser-use/browser-use", "description": "Make websites accessible for AI agents", "url": "https://github.com/browser-use/browser-use"},
-        {"title": "n8n-io/n8n", "description": "Fair-code workflow automation platform with native AI capabilities", "url": "https://github.com/n8n-io/n8n"},
-    ]
-    print("Тестируем связи в графе...")
-    analyze_and_save(test_projects)
-    print("\nГотово. Проверь 01_Assessments в Obsidian.")
+    # Импортируем функции сбора из radar_step0.py
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+    from radar_step0 import fetch_hacker_news, fetch_github, fetch_awesome_lists, deduplicate
+    from filter import is_relevant
+
+    print("Собираем проекты...")
+    all_projects = []
+    all_projects += fetch_hacker_news()
+    all_projects += fetch_github()
+    all_projects += fetch_awesome_lists()
+
+    unique = deduplicate(all_projects)
+    filtered = [p for p in unique if is_relevant(p)]
+    print(f"После фильтра: {len(filtered)} проектов")
+
+    print("Анализируем через Claude...")
+    analyze_and_save(filtered)
+    print("\nГотово.")
