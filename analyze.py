@@ -35,13 +35,13 @@ def analyze_and_save(projects):
     assessments_list = "\n".join(f"- {a}" for a in assessments[-20:]) if assessments else "- оценок пока нет"
 
     os.makedirs(VAULT_PATH, exist_ok=True)
+    new_shifts = []
 
     for p in projects[:10]:
         title = p.get("title", "")
         desc = p.get("description", "")
         url = p.get("url", "")
 
-        # Временное имя файла по техническому названию — заменим после получения русского имени
         safe_title_tmp = title.replace("/", "-").replace(" ", "_")[:50]
         filepath_tmp = os.path.join(VAULT_PATH, f"{today} {safe_title_tmp}.md")
 
@@ -121,7 +121,6 @@ URL: {url}
                     if item in patterns or any(item in a for a in assessments):
                         svyazi_block += f"- [[{item}]]\n"
 
-            # Имя файла — русское название
             safe_ru = ru_name.replace(" ", "_").replace("/", "-")[:50]
             filename = f"{safe_ru} {today}.md"
             filepath = os.path.join(VAULT_PATH, filename)
@@ -164,8 +163,26 @@ URL: {url}
 
             print(f"   {ocenka} ({uverennost}) — {ru_name}")
 
+            if ocenka == "СДВИГ":
+                new_shifts.append(ru_name)
+
         except Exception as e:
             print(f"   Ошибка {title}: {e}")
+
+    # Уведомление в личку при новых СДВИГ оценках
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    owner_id = os.environ.get("TELEGRAM_OWNER_ID")
+    if new_shifts and bot_token and owner_id:
+        msg = "🔴 Новые СДВИГ оценки:\n" + "\n".join(f"• {name}" for name in new_shifts)
+        try:
+            requests.post(
+                f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                json={"chat_id": owner_id, "text": msg},
+                timeout=10
+            )
+            print(f"Уведомление отправлено: {len(new_shifts)} СДВИГ")
+        except Exception as e:
+            print(f"Ошибка отправки уведомления: {e}")
 
 
 if __name__ == "__main__":
