@@ -185,6 +185,13 @@
   },
   "active": "198e6eb31bfb4e42",
   "lastOpenFiles": [
+    "update_assessments.py",
+    "radar_step0.py",
+    "gitlab.com/lyolich777ka/opensource-radar",
+    "gitlab.com/lyolich777ka",
+    "gitlab.com",
+    "filter.py",
+    "analyze.py",
     "99_System/AGENT_INSTRUCTION_radar_v2.md",
     "telegram_post.py",
     "01_Assessments/2026-06-07 github-mcp-server.md",
@@ -197,7 +204,6 @@
     "Добро пожаловать.md",
     "99_System",
     "02_Patterns",
-    "01_Assessments",
-    "00_Inbox"
+    "01_Assessments"
   ]
 }
