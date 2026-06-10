@@ -4,7 +4,7 @@ import glob
 from datetime import date
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
-VAULT_PATH = os.path.expanduser("~/radar/radar/01_Assessments")
+VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar/01_Assessments"))
 PATTERNS_PATH = os.path.expanduser("~/radar/radar/02_Patterns")
 
 

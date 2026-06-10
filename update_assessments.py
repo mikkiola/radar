@@ -3,7 +3,7 @@ import os
 from datetime import date, datetime
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
-VAULT_PATH = os.path.expanduser("~/radar/radar/01_Assessments")
+VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar/01_Assessments"))
 DAYS_THRESHOLD = 30
 
 def get_old_assessments():
@@ -11,6 +11,10 @@ def get_old_assessments():
     today = date.today()
     old_files = []
     
+    if not os.path.exists(VAULT_PATH):
+        print(f"   Vault не найден: {VAULT_PATH}")
+        return []
+
     for filename in os.listdir(VAULT_PATH):
         if not filename.endswith(".md"):
             continue
@@ -80,7 +84,6 @@ def update_assessment(filepath, filename, days_old):
         izmenenie = lines.get("ИЗМЕНЕНИЕ", "")
         obnovlenie = lines.get("ОБНОВЛЕНИЕ", "")
         
-        # Добавляем запись в историю оценок
         new_entry = f"- {today} — {ocenka} ({izmenenie}): {obnovlenie}"
         updated_content = content.replace(
             "## История оценок",
@@ -100,7 +103,7 @@ if __name__ == "__main__":
     old_files = get_old_assessments()
     
     if not old_files:
-        print(f"   Нет оценок старше {DAYS_THRESHOLD} дней. Скрипт запустится автоматически когда они появятся.")
+        print(f"   Нет оценок старше {DAYS_THRESHOLD} дней.")
     else:
         print(f"   Найдено: {len(old_files)} файлов для обновления")
         for f in old_files:
