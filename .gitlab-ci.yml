@@ -22,7 +22,7 @@ radar:
 
     # Пушим новые оценки в ветку vault через Personal Access Token
     - cd vault_repo
-    - git remote set-url origin https://oauth2:${GITLAB_PUSH_TOKEN}@gitlab.com/lyolich777ka/opensource-radar.git
+    - git remote set-url origin https://lyolich777ka:${GITLAB_PUSH_TOKEN}@gitlab.com/lyolich777ka/opensource-radar.git
     - git add -A
     - |
       if git diff --staged --quiet; then
