@@ -23,8 +23,8 @@ from anthropic import Anthropic
 
 # ─── Конфигурация ─────────────────────────────────────────────────────────────
 
-VAULT_PATH = os.path.expanduser("~/radar/radar/01_Assessments")
-PUBLISHED_LOG = os.path.expanduser("~/radar/radar/99_System/published_posts.log")
+VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar/01_Assessments"))
+PUBLISHED_LOG = os.environ.get("PUBLISHED_LOG", os.path.expanduser("~/radar/radar/99_System/published_posts.log"))
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
