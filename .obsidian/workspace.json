@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "01_Assessments/2026-06-07 browser-use-browser-use.md",
+                "file": "01_Assessments/2026-06-07 github-github-mcp-server.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "2026-06-07 browser-use-browser-use"
+              "title": "2026-06-07 github-github-mcp-server"
             }
           }
         ]
@@ -185,6 +185,8 @@
   },
   "active": "198e6eb31bfb4e42",
   "lastOpenFiles": [
+    "01_Assessments/2026-06-07 browser-use-browser-use.md",
+    "99_System/published_posts.log",
     "update_assessments.py",
     "radar_step0.py",
     "gitlab.com/lyolich777ka/opensource-radar",
@@ -196,14 +198,11 @@
     "telegram_post.py",
     "01_Assessments/2026-06-07 github-mcp-server.md",
     "01_Assessments/2026-06-07 github-github-mcp-server.md",
-    "01_Assessments/2026-06-07 browser-use-browser-use.md",
     "01_Assessments/2026-06-07 n8n-io-n8n.md",
     "02_Patterns/MCP как новый протокол инфраструктуры.md",
     "99_System/TEMPLATE_Assessment.md",
     "00_Inbox/Без названия.md",
     "Добро пожаловать.md",
-    "99_System",
-    "02_Patterns",
-    "01_Assessments"
+    "99_System"
   ]
 }
