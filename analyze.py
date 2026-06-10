@@ -41,12 +41,12 @@ def analyze_and_save(projects):
         desc = p.get("description", "")
         url = p.get("url", "")
 
-        safe_title = title.replace("/", "-").replace(" ", "_")[:50]
-        filename = f"{today} {safe_title}.md"
-        filepath = os.path.join(VAULT_PATH, filename)
+        # Временное имя файла по техническому названию — заменим после получения русского имени
+        safe_title_tmp = title.replace("/", "-").replace(" ", "_")[:50]
+        filepath_tmp = os.path.join(VAULT_PATH, f"{today} {safe_title_tmp}.md")
 
-        if os.path.exists(filepath):
-            print(f"   Пропускаем (уже существует): {filename}")
+        if os.path.exists(filepath_tmp):
+            print(f"   Пропускаем (уже существует): {safe_title_tmp}")
             continue
 
         prompt = f"""You are a measurement instrument for the AI and agent market ecosystem.
@@ -68,6 +68,7 @@ URL: {url}
 {assessments_list}
 
 Отвечай СТРОГО в этом формате:
+НАЗВАНИЕ: [короткое русское название 3-5 слов — суть проекта, например "Браузерный агент для ИИ" или "Self-hosted автоматизация с ИИ"]
 ОЦЕНКА: СДВИГ или ШУМ
 УВЕРЕННОСТЬ: высокая или средняя или низкая
 ЧТО_МЕНЯЕТСЯ: [2-3 предложения — что конкретно меняется в структуре экосистемы]
@@ -80,7 +81,7 @@ URL: {url}
             response = requests.post(
                 "https://api.anthropic.com/v1/messages",
                 headers={
-                    "x-api-key": ANTHROPIC_API_KEY,
+                    "x-api-key": ANTHROPIC_API_KEY.strip(),
                     "anthropic-version": "2023-06-01",
                     "content-type": "application/json"
                 },
@@ -104,6 +105,7 @@ URL: {url}
                     key, val = line.split(": ", 1)
                     lines[key.strip()] = val.strip()
 
+            ru_name = lines.get("НАЗВАНИЕ", safe_title_tmp)
             ocenka = lines.get("ОЦЕНКА", "ШУМ")
             uverennost = lines.get("УВЕРЕННОСТЬ", "низкая")
             chto = lines.get("ЧТО_МЕНЯЕТСЯ", "")
@@ -119,7 +121,16 @@ URL: {url}
                     if item in patterns or any(item in a for a in assessments):
                         svyazi_block += f"- [[{item}]]\n"
 
-            content = f"""# Оценка: {title}
+            # Имя файла — русское название
+            safe_ru = ru_name.replace(" ", "_").replace("/", "-")[:50]
+            filename = f"{safe_ru} {today}.md"
+            filepath = os.path.join(VAULT_PATH, filename)
+
+            if os.path.exists(filepath):
+                print(f"   Пропускаем (уже существует): {filename}")
+                continue
+
+            content = f"""# {ru_name}
 
 **Дата:** {today}
 **Репозиторий:** {url}
@@ -151,14 +162,13 @@ URL: {url}
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(content)
 
-            print(f"   {ocenka} ({uverennost}) — {title}")
+            print(f"   {ocenka} ({uverennost}) — {ru_name}")
 
         except Exception as e:
             print(f"   Ошибка {title}: {e}")
 
 
 if __name__ == "__main__":
-    # Импортируем функции сбора из radar_step0.py
     import sys
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
