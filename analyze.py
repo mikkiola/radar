@@ -41,6 +41,32 @@ def get_assessed_urls():
     return assessed
 
 
+def read_owner_opinion(filepath):
+    """Читает блок Мнение Ольги из файла оценки. Возвращает текст или None."""
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        start_marker = "## Мнение Ольги"
+        end_marker = "## История оценок"
+
+        start = content.find(start_marker)
+        end = content.find(end_marker)
+
+        if start == -1 or end == -1:
+            return None
+
+        block = content[start + len(start_marker):end].strip()
+
+        # Если блок содержит только комментарий-подсказку - пропускаем
+        if not block or block.startswith("<!--"):
+            return None
+
+        return block
+    except Exception:
+        return None
+
+
 def analyze_and_save(projects):
     if not ANTHROPIC_API_KEY:
         print("ОШИБКА: ANTHROPIC_API_KEY не задан")
@@ -172,6 +198,9 @@ URL: {url}
 
 ## Правка человека
 <!-- Не согласна с Claude? Добавь строку: - [дата] - [твоя оценка]: [почему] -->
+
+## Мнение Ольги
+<!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
 - {today} - {ocenka}: первая оценка
