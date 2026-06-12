@@ -1,6 +1,7 @@
 from filter import is_relevant
 import requests
 import time
+from datetime import datetime, timedelta
 
 def fetch_hacker_news():
     print("\n📡 Hacker News...")
@@ -51,21 +52,71 @@ def fetch_reddit():
 def fetch_github():
     print("\n📡 GitHub Search...")
     url = "https://api.github.com/search/repositories"
-    queries = ["topic:ai-agents pushed:>2025-05-01", "topic:mcp-server pushed:>2025-05-01", "topic:llm-tools pushed:>2025-05-01"]
+    cutoff = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+
+    # Срез 1 — новые: молодые проекты, ранний сигнал
+    new_queries = [
+        f"topic:ai-agents created:>{cutoff}",
+        f"topic:mcp-server created:>{cutoff}",
+        f"topic:llm-tools created:>{cutoff}",
+    ]
+
+    # Срез 2 — звёздные: подтверждённые паттерны с тягой
+    hot_queries = [
+        "topic:ai-agents pushed:>2025-01-01 stars:>500",
+        "topic:mcp-server pushed:>2025-01-01 stars:>500",
+        "topic:llm-tools pushed:>2025-01-01 stars:>500",
+    ]
+
     projects = []
     headers = {"Accept": "application/vnd.github.v3+json"}
-    for q in queries:
-        params = {"q": q + " is:public fork:false archived:false", "sort": "stars", "order": "desc", "per_page": 15}
+
+    for q in new_queries:
+        params = {
+            "q": q + " is:public fork:false archived:false stars:10..500",
+            "sort": "updated",
+            "order": "desc",
+            "per_page": 10,
+        }
         try:
             r = requests.get(url, params=params, headers=headers, timeout=10)
             r.raise_for_status()
             items = r.json().get("items", [])
             for item in items:
-                if item.get("stargazers_count", 0) >= 50:
-                    projects.append({"title": item["full_name"], "description": item.get("description", ""), "url": item["html_url"], "score": item["stargazers_count"], "source": "GitHub"})
+                projects.append({
+                    "title": item["full_name"],
+                    "description": item.get("description", ""),
+                    "url": item["html_url"],
+                    "score": item["stargazers_count"],
+                    "source": "GitHub/new",
+                })
             time.sleep(1)
         except Exception as e:
             print(f"   Ошибка '{q}': {e}")
+
+    for q in hot_queries:
+        params = {
+            "q": q + " is:public fork:false archived:false",
+            "sort": "stars",
+            "order": "desc",
+            "per_page": 10,
+        }
+        try:
+            r = requests.get(url, params=params, headers=headers, timeout=10)
+            r.raise_for_status()
+            items = r.json().get("items", [])
+            for item in items:
+                projects.append({
+                    "title": item["full_name"],
+                    "description": item.get("description", ""),
+                    "url": item["html_url"],
+                    "score": item["stargazers_count"],
+                    "source": "GitHub/hot",
+                })
+            time.sleep(1)
+        except Exception as e:
+            print(f"   Ошибка '{q}': {e}")
+
     print(f"   Найдено: {len(projects)}")
     return projects
 

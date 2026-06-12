@@ -22,6 +22,25 @@ def get_existing_assessments():
     return [os.path.splitext(os.path.basename(f))[0] for f in files]
 
 
+def get_assessed_urls():
+    """Возвращает множество URL из уже существующих файлов оценок."""
+    assessed = set()
+    if not os.path.exists(VAULT_PATH):
+        return assessed
+    for f in glob.glob(os.path.join(VAULT_PATH, "*.md")):
+        try:
+            with open(f, encoding="utf-8") as fh:
+                for line in fh:
+                    if line.startswith("**Репозиторий:**"):
+                        url = line.split("**Репозиторий:**", 1)[1].strip()
+                        if url:
+                            assessed.add(url)
+                        break
+        except Exception:
+            pass
+    return assessed
+
+
 def analyze_and_save(projects):
     if not ANTHROPIC_API_KEY:
         print("ОШИБКА: ANTHROPIC_API_KEY не задан")
@@ -35,6 +54,7 @@ def analyze_and_save(projects):
     assessments_list = "\n".join(f"- {a}" for a in assessments[-20:]) if assessments else "- оценок пока нет"
 
     os.makedirs(VAULT_PATH, exist_ok=True)
+    assessed_urls = get_assessed_urls()
     new_shifts = []
 
     for p in projects[:10]:
@@ -42,11 +62,8 @@ def analyze_and_save(projects):
         desc = p.get("description", "")
         url = p.get("url", "")
 
-        safe_title_tmp = title.replace("/", "-").replace(" ", "_")[:50]
-        filepath_tmp = os.path.join(VAULT_PATH, f"{today} {safe_title_tmp}.md")
-
-        if os.path.exists(filepath_tmp):
-            print(f"   Пропускаем (уже существует): {safe_title_tmp}")
+        if url in assessed_urls:
+            print(f"   Пропускаем (URL уже в vault): {title[:40]}")
             continue
 
         prompt = f"""You are a measurement instrument for the AI and agent market ecosystem.
@@ -54,7 +71,7 @@ Respond in Russian language only.
 
 Assess whether this opensource project represents a SHIFT or NOISE.
 
-СДВИГ = изменение в том как организуется знание, ценность или инфраструктура в экосистеме — до того как это стало очевидным.
+СДВИГ = изменение в том как организуется знание, ценность или инфраструктура в экосистеме - до того как это стало очевидным.
 ШУМ = интересный инструмент, обновление продукта или популярная тема которая не меняет структуру экосистемы.
 
 Проект: {title}
@@ -68,14 +85,14 @@ URL: {url}
 {assessments_list}
 
 Отвечай СТРОГО в этом формате:
-НАЗВАНИЕ: [короткое русское название 3-5 слов — суть проекта, например "Браузерный агент для ИИ" или "Self-hosted автоматизация с ИИ"]
+НАЗВАНИЕ: [короткое русское название 3-5 слов - суть проекта, например "Браузерный агент для ИИ" или "Self-hosted автоматизация с ИИ"]
 ОЦЕНКА: СДВИГ или ШУМ
 УВЕРЕННОСТЬ: высокая или средняя или низкая
-ЧТО_МЕНЯЕТСЯ: [2-3 предложения — что конкретно меняется в структуре экосистемы]
+ЧТО_МЕНЯЕТСЯ: [2-3 предложения - что конкретно меняется в структуре экосистемы]
 АРГУМЕНТАЦИЯ: [1-2 предложения почему такая оценка]
 ЕСЛИ_ПРАВА: [одно конкретное наблюдаемое событие через 12 месяцев которое подтвердит оценку]
 ЕСЛИ_ОШИБЛАСЬ: [одно конкретное наблюдаемое событие через 12 месяцев которое опровергнет оценку]
-СВЯЗИ: [перечисли через запятую названия паттернов и оценок из списков выше которые связаны с этим проектом. Если ничего не подходит — оставь пустым]"""
+СВЯЗИ: [перечисли через запятую названия паттернов и оценок из списков выше которые связаны с этим проектом. Если ничего не подходит - оставь пустым]"""
 
         try:
             response = requests.post(
@@ -94,7 +111,7 @@ URL: {url}
             )
 
             if response.status_code != 200:
-                print(f"   Ошибка API для {title}: {response.status_code} — {response.text[:100]}")
+                print(f"   Ошибка API для {title}: {response.status_code} - {response.text[:100]}")
                 continue
 
             text = response.json()["content"][0]["text"]
@@ -105,7 +122,7 @@ URL: {url}
                     key, val = line.split(": ", 1)
                     lines[key.strip()] = val.strip()
 
-            ru_name = lines.get("НАЗВАНИЕ", safe_title_tmp)
+            ru_name = lines.get("НАЗВАНИЕ", title[:50])
             ocenka = lines.get("ОЦЕНКА", "ШУМ")
             uverennost = lines.get("УВЕРЕННОСТЬ", "низкая")
             chto = lines.get("ЧТО_МЕНЯЕТСЯ", "")
@@ -113,6 +130,10 @@ URL: {url}
             esli_prava = lines.get("ЕСЛИ_ПРАВА", "")
             esli_oshiblas = lines.get("ЕСЛИ_ОШИБЛАСЬ", "")
             svyazi_raw = lines.get("СВЯЗИ", "")
+
+            if ocenka != "СДВИГ":
+                print(f"   {ocenka} ({uverennost}) - {ru_name[:40]} - пропускаем")
+                continue
 
             svyazi_block = ""
             if svyazi_raw and svyazi_raw.strip():
@@ -126,7 +147,7 @@ URL: {url}
             filepath = os.path.join(VAULT_PATH, filename)
 
             if os.path.exists(filepath):
-                print(f"   Пропускаем (уже существует): {filename}")
+                print(f"   Пропускаем (файл существует): {filename}")
                 continue
 
             content = f"""# {ru_name}
@@ -147,13 +168,13 @@ URL: {url}
 **Если ошиблась:** {esli_oshiblas}
 
 ## Оценка Claude
-- {today} — {ocenka}: первая оценка автоматически
+- {today} - {ocenka}: первая оценка автоматически
 
 ## Правка человека
-<!-- Не согласна с Claude? Добавь строку: - [дата] — [твоя оценка]: [почему] -->
+<!-- Не согласна с Claude? Добавь строку: - [дата] - [твоя оценка]: [почему] -->
 
 ## История оценок
-- {today} — {ocenka}: первая оценка
+- {today} - {ocenka}: первая оценка
 
 ## Связи
 {svyazi_block}"""
@@ -161,10 +182,8 @@ URL: {url}
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(content)
 
-            print(f"   {ocenka} ({uverennost}) — {ru_name}")
-
-            if ocenka == "СДВИГ":
-                new_shifts.append(ru_name)
+            print(f"   СДВИГ ({uverennost}) - {ru_name}")
+            new_shifts.append(ru_name)
 
         except Exception as e:
             print(f"   Ошибка {title}: {e}")
@@ -173,7 +192,7 @@ URL: {url}
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
     owner_id = os.environ.get("TELEGRAM_OWNER_ID")
     if new_shifts and bot_token and owner_id:
-        msg = "🔴 Новые СДВИГ оценки:\n" + "\n".join(f"• {name}" for name in new_shifts)
+        msg = "Новые СДВИГ оценки:\n" + "\n".join(f"- {name}" for name in new_shifts)
         try:
             requests.post(
                 f"https://api.telegram.org/bot{bot_token}/sendMessage",
