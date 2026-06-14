@@ -102,12 +102,23 @@ def read_assessments():
 # Кластеризация
 # ---------------------------------------------------------------------------
 
-def get_existing_pattern_names():
+def get_existing_patterns():
+    """Вернуть:
+    - names: множество названий для передачи в промпт Sonnet
+    - covered_files: множество filename оценок которые уже входят в паттерн
+    """
     os.makedirs(PATTERNS_PATH, exist_ok=True)
     names = set()
-    for f in glob.glob(os.path.join(PATTERNS_PATH, "*.md")):
-        names.add(os.path.basename(f).replace(".md", "").strip())
-    return names
+    covered_files = set()
+    for filepath in glob.glob(os.path.join(PATTERNS_PATH, "*.md")):
+        names.add(os.path.basename(filepath).replace(".md", "").strip())
+        with open(filepath, "r", encoding="utf-8") as f:
+            content = f.read()
+        # Ищем все [[ссылки]] в разделе Связи — это имена файлов оценок
+        found = re.findall(r"\[\[(.+?)\]\]", content)
+        for link in found:
+            covered_files.add(link.strip() + ".md")
+    return names, covered_files
 
 
 def cluster_with_sonnet(assessments, existing_patterns):
@@ -184,7 +195,7 @@ Respond ONLY in JSON, no preamble, no markdown backticks:
     return json.loads(raw)
 
 
-def create_pattern_file(cluster):
+def create_pattern_file(cluster, covered_files):
     today = datetime.now().strftime("%Y-%m-%d")
     safe_name = re.sub(r'[/\\:*?"<>|]', "-", cluster["name"])
     filename = f"{safe_name} {today}.md"
@@ -192,6 +203,13 @@ def create_pattern_file(cluster):
 
     if os.path.exists(filepath):
         print(f"[patterns] уже существует, пропускаю: {filename}")
+        return None
+
+    # Проверяем пересечение с уже покрытыми оценками
+    new_files = set(cluster["assessment_files"])
+    overlap = new_files & covered_files
+    if len(overlap) >= len(new_files) / 2:
+        print(f"[patterns] дубль по оценкам, пропускаю: {cluster['name']} (пересечение: {overlap})")
         return None
 
     links = [f"[[{f.replace('.md', '')}]]" for f in cluster["assessment_files"]]
@@ -424,8 +442,8 @@ def main():
         send_telegram("\n".join(telegram_lines))
         return
 
-    existing_patterns = get_existing_pattern_names()
-    print(f"[patterns] существующих паттернов: {len(existing_patterns)}")
+    existing_patterns, covered_files = get_existing_patterns()
+    print(f"[patterns] существующих паттернов: {len(existing_patterns)}, покрытых оценок: {len(covered_files)}")
 
     print("[patterns] кластеризация через Sonnet...")
     result = cluster_with_sonnet(assessments, existing_patterns)
@@ -437,9 +455,11 @@ def main():
     created = []
     skipped = []
     for cluster in clusters:
-        filename = create_pattern_file(cluster)
+        filename = create_pattern_file(cluster, covered_files)
         if filename:
             created.append(cluster["name"])
+            # Добавляем новые файлы в covered чтобы не дублировать в этом же запуске
+            covered_files.update(cluster["assessment_files"])
         else:
             skipped.append(cluster["name"])
 
