@@ -3,6 +3,7 @@ image: python:3.11
 stages:
   - run
   - publish
+  - patterns
 
 radar:
   stage: run
@@ -25,8 +26,8 @@ radar:
         echo "Оценки запушены в ветку vault"
       fi
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule" && $PUBLISH_ONLY != "true"'
-    - if: '$CI_PIPELINE_SOURCE == "web" && $PUBLISH_ONLY != "true"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule" && $PUBLISH_ONLY != "true" && $PATTERN_MODE != "weekly"'
+    - if: '$CI_PIPELINE_SOURCE == "web" && $PUBLISH_ONLY != "true" && $PATTERN_MODE != "weekly"'
 
 publish:
   stage: publish
@@ -50,3 +51,25 @@ publish:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule" && $PUBLISH_ONLY == "true"'
     - if: '$CI_PIPELINE_SOURCE == "web" && $PUBLISH_ONLY == "true"'
+
+patterns:
+  stage: patterns
+  script:
+    - pip install requests anthropic --quiet
+    - git config --global user.email "radar@gitlab.com"
+    - git config --global user.name "Radar Bot"
+    - git clone --branch vault https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/lyolich777ka/opensource-radar.git vault_repo
+    - VAULT_PATH="$(pwd)/vault_repo" python3 patterns.py
+    - cd vault_repo
+    - git remote set-url origin https://lyolich777ka:${GITLAB_PUSH_TOKEN}@gitlab.com/lyolich777ka/opensource-radar.git
+    - git add -A
+    - |
+      if git diff --staged --quiet; then
+        echo "Паттерны не изменились"
+      else
+        git commit -m "Паттерны $(date '+%Y-%m-%d') — обновление"
+        git push origin vault
+        echo "Паттерны запушены в ветку vault"
+      fi
+  rules:
+    - if: '$PATTERN_MODE == "weekly"'
