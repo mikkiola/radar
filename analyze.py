@@ -118,7 +118,7 @@ URL: {url}
 АРГУМЕНТАЦИЯ: [1-2 предложения почему такая оценка]
 ЕСЛИ_ПРАВА: [одно конкретное наблюдаемое событие через 12 месяцев которое подтвердит оценку]
 ЕСЛИ_ОШИБЛАСЬ: [одно конкретное наблюдаемое событие через 12 месяцев которое опровергнет оценку]
-СВЯЗИ: [перечисли через запятую названия паттернов и оценок из списков выше которые связаны с этим проектом. Если ничего не подходит - оставь пустым]"""
+СВЯЗИ: [перечисли через запятую от 3 до 5 наиболее связанных паттернов и оценок из списков выше. Предпочитай заполнить 3-5 связей. Оставляй пустым только если действительно нет ни одной осмысленной связи]"""
 
         try:
             response = requests.post(
@@ -165,8 +165,12 @@ URL: {url}
             if svyazi_raw and svyazi_raw.strip():
                 items = [s.strip() for s in svyazi_raw.split(",") if s.strip()]
                 for item in items:
-                    if item in patterns or any(item in a for a in assessments):
+                    if item in patterns:
                         svyazi_block += f"- [[{item}]]\n"
+                        continue
+                    matched_assessment = next((a for a in assessments if item in a), None)
+                    if matched_assessment:
+                        svyazi_block += f"- [[{matched_assessment.replace('.md', '')}]]\n"
 
             safe_ru = ru_name.replace(" ", "_").replace("/", "-")[:50]
             filename = f"{safe_ru} {today}.md"
