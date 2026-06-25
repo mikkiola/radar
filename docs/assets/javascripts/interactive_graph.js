@@ -14,15 +14,15 @@ function initGraph() {
                     type: "graph",
                     layout: "force",
                     data: data.nodes.map(n => ({
+                        id: n.id,
                         name: n.name.replace(/_/g, " ").replace(/\s+\d{4}-\d{2}-\d{2}$/, ""),
                         symbolSize: Math.max(n.symbolSize || 3, 5),
                         value: n.value,
                         itemStyle: {
-                            color: n.name.includes("02_Patterns") || n.value.includes("02_Patterns") ? "#e94560" : "#0f3460",
+                            color: n.value.includes("02_Patterns") ? "#e94560" : "#0f3460",
                             borderColor: "#16213e",
                             borderWidth: 1
-                        },
-                        label: {color: "#eee"}
+                        }
                     })),
                     links: data.links.map(l => ({source: l.source, target: l.target})),
                     roam: true,
