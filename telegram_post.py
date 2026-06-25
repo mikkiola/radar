@@ -8,6 +8,7 @@ from anthropic import Anthropic
 
 VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar/01_Assessments"))
 PUBLISHED_LOG = os.environ.get("PUBLISHED_LOG", os.path.expanduser("~/radar/radar/99_System/published_posts.log"))
+GRAPH_URL = "https://lyolich777ka.gitlab.io/opensource-radar/"
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -208,6 +209,7 @@ def main():
         print("Правок человека нет - использую оценку Claude.")
 
     post_text = generate_post(content, human_correction)
+    post_text += f"\n\nГраф: {GRAPH_URL}"
     print("\n" + "-" * 50)
     print("ПОСТ:")
     print(post_text)

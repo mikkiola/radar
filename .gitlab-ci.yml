@@ -4,6 +4,7 @@ stages:
   - run
   - publish
   - patterns
+  - pages
 
 radar:
   stage: run
@@ -77,3 +78,25 @@ patterns:
   rules:
     - if: '$PATTERN_MODE == "weekly"'
 
+pages:
+  stage: pages
+  image: python:3.11
+  script:
+    - pip install -r requirements_pages.txt --quiet
+    - git clone --branch vault https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/lyolich777ka/opensource-radar.git vault_content
+    - mkdir -p docs/01_Assessments docs/02_Patterns docs/assets/javascripts docs/assets/stylesheets
+    - cp -r vault_content/01_Assessments/. docs/01_Assessments/
+    - cp -r vault_content/02_Patterns/. docs/02_Patterns/
+    - curl -s https://raw.githubusercontent.com/daxcore/mkdocs-obsidian-interactive-graph-plugin/main/docs/ObsidianVault/assets/javascripts/interactive_graph.js -o docs/assets/javascripts/interactive_graph.js
+    - curl -s https://raw.githubusercontent.com/daxcore/mkdocs-obsidian-interactive-graph-plugin/main/obsidian_interactive_graph/styles/interactive_graph.css -o docs/assets/stylesheets/interactive_graph.css
+    - mkdocs build --site-dir public
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master" && $CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "web" && $GRAPH_ONLY == "true"'
+  cache:
+    key: pip-mkdocs
+    paths:
+      - ~/.cache/pip/
