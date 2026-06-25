@@ -89,6 +89,8 @@ pages:
     - cp -r vault_content/02_Patterns/. docs/02_Patterns/
     - python3 generate_graph.py
     - mkdocs build --site-dir public
+    - ls -lah docs/assets/javascripts/
+    - ls -lah public/assets/javascripts/
   artifacts:
     paths:
       - public
