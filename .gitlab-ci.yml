@@ -87,6 +87,8 @@ pages:
     - mkdir -p docs/01_Assessments docs/02_Patterns docs/assets/javascripts docs/assets/stylesheets
     - cp -r vault_content/01_Assessments/. docs/01_Assessments/
     - cp -r vault_content/02_Patterns/. docs/02_Patterns/
+    - echo "# Паттерны" > docs/02_Patterns/index.md
+    - echo "# Оценки" > docs/01_Assessments/index.md
     - python3 generate_graph.py
     - mkdocs build --site-dir public
   artifacts:
