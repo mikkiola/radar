@@ -1,5 +1,5 @@
 function initGraph() {
-    fetch("/opensource-radar/assets/javascripts/graph.json")
+    fetch("/assets/javascripts/graph.json")
         .then(r => r.json())
         .then(data => {
             var container = document.createElement("div");
