@@ -33,7 +33,7 @@ function initGraph() {
                         formatter: p => p.name.length > 25 ? p.name.slice(0,25)+"..." : p.name
                     },
                     force: {repulsion: 400, gravity: 0.05, edgeLength: 100},
-                    lineStyle: {color: "#e94560", width: 1, opacity: 0.5},
+                    lineStyle: {color: "#ffffff", width: 2, opacity: 0.8},
                     emphasis: {focus: "adjacency"},
                     autoCurveness: true
                 }]
