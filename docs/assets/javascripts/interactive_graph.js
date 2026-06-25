@@ -9,24 +9,36 @@ document.addEventListener("DOMContentLoaded", function() {
             if (content) content.prepend(container);
             var chart = echarts.init(container);
             chart.setOption({
-                backgroundColor: "#fafafa",
+                backgroundColor: "#1a1a2e",
                 series: [{
                     type: "graph",
                     layout: "force",
                     data: data.nodes.map(n => ({
                         name: n.name.replace(/_/g, " ").replace(/\s+\d{4}-\d{2}-\d{2}$/, ""),
-                        symbolSize: Math.max(n.symbolSize || 3, 3),
+                        symbolSize: Math.max(n.symbolSize || 3, 5),
                         value: n.value,
-                        itemStyle: {color: n.name.includes("Patterns") || n.name.includes("Pattern") ? "#5470c6" : "#91cc75"}
+                        itemStyle: {
+                            color: n.name.includes("02_Patterns") || n.value.includes("02_Patterns") ? "#e94560" : "#0f3460",
+                            borderColor: "#16213e",
+                            borderWidth: 1
+                        },
+                        label: {color: "#eee"}
                     })),
                     links: data.links.map(l => ({source: l.source, target: l.target})),
                     roam: true,
-                    label: {show: true, fontSize: 9, formatter: p => p.name.length > 20 ? p.name.slice(0,20)+"..." : p.name},
-                    force: {repulsion: 300, gravity: 0.05, edgeLength: 80},
-                    lineStyle: {color: "#999", width: 1.5, opacity: 0.7},
-                    emphasis: {focus: "adjacency"}
+                    label: {
+                        show: true,
+                        fontSize: 9,
+                        color: "#eee",
+                        formatter: p => p.name.length > 25 ? p.name.slice(0,25)+"..." : p.name
+                    },
+                    force: {repulsion: 400, gravity: 0.05, edgeLength: 100},
+                    lineStyle: {color: "#e94560", width: 1, opacity: 0.5},
+                    emphasis: {focus: "adjacency"},
+                    autoCurveness: true
                 }]
             });
+            setTimeout(() => chart.resize(), 200);
             chart.on("click", function(params) {
                 if (params.data && params.data.value) window.location.href = params.data.value;
             });
