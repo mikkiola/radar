@@ -87,7 +87,8 @@ pages:
     - mkdir -p docs/01_Assessments docs/02_Patterns docs/assets/javascripts docs/assets/stylesheets
     - cp -r vault_content/01_Assessments/. docs/01_Assessments/
     - cp -r vault_content/02_Patterns/. docs/02_Patterns/
-    - python3 -c "import obsidian_interactive_graph, os, shutil; src=os.path.join(os.path.dirname(obsidian_interactive_graph.__file__), 'styles'); js_src=os.path.join(os.path.dirname(obsidian_interactive_graph.__file__), 'interactive_graph.js') if os.path.exists(os.path.join(os.path.dirname(obsidian_interactive_graph.__file__), 'interactive_graph.js')) else None; print(os.listdir(os.path.dirname(obsidian_interactive_graph.__file__)))"
+    - curl -fsSL "https://daxcore.github.io/mkdocs-obsidian-interactive-graph-plugin/assets/javascripts/interactive_graph.js" -o docs/assets/javascripts/interactive_graph.js
+    - curl -fsSL "https://daxcore.github.io/mkdocs-obsidian-interactive-graph-plugin/assets/stylesheets/interactive_graph.css" -o docs/assets/stylesheets/interactive_graph.css
     - mkdocs build --site-dir public
   artifacts:
     paths:
