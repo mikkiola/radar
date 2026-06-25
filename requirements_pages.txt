@@ -1,4 +1,2 @@
 mkdocs
 mkdocs-material
-mkdocs-obsidian-interactive-graph-plugin
-mkdocs-roamlinks-plugin

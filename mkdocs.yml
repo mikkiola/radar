@@ -21,8 +21,6 @@ theme:
 
 plugins:
   - search
-  - obsidian-interactive-graph
-  - roamlinks
 
 extra_javascript:
   - https://fastly.jsdelivr.net/npm/jquery/dist/jquery.min.js
