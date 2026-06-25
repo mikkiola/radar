@@ -4,6 +4,7 @@ stages:
   - run
   - publish
   - patterns
+  - pages
 
 radar:
   stage: run
@@ -22,6 +23,7 @@ radar:
         echo "Новых оценок нет — нечего пушить"
       else
         git commit -m "Радар $(date '+%Y-%m-%d') — новые оценки"
+        git pull --rebase origin vault
         git push origin vault
         echo "Оценки запушены в ветку vault"
       fi
@@ -46,6 +48,7 @@ publish:
         echo "Лог не изменился"
       else
         git commit -m "Опубликован пост $(date '+%Y-%m-%d %H:%M')"
+        git pull --rebase origin vault
         git push origin vault
       fi
   rules:
@@ -68,8 +71,35 @@ patterns:
         echo "Паттерны не изменились"
       else
         git commit -m "Паттерны $(date '+%Y-%m-%d') — обновление"
+        git pull --rebase origin vault
         git push origin vault
         echo "Паттерны запушены в ветку vault"
       fi
   rules:
     - if: '$PATTERN_MODE == "weekly"'
+
+pages:
+  stage: pages
+  image: node:24
+  script:
+    - git clone --branch vault https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/lyolich777ka/opensource-radar.git vault_content
+    - git clone --depth 1 https://github.com/jackyzha0/quartz.git quartz_build
+    - cp quartz.config.ts quartz_build/
+    - cp -r vault_content/01_Assessments quartz_build/content/
+    - cp -r vault_content/02_Patterns quartz_build/content/
+    - cp content/index.md quartz_build/content/
+    - cd quartz_build
+    - npm ci --quiet
+    - npx quartz plugin install
+    - npx quartz build --output ../public
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule" && $PUBLISH_ONLY != "true" && $PATTERN_MODE != "weekly"'
+  cache:
+    key: npm-quartz
+    paths:
+      - quartz_build/node_modules/
+      - quartz_build/.quartz/plugins/
