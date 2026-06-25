@@ -1,0 +1,233 @@
+{
+  "main": {
+    "id": "c5b1f433d7d7f3ea",
+    "type": "split",
+    "children": [
+      {
+        "id": "731f028071605e1b",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "df708285c8136d4d",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Граф"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "84d1a2e5c85828f8",
+    "type": "split",
+    "children": [
+      {
+        "id": "6a714c48661e6832",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "03ea758103e6da49",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Файловый менеджер"
+            }
+          },
+          {
+            "id": "53c806be659ea013",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Поиск"
+            }
+          },
+          {
+            "id": "39333ad8fabdcaaf",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Закладки"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 559.5
+  },
+  "right": {
+    "id": "0f574c1205e47541",
+    "type": "split",
+    "children": [
+      {
+        "id": "9f78677ae1b8e97c",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "86ca7599cdf70c52",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "99_System/AGENT_INSTRUCTION_radar_v2.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Обратные ссылки для AGENT_INSTRUCTION_radar_v2"
+            }
+          },
+          {
+            "id": "089cc68f5b85775f",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "99_System/AGENT_INSTRUCTION_radar_v2.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Исходящие ссылки из AGENT_INSTRUCTION_radar_v2"
+            }
+          },
+          {
+            "id": "25bf2fc8581e8a01",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Теги"
+            }
+          },
+          {
+            "id": "acb47a873043dc54",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "Все свойства"
+            }
+          },
+          {
+            "id": "8f534b239c6f1bc9",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "99_System/AGENT_INSTRUCTION_radar_v2.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Структура AGENT_INSTRUCTION_radar_v2"
+            }
+          },
+          {
+            "id": "e7dfbe514528a169",
+            "type": "leaf",
+            "state": {
+              "type": "git-view",
+              "state": {},
+              "icon": "lucide-ghost",
+              "title": "git-view"
+            }
+          }
+        ],
+        "currentTab": 5
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Меню быстрого перехода": false,
+      "graph:Граф": false,
+      "canvas:Создать новый холст": false,
+      "daily-notes:Сегодняшняя заметка": false,
+      "templates:Вставить шаблон": false,
+      "command-palette:Открыть палитру команд": false,
+      "bases:Создать новую базу": false
+    }
+  },
+  "active": "df708285c8136d4d",
+  "lastOpenFiles": [
+    "01_Assessments/Верифицируемая_изоляция_для_self-hosted_агентов 2026-06-24.md",
+    "01_Assessments/Верификуемый_движок_целей_для_агентов 2026-06-24.md",
+    "01_Assessments/Браузерный_harness_для_локальных_ИИ-агентов 2026-06-24.md",
+    "01_Assessments/Collaborative_AI_агенты_в_shared_workspaces 2026-06-24.md",
+    "01_Assessments/2026-06-07 browser-use-browser-use.md",
+    "99_System/published_posts.log",
+    "02_Patterns/Динамически расширяемая архитектура агентов 2026-06-14.md",
+    "02_Patterns/Верификация и доверие к действиям агентов 2026-06-14.md",
+    "02_Patterns/Браузер как универсальный канал для агентов 2026-06-14.md",
+    "02_Patterns/Self-hosted суверенитет над агентной инфраструктурой 2026-06-14.md",
+    "02_Patterns/MCP как универсальный протокол агентной интеграции 2026-06-14.md",
+    "02_Patterns/MCP как слой интеграции сервисов 2026-06-14.md",
+    "01_Assessments/Фабрика_многоагентных_исследовательских_систем 2026-06-17.md",
+    "01_Assessments/Фабрика_исследовательских_мультиагентных_систем 2026-06-18.md",
+    "01_Assessments/Терминальный_интерфейс_для_Gemini_API 2026-06-10.md",
+    "01_Assessments/Суверенная_ОС_для_локальных_ИИ-агентов 2026-06-20.md",
+    "01_Assessments/Слой_контроля_качества_для_ИИ-агентов 2026-06-17.md",
+    "01_Assessments/Симуляционная_среда_для_обучения_агентов 2026-06-10.md",
+    "01_Assessments/Платформа_управления_специализированными_ИИ-агента 2026-06-13.md",
+    "01_Assessments/Платформа_инженерии_агентов 2026-06-10.md",
+    "01_Assessments/Персональная_ОС_навыков_для_AI_агентов 2026-06-15.md",
+    "01_Assessments/Открытый_стандарт_координации_агентов 2026-06-20.md",
+    "01_Assessments/Оркестрация_агентов_через_изолированные_рабочие_ср 2026-06-13.md",
+    "01_Assessments/Оптимизированный_формат_данных_для_LLM 2026-06-13.md",
+    "01_Assessments/Оптимизация_производительности_агентов_ИИ 2026-06-10.md",
+    "01_Assessments/Облегченная_автоматизация_через_Claude_Agent 2026-06-10.md",
+    "01_Assessments/Локальный_аудит_безопасности_MCP-серверов 2026-06-15.md",
+    "Без названия 1.canvas",
+    "Без названия.canvas",
+    "telegram_post.py",
+    "patterns.py",
+    "update_assessments.py",
+    "radar_step0.py",
+    "gitlab.com/lyolich777ka/opensource-radar",
+    "gitlab.com/lyolich777ka",
+    "gitlab.com",
+    "filter.py",
+    "analyze.py"
+  ]
+}
