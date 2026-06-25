@@ -8,7 +8,6 @@ from anthropic import Anthropic
 
 VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar/01_Assessments"))
 PUBLISHED_LOG = os.environ.get("PUBLISHED_LOG", os.path.expanduser("~/radar/radar/99_System/published_posts.log"))
-GRAPH_URL = "https://lyolich777ka.gitlab.io/opensource-radar/"
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -100,8 +99,6 @@ SYSTEM_PROMPT = """Ты аналитик технологических сдви
 
 [Одна короткая финальная фраза, до 120 знаков]
 
-[ссылка на граф]
-
 Субъективная оценка на дату публикации.
 
 ЗАПРЕЩЕНО:
@@ -141,8 +138,6 @@ def generate_post(assessment_content, human_correction=None):
 {correction_note}
 ОЦЕНКА:
 {assessment_content}
-
-Ссылка на граф для конца поста: {GRAPH_URL}
 
 Верни только текст поста. Без пояснений."""
     print("Генерирую пост через Claude Sonnet...")
