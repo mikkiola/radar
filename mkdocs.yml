@@ -22,6 +22,11 @@ theme:
 plugins:
   - search
 
+nav:
+  - Главная: index.md
+  - Паттерны: 02_Patterns/
+  - Оценки: 01_Assessments/
+
 extra_javascript:
   - https://fastly.jsdelivr.net/npm/jquery/dist/jquery.min.js
   - https://fastly.jsdelivr.net/npm/echarts/dist/echarts.min.js
