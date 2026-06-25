@@ -12,11 +12,11 @@ radar:
     - pip install requests anthropic --quiet
     - git config --global user.email "radar@gitlab.com"
     - git config --global user.name "Radar Bot"
-    - git clone --branch vault https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/lyolich777ka/opensource-radar.git vault_repo
+    - git clone --branch vault https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/lyolich777ka/radar.git vault_repo
     - VAULT_PATH="$(pwd)/vault_repo/01_Assessments" PATTERNS_PATH="$(pwd)/vault_repo/02_Patterns" python3 analyze.py
     - VAULT_PATH="$(pwd)/vault_repo/01_Assessments" python3 update_assessments.py
     - cd vault_repo
-    - git remote set-url origin https://lyolich777ka:${GITLAB_PUSH_TOKEN}@gitlab.com/lyolich777ka/opensource-radar.git
+    - git remote set-url origin https://lyolich777ka:${GITLAB_PUSH_TOKEN}@gitlab.com/lyolich777ka/radar.git
     - git add -A
     - |
       if git diff --staged --quiet; then
@@ -37,11 +37,11 @@ publish:
     - pip install requests anthropic --quiet
     - git config --global user.email "radar@gitlab.com"
     - git config --global user.name "Radar Bot"
-    - git clone --branch vault https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/lyolich777ka/opensource-radar.git vault_repo
+    - git clone --branch vault https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/lyolich777ka/radar.git vault_repo
     - mkdir -p vault_repo/99_System
     - VAULT_PATH="$(pwd)/vault_repo/01_Assessments" PUBLISHED_LOG="$(pwd)/vault_repo/99_System/published_posts.log" python3 telegram_post.py
     - cd vault_repo
-    - git remote set-url origin https://lyolich777ka:${GITLAB_PUSH_TOKEN}@gitlab.com/lyolich777ka/opensource-radar.git
+    - git remote set-url origin https://lyolich777ka:${GITLAB_PUSH_TOKEN}@gitlab.com/lyolich777ka/radar.git
     - git add -A
     - |
       if git diff --staged --quiet; then
@@ -61,10 +61,10 @@ patterns:
     - pip install requests anthropic --quiet
     - git config --global user.email "radar@gitlab.com"
     - git config --global user.name "Radar Bot"
-    - git clone --branch vault https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/lyolich777ka/opensource-radar.git vault_repo
+    - git clone --branch vault https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/lyolich777ka/radar.git vault_repo
     - VAULT_PATH="$(pwd)/vault_repo" python3 patterns.py
     - cd vault_repo
-    - git remote set-url origin https://lyolich777ka:${GITLAB_PUSH_TOKEN}@gitlab.com/lyolich777ka/opensource-radar.git
+    - git remote set-url origin https://lyolich777ka:${GITLAB_PUSH_TOKEN}@gitlab.com/lyolich777ka/radar.git
     - git add -A
     - |
       if git diff --staged --quiet; then
@@ -83,7 +83,7 @@ pages:
   image: python:3.11
   script:
     - pip install -r requirements_pages.txt --quiet
-    - git clone --branch vault https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/lyolich777ka/opensource-radar.git vault_content
+    - git clone --branch vault https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/lyolich777ka/radar.git vault_content
     - mkdir -p docs/01_Assessments docs/02_Patterns docs/assets/javascripts docs/assets/stylesheets
     - cp -r vault_content/01_Assessments/. docs/01_Assessments/
     - cp -r vault_content/02_Patterns/. docs/02_Patterns/
