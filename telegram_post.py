@@ -8,7 +8,7 @@ from anthropic import Anthropic
 
 VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar/01_Assessments"))
 PUBLISHED_LOG = os.environ.get("PUBLISHED_LOG", os.path.expanduser("~/radar/radar/99_System/published_posts.log"))
-GRAPH_URL = "https://lyolich777ka.gitlab.io/opensource-radar/"
+GRAPH_URL = "https://opensource-radar-42558a.gitlab.io/"
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
