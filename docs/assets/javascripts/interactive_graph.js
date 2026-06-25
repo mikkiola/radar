@@ -1,6 +1,5 @@
 document.addEventListener("DOMContentLoaded", function() {
-    var base = window.location.pathname.split('/').slice(0,2).join('/');
-    fetch(base + "/assets/javascripts/graph.json")
+    fetch("/opensource-radar/assets/javascripts/graph.json")
         .then(r => r.json())
         .then(data => {
             var container = document.createElement("div");
