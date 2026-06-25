@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", function() {
+function initGraph() {
     fetch("/opensource-radar/assets/javascripts/graph.json")
         .then(r => r.json())
         .then(data => {
@@ -43,4 +43,10 @@ document.addEventListener("DOMContentLoaded", function() {
                 if (params.data && params.data.value) window.location.href = params.data.value;
             });
         });
-});
+}
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initGraph);
+} else {
+    initGraph();
+}
