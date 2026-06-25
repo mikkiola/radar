@@ -87,7 +87,8 @@ pages:
     - mkdir -p docs/01_Assessments docs/02_Patterns docs/assets/javascripts docs/assets/stylesheets
     - cp -r vault_content/01_Assessments/. docs/01_Assessments/
     - cp -r vault_content/02_Patterns/. docs/02_Patterns/
-    - curl -s https://raw.githubusercontent.com/daxcore/mkdocs-obsidian-interactive-graph-plugin/main/docs/ObsidianVault/assets/javascripts/interactive_graph.js -o docs/assets/javascripts/interactive_graph.js
+    - curl -fsSL "https://raw.githubusercontent.com/daxcore/mkdocs-obsidian-interactive-graph-plugin/main/obsidian_interactive_graph/templates/interactive_graph.js" -o docs/assets/javascripts/interactive_graph.js || curl -fsSL "https://raw.githubusercontent.com/daxcore/mkdocs-obsidian-interactive-graph-plugin/main/docs/ObsidianVault/assets/javascripts/interactive_graph.js" -o docs/assets/javascripts/interactive_graph.js
+    - head -1 docs/assets/javascripts/interactive_graph.js
     - curl -s https://raw.githubusercontent.com/daxcore/mkdocs-obsidian-interactive-graph-plugin/main/obsidian_interactive_graph/styles/interactive_graph.css -o docs/assets/stylesheets/interactive_graph.css
     - mkdocs build --site-dir public
   artifacts:
