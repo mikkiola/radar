@@ -15,7 +15,6 @@ import os
 import re
 import glob
 import json
-import shutil
 import anthropic
 import requests
 from datetime import datetime, timedelta
@@ -24,6 +23,7 @@ VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar"))
 ASSESSMENTS_PATH = os.path.join(VAULT_PATH, "01_Assessments")
 PATTERNS_PATH = os.path.join(VAULT_PATH, "02_Patterns")
 ARCHIVE_PATH = os.path.join(VAULT_PATH, "03_Archive")
+ANALYSTS_PATH = os.path.join(VAULT_PATH, "04_Analysts")
 
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_OWNER_ID = os.environ.get("TELEGRAM_OWNER_ID")
@@ -67,6 +67,46 @@ def extract_shift_summary(content):
                 lines.append(line.strip())
     summary = " ".join(lines).strip()
     return summary[:300] if summary else content[:300]
+
+
+def read_analysts():
+    """Прочитать файлы аналитиков из 04_Analysts/."""
+    if not os.path.exists(ANALYSTS_PATH):
+        return []
+    files = glob.glob(os.path.join(ANALYSTS_PATH, "*.md"))
+    analysts = []
+    for filepath in sorted(files):
+        with open(filepath, "r", encoding="utf-8") as f:
+            content = f.read()
+        name = ""
+        weight = 1.0
+        date = ""
+        for line in content.splitlines():
+            if line.startswith("**Аналитик:**"):
+                name = line.replace("**Аналитик:**", "").strip()
+            elif line.startswith("**Вес доверия:**"):
+                try:
+                    weight = float(line.replace("**Вес доверия:**", "").strip())
+                except ValueError:
+                    pass
+            elif line.startswith("**Дата выпуска:**"):
+                date = line.replace("**Дата выпуска:**", "").strip()
+        claims = []
+        current_claim = {}
+        for line in content.splitlines():
+            if line.startswith("### Claim "):
+                if current_claim:
+                    claims.append(current_claim)
+                current_claim = {}
+            elif line.startswith("**Тезис:**") and current_claim is not None:
+                current_claim["thesis"] = line.replace("**Тезис:**", "").strip()
+            elif line.startswith("**Уверенность:**") and current_claim is not None:
+                current_claim["confidence"] = line.replace("**Уверенность:**", "").strip()
+        if current_claim:
+            claims.append(current_claim)
+        if name and claims:
+            analysts.append({"name": name, "weight": weight, "date": date, "claims": claims})
+    return analysts
 
 
 def read_assessments():
@@ -121,7 +161,10 @@ def get_existing_patterns():
     return names, covered_files
 
 
-def cluster_with_sonnet(assessments, existing_patterns):
+def cluster_with_sonnet(assessments, existing_patterns, analysts=None):
+    if analysts is None:
+        analysts = []
+
     assessments_text = ""
     for i, a in enumerate(assessments, 1):
         assessments_text += (
@@ -135,7 +178,29 @@ def cluster_with_sonnet(assessments, existing_patterns):
         if existing_patterns else ""
     )
 
+    analysts_block = ""
+    if analysts:
+        analysts_block = "\n\nEXTERNAL_ANALYSTS:\n"
+        for analyst in analysts:
+            analysts_block += f"\n[{analyst['name']}] (дата: {analyst['date']}, вес: {analyst['weight']})\n"
+            for claim in analyst["claims"]:
+                analysts_block += f"- {claim['thesis']} (уверенность: {claim.get('confidence', '')})\n"
+
     today = datetime.now().strftime("%Y-%m-%d")
+
+    external_instructions = ""
+    external_json_fields = ""
+    if analysts:
+        external_instructions = """
+4. For each cluster find:
+   - external_confirmation: claims from EXTERNAL_ANALYSTS that match this cluster (format: "AnalystName DATE (вес W): thesis")
+   - our_unique_signals: what OUR_SIGNALS show that EXTERNAL_ANALYSTS do NOT mention
+   - external_only_signals: what EXTERNAL_ANALYSTS mention that is NOT in OUR_SIGNALS
+Respond in Russian language only."""
+        external_json_fields = """,
+      "external_confirmation": ["AnalystName DATE (вес W): тезис который совпадает"],
+      "our_unique_signals": ["что видим мы, аналитики не видят"],
+      "external_only_signals": ["что видят аналитики, нас нет"]"""
 
     prompt = f"""You are a pattern-clustering engine for an open-source technology radar.
 Today's date is {today}.
@@ -151,8 +216,13 @@ CRITICAL RULES:
 - Orphans = assessments that don't fit any cluster with 2+ members.
 - {existing_text}
 
-Assessments:
-{assessments_text}
+OUR_SIGNALS:
+{assessments_text}{analysts_block}
+
+Tasks:
+1. Cluster OUR_SIGNALS into patterns as described above.
+2. For each cluster: check if there is confirmation in EXTERNAL_ANALYSTS.
+3. Find External-only signals — what analysts see that is NOT in OUR_SIGNALS.{external_instructions}
 
 Respond ONLY in JSON, no preamble, no markdown backticks:
 {{
@@ -163,7 +233,7 @@ Respond ONLY in JSON, no preamble, no markdown backticks:
       "assessment_files": ["filename1.md", "filename2.md"],
       "earliest_signal": "YYYY-MM-DD",
       "hypothesis_right": "Что увидим через 12 месяцев если паттерн реален",
-      "hypothesis_wrong": "Что увидим через 12 месяцев если ошиблись"
+      "hypothesis_wrong": "Что увидим через 12 месяцев если ошиблись"{external_json_fields}
     }}
   ],
   "orphans": ["filename.md"]
@@ -215,6 +285,27 @@ def create_pattern_file(cluster, covered_files):
     links = [f"[[{f.replace('.md', '')}]]" for f in cluster["assessment_files"]]
     links_str = ", ".join(links) if links else "-"
 
+    external_confirmation = cluster.get("external_confirmation", [])
+    our_unique = cluster.get("our_unique_signals", [])
+    external_only = cluster.get("external_only_signals", [])
+
+    external_section = ""
+    if external_confirmation or our_unique or external_only:
+        conf_lines = "\n".join(f"- {c}" for c in external_confirmation) if external_confirmation else "- нет"
+        our_lines = "\n".join(f"- {s}" for s in our_unique) if our_unique else ""
+        ext_lines = "\n".join(f"- {s}" for s in external_only) if external_only else ""
+
+        external_section = f"""
+## Внешнее подтверждение
+{conf_lines}
+
+## Расхождения
+"""
+        if our_lines:
+            external_section += f"**Наш уникальный сигнал:**\n{our_lines}\n"
+        if ext_lines:
+            external_section += f"**External-only signal:**\n{ext_lines}\n"
+
     content = f"""# {cluster['name']}
 
 **Первый сигнал:** {cluster.get('earliest_signal', today)}
@@ -233,7 +324,7 @@ def create_pattern_file(cluster, covered_files):
 
 ## Если ошиблась
 {cluster.get('hypothesis_wrong', '[Добавить вручную]')}
-
+{external_section}
 ## История наблюдений
 - {today} - паттерн выделен автоматически из {len(cluster['assessment_files'])} оценок
 
@@ -415,6 +506,9 @@ def main():
     assessments = read_assessments()
     print(f"[patterns] СДВИГ оценок: {len(assessments)}")
 
+    analysts = read_analysts()
+    print(f"[patterns] аналитиков: {len(analysts)}")
+
     telegram_lines = ["<b>Радар - обслуживание паттернов</b>"]
 
     # 1. Архивирование устаревших
@@ -446,7 +540,7 @@ def main():
     print(f"[patterns] существующих паттернов: {len(existing_patterns)}, покрытых оценок: {len(covered_files)}")
 
     print("[patterns] кластеризация через Sonnet...")
-    result = cluster_with_sonnet(assessments, existing_patterns)
+    result = cluster_with_sonnet(assessments, existing_patterns, analysts)
 
     clusters = result.get("clusters", [])
     orphans = result.get("orphans", [])
