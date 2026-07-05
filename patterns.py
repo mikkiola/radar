@@ -19,6 +19,15 @@ import anthropic
 import requests
 from datetime import datetime, timedelta
 
+MODEL_CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "99_System", "model_config.json")
+
+def load_model_config():
+    with open(MODEL_CONFIG_PATH) as f:
+        return json.load(f)
+
+MODEL_CONFIG = load_model_config()
+
+
 VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar"))
 ASSESSMENTS_PATH = os.path.join(VAULT_PATH, "01_Assessments")
 PATTERNS_PATH = os.path.join(VAULT_PATH, "02_Patterns")
@@ -240,8 +249,9 @@ Respond ONLY in JSON, no preamble, no markdown backticks:
 }}"""
 
     response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=4000,
+        model=MODEL_CONFIG["sonnet"],
+        thinking={"type": "disabled"},
+        max_tokens=5200,
         messages=[{"role": "user", "content": prompt}],
     )
 
@@ -332,7 +342,9 @@ def create_pattern_file(cluster, covered_files):
 <!-- Не согласна с кластером? Добавь строку: - [дата] - [комментарий] -->
 
 ## Связи
-{"".join(f"- [[{f.replace('.md', '')}]]" + chr(10) for f in cluster['assessment_files'])}"""
+{"".join(f"- [[{f.replace('.md', '')}]]" + chr(10) for f in cluster['assessment_files'])}
+**Модель:** claude-sonnet-5
+**Промпт версия:** v1.0"""
 
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(content)
@@ -433,7 +445,8 @@ Respond in JSON only:
 }}"""
 
     response = client.messages.create(
-        model="claude-sonnet-4-6",
+        model=MODEL_CONFIG["sonnet"],
+        thinking={"type": "disabled"},
         max_tokens=500,
         messages=[{"role": "user", "content": prompt}],
     )

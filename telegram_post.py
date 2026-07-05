@@ -1,10 +1,20 @@
 #!/usr/bin/env python3
 import os
+import json
 import sys
 import glob
 import argparse
 import requests
 from anthropic import Anthropic
+
+MODEL_CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "99_System", "model_config.json")
+
+def load_model_config():
+    with open(MODEL_CONFIG_PATH) as f:
+        return json.load(f)
+
+MODEL_CONFIG = load_model_config()
+
 
 VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar/01_Assessments"))
 PUBLISHED_LOG = os.environ.get("PUBLISHED_LOG", os.path.expanduser("~/radar/radar/99_System/published_posts.log"))
@@ -143,7 +153,8 @@ def generate_post(assessment_content, human_correction=None):
 Верни только текст поста. Без пояснений."""
     print("Генерирую пост через Claude Sonnet...")
     response = client.messages.create(
-        model="claude-sonnet-4-6",
+        model=MODEL_CONFIG["sonnet"],
+        thinking={"type": "disabled"},
         max_tokens=1000,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_prompt}],
