@@ -1,10 +1,20 @@
 import requests
 import os
+import json
 from datetime import date, datetime
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar/01_Assessments"))
 DAYS_THRESHOLD = 30
+MODEL_CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "99_System", "model_config.json")
+
+
+def load_model_config():
+    with open(MODEL_CONFIG_PATH) as f:
+        return json.load(f)
+
+
+MODEL_CONFIG = load_model_config()
 
 
 def get_old_assessments():
@@ -97,7 +107,7 @@ Respond in Russian language only.
                 "content-type": "application/json"
             },
             json={
-                "model": "claude-haiku-4-5-20251001",
+                "model": MODEL_CONFIG["haiku"],
                 "max_tokens": 400,
                 "messages": [{"role": "user", "content": prompt}]
             },
