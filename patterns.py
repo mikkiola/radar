@@ -39,6 +39,10 @@ TELEGRAM_OWNER_ID = os.environ.get("TELEGRAM_OWNER_ID")
 
 DAYS_NO_SIGNAL = 90
 MONTHS_FALSIFY = 6
+DAYS_ASSESSMENT_BATCH = 14  # оценки старше этого срока не идут в промпт кластеризации,
+# иначе объем растет вместе с vault и Sonnet обрывает JSON на max_tokens (инцидент 2026-07-11)
+DAYS_PATTERN_ACTIVITY = 60  # паттерны без новых подтверждающих оценок дольше этого срока
+# не передаются в промпт кластеризации - новым оценкам маловероятно с ними совпасть
 
 client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
@@ -151,23 +155,51 @@ def read_assessments():
 # Кластеризация
 # ---------------------------------------------------------------------------
 
-def get_existing_patterns():
+def get_existing_patterns(active_days=None):
     """Вернуть:
-    - names: множество названий для передачи в промпт Sonnet
-    - covered_files: множество filename оценок которые уже входят в паттерн
+    - active_names: названия паттернов для передачи в промпт Sonnet (если active_days задан -
+      только паттерны с активностью за последние active_days дней по get_last_signal_date,
+      иначе все)
+    - all_names: все названия существующих паттернов (для статистики)
+    - covered_files: множество filename оценок которые уже входят в какой-либо паттерн
     """
     os.makedirs(PATTERNS_PATH, exist_ok=True)
-    names = set()
+    active_names = set()
+    all_names = set()
     covered_files = set()
+    threshold = datetime.now() - timedelta(days=active_days) if active_days else None
     for filepath in glob.glob(os.path.join(PATTERNS_PATH, "*.md")):
-        names.add(os.path.basename(filepath).replace(".md", "").strip())
+        name = os.path.basename(filepath).replace(".md", "").strip()
+        all_names.add(name)
         with open(filepath, "r", encoding="utf-8") as f:
             content = f.read()
-        # Ищем все [[ссылки]] в разделе Связи — это имена файлов оценок
+        # Ищем все [[ссылки]] в разделе Связи - это имена файлов оценок
         found = re.findall(r"\[\[(.+?)\]\]", content)
         for link in found:
             covered_files.add(link.strip() + ".md")
-    return names, covered_files
+        if threshold is None or get_last_signal_date(content, filepath) >= threshold:
+            active_names.add(name)
+    return active_names, all_names, covered_files
+
+
+def split_recent_assessments(assessments, days):
+    """Разделить оценки на batch за последние `days` дней (по полю date) и более старые.
+    Оценки без распознаваемой даты попадают в recent - не рискуем молча потерять их из batch.
+    """
+    threshold = datetime.now() - timedelta(days=days)
+    recent = []
+    older = []
+    for a in assessments:
+        try:
+            a_date = datetime.strptime(a["date"], "%Y-%m-%d")
+        except (ValueError, TypeError):
+            recent.append(a)
+            continue
+        if a_date >= threshold:
+            recent.append(a)
+        else:
+            older.append(a)
+    return recent, older
 
 
 def cluster_with_sonnet(assessments, existing_patterns, analysts=None):
@@ -549,11 +581,23 @@ def main():
         send_telegram("\n".join(telegram_lines))
         return
 
-    existing_patterns, covered_files = get_existing_patterns()
-    print(f"[patterns] существующих паттернов: {len(existing_patterns)}, покрытых оценок: {len(covered_files)}")
+    recent_assessments, older_assessments = split_recent_assessments(assessments, DAYS_ASSESSMENT_BATCH)
+    print(f"[patterns] оценок за последние {DAYS_ASSESSMENT_BATCH} дней (batch для кластеризации): {len(recent_assessments)}")
+
+    existing_patterns, all_patterns, covered_files = get_existing_patterns(active_days=DAYS_PATTERN_ACTIVITY)
+    print(f"[patterns] существующих паттернов: {len(all_patterns)}, активных за {DAYS_PATTERN_ACTIVITY} дней (в промпт): {len(existing_patterns)}, покрытых оценок: {len(covered_files)}")
+
+    old_unclustered = [a for a in older_assessments if a["filename"] not in covered_files]
+    if old_unclustered:
+        print(f"[patterns] ВНИМАНИЕ: оценок старше {DAYS_ASSESSMENT_BATCH} дней без паттерна: {len(old_unclustered)}")
+
+    if not recent_assessments:
+        telegram_lines.append(f"\nНет оценок за последние {DAYS_ASSESSMENT_BATCH} дней для кластеризации")
+        send_telegram("\n".join(telegram_lines))
+        return
 
     print("[patterns] кластеризация через Sonnet...")
-    result = cluster_with_sonnet(assessments, existing_patterns, analysts)
+    result = cluster_with_sonnet(recent_assessments, existing_patterns, analysts)
 
     clusters = result.get("clusters", [])
     orphans = result.get("orphans", [])
