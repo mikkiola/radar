@@ -1,11 +1,22 @@
 import requests
 import os
 import glob
+import json
 from datetime import date
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar/01_Assessments"))
 PATTERNS_PATH = os.environ.get("PATTERNS_PATH", os.path.expanduser("~/radar/radar/02_Patterns"))
+MODEL_CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "99_System", "model_config.json")
+PROMPT_VERSION = "v1.0"
+
+
+def load_model_config():
+    with open(MODEL_CONFIG_PATH) as f:
+        return json.load(f)
+
+
+MODEL_CONFIG = load_model_config()
 
 
 def get_existing_patterns():
@@ -129,7 +140,7 @@ URL: {url}
                     "content-type": "application/json"
                 },
                 json={
-                    "model": "claude-haiku-4-5-20251001",
+                    "model": MODEL_CONFIG["haiku"],
                     "max_tokens": 800,
                     "messages": [{"role": "user", "content": prompt}]
                 },
@@ -186,6 +197,8 @@ URL: {url}
 **Репозиторий:** {url}
 **Оценка:** {ocenka}
 **Уверенность:** {uverennost}
+**Модель:** {MODEL_CONFIG["haiku"]}
+**Промпт версия:** {PROMPT_VERSION}
 
 ## Что меняется в экосистеме
 {chto}
