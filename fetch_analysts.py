@@ -150,6 +150,90 @@ Report text:
     return claims
 
 
+def normalize_confidence(value):
+    """Нормализовать уверенность к высокая/средняя/низкая. Вернуть None если не удалось."""
+    if not isinstance(value, str) or not value.strip():
+        return None
+    mapping = {
+        "high": "высокая", "medium": "средняя", "low": "низкая",
+        "высокая": "высокая", "средняя": "средняя", "низкая": "низкая",
+    }
+    return mapping.get(value.strip().lower())
+
+
+def has_specific_evidence(evidence_list):
+    """Простая эвристика: хотя бы одно доказательство должно содержать число, ссылку
+    или конкретное название (два слова подряд с заглавной буквы), не только общие слова.
+    """
+    for ev in evidence_list:
+        if not isinstance(ev, str):
+            continue
+        if re.search(r'\d', ev):
+            return True
+        if re.search(r'https?://', ev, re.IGNORECASE):
+            return True
+        if re.search(r'[A-ZА-Я][\w-]*(?:\s+[A-ZА-Я][\w-]*)+', ev):
+            return True
+    return False
+
+
+def validate_claim(claim, issue_date):
+    """Проверить claim перед записью в vault.
+    Вернуть (нормализованный claim, None) если валиден, иначе (None, причина отказа).
+    """
+    thesis = claim.get("thesis")
+    thesis = thesis.strip() if isinstance(thesis, str) else ""
+    if not thesis:
+        return None, "пустой тезис"
+
+    evidence = claim.get("evidence") or []
+    if isinstance(evidence, str):
+        evidence = [evidence]
+    evidence = [e for e in evidence if isinstance(e, str) and e.strip()]
+    if not evidence:
+        return None, "нет доказательств"
+
+    confidence = normalize_confidence(claim.get("confidence"))
+    if confidence is None:
+        return None, f"нераспознанная уверенность: {claim.get('confidence')!r}"
+
+    horizon = claim.get("verification_horizon")
+    horizon = horizon.strip() if isinstance(horizon, str) else ""
+    if not horizon:
+        return None, "нет горизонта проверки"
+    try:
+        horizon_date = datetime.strptime(horizon, "%Y-%m-%d")
+    except ValueError:
+        return None, f"невалидная дата горизонта: {horizon!r}"
+
+    issue_dt = datetime.strptime(issue_date, "%Y-%m-%d")
+    if horizon_date <= issue_dt:
+        return None, f"горизонт проверки не в будущем относительно выпуска: {horizon}"
+
+    if not has_specific_evidence(evidence):
+        return None, "доказательства слишком общие, нет чисел/ссылок/названий"
+
+    validated = dict(claim)
+    validated["thesis"] = thesis
+    validated["confidence"] = confidence
+    validated["evidence"] = evidence
+    validated["verification_horizon"] = horizon
+    return validated, None
+
+
+def filter_valid_claims(claims, issue_date):
+    """Отфильтровать claims не прошедшие validate_claim. Вернуть (valid_claims, dropped_reasons)."""
+    valid = []
+    dropped = []
+    for claim in claims:
+        validated, reason = validate_claim(claim, issue_date)
+        if validated:
+            valid.append(validated)
+        else:
+            dropped.append(reason)
+    return valid, dropped
+
+
 def build_analyst_file(analyst, issue_date, issue_url, claims):
     """Сформировать markdown-файл аналитика."""
     name = analyst["name"]
@@ -240,9 +324,19 @@ def main():
 
         print(f"[fetch_analysts] извлекаю claims через Haiku...")
         claims = extract_claims_via_haiku(text, issue_date)
-        print(f"[fetch_analysts] claims: {len(claims)}")
+        print(f"[fetch_analysts] claims получено: {len(claims)}")
 
-        content = build_analyst_file(analyst, issue_date, issue_url, claims)
+        valid_claims, dropped_reasons = filter_valid_claims(claims, issue_date)
+        if dropped_reasons:
+            print(f"[fetch_analysts] claims отброшено валидацией: {len(dropped_reasons)}")
+            for reason in dropped_reasons:
+                print(f"[fetch_analysts]   - {reason}")
+
+        if not valid_claims:
+            print(f"[fetch_analysts] нет валидных claims для {name}, файл не создаю")
+            continue
+
+        content = build_analyst_file(analyst, issue_date, issue_url, valid_claims)
 
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(content)
