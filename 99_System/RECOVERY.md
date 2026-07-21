@@ -25,7 +25,7 @@
 
 ## Бэкап vault
 
-Vault — ветка `vault` в GitLab (`gitlab.com/lyolich777ka/radar`). Зеркало — локальная копия на маке `~/radar/radar/` через Obsidian Git, отдельный git-репозиторий от Brain vault.
+Vault — ветка `vault` в GitLab (`gitlab.com/lyolich777ka/radar`). Зеркало — локальная копия на маке `~/Dev/gitlab.com/lyolich777ka/radar/radar/` через Obsidian Git, отдельный git-репозиторий от Brain vault (путь актуализирован 21.07.2026).
 
 При потере GitLab: локальная копия на маке актуальна в пределах последнего пуша. Восстановление — `git remote set-url` на новый репозиторий и push веткой `vault` (Правило 9 — только с явным указанием папки).
 
