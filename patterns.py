@@ -15,6 +15,7 @@ import os
 import re
 import glob
 import json
+import html
 import anthropic
 import requests
 from datetime import datetime, timedelta
@@ -45,6 +46,122 @@ DAYS_PATTERN_ACTIVITY = 60  # паттерны без новых подтвер�
 # не передаются в промпт кластеризации - новым оценкам маловероятно с ними совпасть
 
 client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+
+
+class UnrecoverableJSONError(Exception):
+    """JSON-ответ LLM, который нельзя безопасно восстановить."""
+
+    def __init__(self, parse_error, stop_reason, raw):
+        self.parse_error = parse_error
+        self.stop_reason = stop_reason
+        self.raw_length = len(raw)
+        self.raw_start = raw[:300]
+        self.raw_end = raw[-300:]
+        super().__init__(str(parse_error))
+
+
+class ParsedLLMJSON(dict):
+    """Результат разбора с признаком частичного восстановления."""
+
+    def __init__(self, value, repair_used=False):
+        super().__init__(value)
+        self.repair_used = repair_used
+
+
+def _strip_json_code_fence(raw):
+    raw = raw.strip()
+    if raw.startswith("```"):
+        parts = raw.split("```")
+        if len(parts) > 1:
+            raw = parts[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+    return raw.strip()
+
+
+def _repair_llm_json(raw):
+    """Обрезать ответ после последнего полного объекта верхнего массива."""
+    stack = []
+    last_boundary = None
+    in_string = False
+    escaped = False
+
+    for index, char in enumerate(raw):
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+
+        if char == '"':
+            in_string = True
+        elif char in "{[":
+            stack.append(char)
+        elif char in "}]":
+            expected_open = "{" if char == "}" else "["
+            if not stack or stack[-1] != expected_open:
+                continue
+            stack.pop()
+            if char == "}" and len(stack) == 2:
+                last_boundary = (index, stack.copy())
+
+    if last_boundary is None:
+        return None
+
+    index, open_brackets = last_boundary
+    closing_brackets = {"{": "}", "[": "]"}
+    return raw[:index + 1] + "".join(closing_brackets[bracket] for bracket in reversed(open_brackets))
+
+
+def parse_llm_json(raw, stop_reason=None):
+    """Разобрать JSON LLM и при необходимости восстановить полный префикс."""
+    raw = _strip_json_code_fence(raw)
+    repair_attempted = False
+    repair_succeeded = False
+    try:
+        try:
+            result = json.loads(raw)
+        except json.JSONDecodeError as error:
+            repair_attempted = True
+            repaired_raw = _repair_llm_json(raw)
+            if repaired_raw is None:
+                raise UnrecoverableJSONError(error, stop_reason, raw) from error
+            try:
+                result = json.loads(repaired_raw)
+            except json.JSONDecodeError as repair_error:
+                raise UnrecoverableJSONError(repair_error, stop_reason, raw) from repair_error
+            repair_succeeded = True
+
+        if not isinstance(result, dict):
+            raise UnrecoverableJSONError(
+                ValueError("верхний уровень JSON должен быть объектом"), stop_reason, raw
+            )
+        return ParsedLLMJSON(result, repair_used=repair_succeeded)
+    finally:
+        print(
+            f"[llm-json] stop_reason={stop_reason}, "
+            f"repair_attempted={repair_attempted}, repair_succeeded={repair_succeeded}"
+        )
+
+
+def send_json_error_telegram(error, context):
+    """Отправить безопасную диагностику неразбираемого ответа LLM."""
+    commit_sha = os.environ.get("CI_COMMIT_SHA")
+    lines = [
+        "<b>Паттерны: неразбираемый JSON от LLM</b>",
+        f"Причина: {html.escape(str(error.parse_error))}",
+        f"stop_reason: {html.escape(str(error.stop_reason))}",
+        f"Длина ответа: {error.raw_length}",
+        context,
+        f"Начало ответа: <code>{html.escape(error.raw_start)}</code>",
+        f"Конец ответа: <code>{html.escape(error.raw_end)}</code>",
+    ]
+    if commit_sha:
+        lines.append(f"CI_COMMIT_SHA: {html.escape(commit_sha)}")
+    send_telegram("\n".join(lines))
 
 
 def send_telegram(text):
@@ -287,24 +404,16 @@ Respond ONLY in JSON, no preamble, no markdown backticks:
         messages=[{"role": "user", "content": prompt}],
     )
 
-    raw = response.content[0].text.strip()
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-    raw = raw.strip()
-
-    # Защита от обрезанного JSON
-    if not raw.endswith("}"):
-        last_bracket = raw.rfind("}")
-        if last_bracket != -1:
-            raw = raw[:last_bracket + 1]
-            open_count = raw.count("{")
-            close_count = raw.count("}")
-            if open_count > close_count:
-                raw += "}" * (open_count - close_count)
-
-    return json.loads(raw)
+    raw = response.content[0].text
+    stop_reason = response.stop_reason
+    try:
+        return parse_llm_json(raw, stop_reason)
+    except UnrecoverableJSONError as error:
+        send_json_error_telegram(
+            error,
+            f"Размер batch: {len(assessments)}",
+        )
+        raise
 
 
 def create_pattern_file(cluster, covered_files):
@@ -483,15 +592,29 @@ Respond in JSON only:
         messages=[{"role": "user", "content": prompt}],
     )
 
-    raw = response.content[0].text.strip()
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-    result = json.loads(raw.strip())
-
-    verdict = result.get("verdict", "РАНО_СУДИТЬ")
-    reasoning = result.get("reasoning", "")
+    raw = response.content[0].text
+    stop_reason = response.stop_reason
+    try:
+        result = parse_llm_json(raw, stop_reason)
+        verdict = result.get("verdict")
+        reasoning = result.get("reasoning")
+        expected_verdicts = {"ПОДТВЕРЖДЁН", "ОПРОВЕРГНУТ", "РАНО_СУДИТЬ"}
+        if verdict not in expected_verdicts:
+            raise UnrecoverableJSONError(
+                ValueError("неожиданный verdict"), stop_reason, raw
+            )
+        if verdict in {"ПОДТВЕРЖДЁН", "ОПРОВЕРГНУТ"} and (
+            not isinstance(reasoning, str) or not reasoning.strip()
+        ):
+            raise UnrecoverableJSONError(
+                ValueError("для вердикта требуется непустое reasoning"), stop_reason, raw
+            )
+    except UnrecoverableJSONError as error:
+        send_json_error_telegram(
+            error,
+            f"Паттерн: {html.escape(os.path.basename(filepath))}",
+        )
+        raise
 
     if verdict == "РАНО_СУДИТЬ":
         print(f"[falsify] рано судить: {os.path.basename(filepath)}")
@@ -598,6 +721,9 @@ def main():
 
     print("[patterns] кластеризация через Sonnet...")
     result = cluster_with_sonnet(recent_assessments, existing_patterns, analysts)
+
+    if result.repair_used:
+        telegram_lines.append("\nВНИМАНИЕ: JSON кластеризации восстановлен после обрезки ответа")
 
     clusters = result.get("clusters", [])
     orphans = result.get("orphans", [])
