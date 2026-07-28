@@ -17,6 +17,14 @@ import requests
 import anthropic
 from datetime import datetime, timedelta
 
+MODEL_CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "99_System", "model_config.json")
+
+def load_model_config():
+    with open(MODEL_CONFIG_PATH) as f:
+        return json.load(f)
+
+MODEL_CONFIG = load_model_config()
+
 EXTERNAL_ANALYSTS = [
     {
         "name": "Builder Radar",
@@ -129,7 +137,7 @@ Report text:
 {text}"""
 
     response = client.messages.create(
-        model="claude-haiku-4-5-20251001",
+        model=MODEL_CONFIG["haiku"],
         max_tokens=2000,
         messages=[{"role": "user", "content": prompt}],
     )

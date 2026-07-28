@@ -484,7 +484,7 @@ def create_pattern_file(cluster, covered_files):
 
 ## Связи
 {"".join(f"- [[{f.replace('.md', '')}]]" + chr(10) for f in cluster['assessment_files'])}
-**Модель:** claude-sonnet-5
+**Модель:** {MODEL_CONFIG['sonnet']}
 **Промпт версия:** v1.0"""
 
     with open(filepath, "w", encoding="utf-8") as f:
