@@ -138,6 +138,125 @@ def test_get_old_assessments_parses_trailing_filename_date(tmp_path, monkeypatch
     assert assessments[0]["days_old"] == (date.today() - date(2026, 6, 24)).days
 
 
+def test_extract_source_block_reads_all_three_fields():
+    content = """# Assessment
+
+**Дата:** 2026-07-28
+**Источник:**
+  файл: GitHub description
+  локация: не указана
+  цитата: "runs entirely on your local machine"
+
+## What Changes in the Ecosystem
+Something.
+"""
+    assert patterns.extract_source_block(content) == {
+        "file": "GitHub description",
+        "location": "",
+        "quote": "runs entirely on your local machine",
+    }
+
+
+def test_extract_source_block_missing_block_returns_empty_strings():
+    content = """# Assessment
+
+**Дата:** 2026-07-28
+
+## What Changes in the Ecosystem
+Something.
+"""
+    assert patterns.extract_source_block(content) == {"file": "", "location": "", "quote": ""}
+
+
+def test_extract_source_block_placeholder_values_treated_as_empty():
+    content = """**Источник:**
+  файл: не указан
+  локация: не указана
+  цитата: не указана
+
+## What Changes in the Ecosystem
+"""
+    assert patterns.extract_source_block(content) == {"file": "", "location": "", "quote": ""}
+
+
+def test_mark_assessment_as_pattern_member_appends_backlink(tmp_path, monkeypatch):
+    assessments_path = tmp_path / "01_Assessments"
+    assessments_path.mkdir()
+    filename = "Проект 2026-07-01.md"
+    content = """# Проект
+
+**Дата:** 2026-07-01
+**Модель:** claude-haiku-4-5-20251001
+**Промпт версия:** v1.0
+
+## What Changes in the Ecosystem
+Suff.
+"""
+    (assessments_path / filename).write_text(content, encoding="utf-8")
+    monkeypatch.setattr(patterns, "ASSESSMENTS_PATH", str(assessments_path))
+
+    result = patterns.mark_assessment_as_pattern_member(filename, "Some Pattern")
+
+    updated = (assessments_path / filename).read_text(encoding="utf-8")
+    assert result is True
+    assert "**Часть паттерна:** [[Some Pattern]] (не новый сигнал - 1-е подтверждение," in updated
+    # inserted right after the header metadata block, before the first heading
+    assert updated.index("**Часть паттерна:**") < updated.index("## What Changes")
+    assert updated.index("**Промпт версия:**") < updated.index("**Часть паттерна:**")
+
+
+def test_mark_assessment_as_pattern_member_is_idempotent(tmp_path, monkeypatch):
+    assessments_path = tmp_path / "01_Assessments"
+    assessments_path.mkdir()
+    filename = "Проект 2026-07-01.md"
+    content = "**Промпт версия:** v1.0\n\n## What Changes in the Ecosystem\n"
+    (assessments_path / filename).write_text(content, encoding="utf-8")
+    monkeypatch.setattr(patterns, "ASSESSMENTS_PATH", str(assessments_path))
+
+    first = patterns.mark_assessment_as_pattern_member(filename, "Some Pattern")
+    second = patterns.mark_assessment_as_pattern_member(filename, "Some Pattern")
+
+    assert first is True
+    assert second is False
+    updated = (assessments_path / filename).read_text(encoding="utf-8")
+    assert updated.count("**Часть паттерна:** [[Some Pattern]]") == 1
+
+
+def test_mark_assessment_as_pattern_member_n_grows_across_assessments(tmp_path, monkeypatch):
+    assessments_path = tmp_path / "01_Assessments"
+    assessments_path.mkdir()
+    base_content = "**Промпт версия:** v1.0\n\n## What Changes in the Ecosystem\n"
+    (assessments_path / "A.md").write_text(base_content, encoding="utf-8")
+    (assessments_path / "B.md").write_text(base_content, encoding="utf-8")
+    monkeypatch.setattr(patterns, "ASSESSMENTS_PATH", str(assessments_path))
+
+    patterns.mark_assessment_as_pattern_member("A.md", "Some Pattern")
+    patterns.mark_assessment_as_pattern_member("B.md", "Some Pattern")
+
+    a_content = (assessments_path / "A.md").read_text(encoding="utf-8")
+    b_content = (assessments_path / "B.md").read_text(encoding="utf-8")
+    assert "1-е подтверждение" in a_content
+    assert "2-е подтверждение" in b_content
+
+
+def test_mark_assessment_as_pattern_member_missing_file_returns_false(tmp_path, monkeypatch):
+    assessments_path = tmp_path / "01_Assessments"
+    assessments_path.mkdir()
+    monkeypatch.setattr(patterns, "ASSESSMENTS_PATH", str(assessments_path))
+
+    assert patterns.mark_assessment_as_pattern_member("missing.md", "Some Pattern") is False
+
+
+def test_find_dominant_pattern_picks_largest_intersection(tmp_path, monkeypatch):
+    patterns_path = tmp_path / "02_Patterns"
+    patterns_path.mkdir()
+    (patterns_path / "Small.md").write_text("## Links\n- [[A]]\n", encoding="utf-8")
+    (patterns_path / "Big.md").write_text("## Links\n- [[A]]\n- [[B]]\n- [[C]]\n", encoding="utf-8")
+    monkeypatch.setattr(patterns, "PATTERNS_PATH", str(patterns_path))
+
+    assert patterns.find_dominant_pattern({"A.md", "B.md", "C.md"}) == "Big"
+
+
 def test_falsify_missing_reasoning_does_not_modify_pattern(tmp_path, monkeypatch):
     patterns_path = tmp_path / "02_Patterns"
     archive_path = tmp_path / "03_Archive"

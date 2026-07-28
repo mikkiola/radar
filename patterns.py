@@ -200,6 +200,35 @@ def extract_shift_summary(content):
     return summary[:300] if summary else content[:300]
 
 
+def extract_source_block(content):
+    """Извлечь файл/локацию/цитату из блока **Источник:** оценки.
+    Возвращает пустые строки для оценок без этого блока (написанных до его введения)."""
+    source = {"file": "", "location": "", "quote": ""}
+    in_block = False
+    for line in content.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("**Источник:**"):
+            in_block = True
+            continue
+        if not in_block:
+            continue
+        if stripped.startswith("##"):
+            break
+        if stripped.startswith("файл:"):
+            value = stripped[len("файл:"):].strip()
+            if value and value != "не указан":
+                source["file"] = value
+        elif stripped.startswith("локация:"):
+            value = stripped[len("локация:"):].strip()
+            if value and value != "не указана":
+                source["location"] = value
+        elif stripped.startswith("цитата:"):
+            value = stripped[len("цитата:"):].strip().strip('"')
+            if value and value != "не указана":
+                source["quote"] = value
+    return source
+
+
 def read_analysts():
     """Прочитать файлы аналитиков из 04_Analysts/."""
     if not os.path.exists(ANALYSTS_PATH):
@@ -265,6 +294,7 @@ def read_assessments():
             "repo_url": repo_url,
             "date": file_date,
             "content": extract_shift_summary(content),
+            "source": extract_source_block(content),
         })
     return assessments
 
@@ -418,7 +448,78 @@ Respond ONLY in JSON, no preamble, no markdown backticks:
         raise
 
 
-def create_pattern_file(cluster, covered_files):
+def _pattern_links(pattern_filepath):
+    """Множество filename оценок, которые паттерн уже перечисляет в [[ссылках]]."""
+    with open(pattern_filepath, "r", encoding="utf-8") as f:
+        content = f.read()
+    return {m.strip() + ".md" for m in re.findall(r"\[\[(.+?)\]\]", content)}
+
+
+def find_dominant_pattern(overlap_files):
+    """Найти существующий паттерн с наибольшим пересечением по overlap_files.
+    При равенстве побеждает первый по алфавиту filename."""
+    best_name = None
+    best_count = 0
+    for filepath in sorted(glob.glob(os.path.join(PATTERNS_PATH, "*.md"))):
+        count = len(_pattern_links(filepath) & overlap_files)
+        if count > best_count:
+            best_count = count
+            best_name = os.path.basename(filepath).replace(".md", "")
+    return best_name
+
+
+def count_existing_backlinks(pattern_name):
+    """Сколько файлов оценок уже содержат обратную пометку на этот паттерн.
+    Механический подсчёт по 01_Assessments/ - не зависит от файла паттерна,
+    поэтому корректно растёт между отдельными запусками, даже если сам файл
+    паттерна никогда не перезаписывается."""
+    marker = f"**Часть паттерна:** [[{pattern_name}]]"
+    count = 0
+    for filepath in glob.glob(os.path.join(ASSESSMENTS_PATH, "*.md")):
+        with open(filepath, "r", encoding="utf-8") as f:
+            if marker in f.read():
+                count += 1
+    return count
+
+
+def mark_assessment_as_pattern_member(assessment_filename, pattern_name):
+    """Точечно дописать обратную пометку в файл оценки о вхождении в существующий паттерн.
+    Не трогает статус СДВИГ/ШУМ и не перезаписывает файл целиком.
+    Однократное событие на пару (оценка, паттерн) - если пометка на этот паттерн уже есть,
+    повторно не пишем."""
+    filepath = os.path.join(ASSESSMENTS_PATH, assessment_filename)
+    if not os.path.exists(filepath):
+        return False
+
+    with open(filepath, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    marker = f"**Часть паттерна:** [[{pattern_name}]]"
+    if marker in content:
+        return False
+
+    n = count_existing_backlinks(pattern_name) + 1
+    today = datetime.now().strftime("%Y-%m-%d")
+    new_line = f"{marker} (не новый сигнал - {n}-е подтверждение, {today})"
+
+    lines = content.splitlines(keepends=True)
+    insert_at = None
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("**Часть паттерна:**"):
+            insert_at = i + 1
+        elif insert_at is None and stripped.startswith("**Промпт версия:**"):
+            insert_at = i + 1
+    if insert_at is None:
+        return False
+
+    lines.insert(insert_at, new_line + "\n")
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.writelines(lines)
+    return True
+
+
+def create_pattern_file(cluster, covered_files, assessments_by_filename=None):
     today = datetime.now().strftime("%Y-%m-%d")
     safe_name = re.sub(r'[/\\:*?"<>|]', "-", cluster["name"])
     filename = f"{safe_name} {today}.md"
@@ -433,10 +534,33 @@ def create_pattern_file(cluster, covered_files):
     overlap = new_files & covered_files
     if len(overlap) >= len(new_files) / 2:
         print(f"[patterns] дубль по оценкам, пропускаю: {cluster['name']} (пересечение: {overlap})")
+        dominant = find_dominant_pattern(overlap)
+        if dominant:
+            for assessment_filename in sorted(overlap):
+                if mark_assessment_as_pattern_member(assessment_filename, dominant):
+                    print(f"[patterns] обратная пометка: {assessment_filename} -> [[{dominant}]]")
         return None
 
     links = [f"[[{f.replace('.md', '')}]]" for f in cluster["assessment_files"]]
     links_str = ", ".join(links) if links else "-"
+
+    sources_section = ""
+    if assessments_by_filename:
+        source_lines = []
+        for f in cluster["assessment_files"]:
+            a = assessments_by_filename.get(f)
+            src = (a or {}).get("source") or {}
+            if not (src.get("file") or src.get("location") or src.get("quote")):
+                continue
+            quote = src.get("quote")
+            source_lines.append(
+                f"- [[{f.replace('.md', '')}]] — "
+                f"файл: {src.get('file') or 'не указан'}, "
+                f"локация: {src.get('location') or 'не указана'}, "
+                f"цитата: {f'\"{quote}\"' if quote else 'не указана'}"
+            )
+        if source_lines:
+            sources_section = "## Sources\n" + "\n".join(source_lines) + "\n\n"
 
     external_confirmation = cluster.get("external_confirmation", [])
     our_unique = cluster.get("our_unique_signals", [])
@@ -469,7 +593,7 @@ def create_pattern_file(cluster, covered_files):
 ## Summary
 {cluster['description']}
 
-## Why It Matters Now
+{sources_section}## Why It Matters Now
 [Добавить вручную]
 
 ## If Right
@@ -739,10 +863,12 @@ def main():
     orphans = result.get("orphans", [])
     print(f"[patterns] кластеров: {len(clusters)}, осиротевших оценок: {len(orphans)}")
 
+    assessments_by_filename = {a["filename"]: a for a in recent_assessments}
+
     created = []
     skipped = []
     for cluster in clusters:
-        filename = create_pattern_file(cluster, covered_files)
+        filename = create_pattern_file(cluster, covered_files, assessments_by_filename)
         if filename:
             created.append(cluster["name"])
             # Добавляем новые файлы в covered чтобы не дублировать в этом же запуске
