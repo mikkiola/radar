@@ -257,6 +257,17 @@ def test_find_dominant_pattern_picks_largest_intersection(tmp_path, monkeypatch)
     assert patterns.find_dominant_pattern({"A.md", "B.md", "C.md"}) == "Big"
 
 
+def test_find_dominant_pattern_tie_breaks_alphabetically(tmp_path, monkeypatch):
+    patterns_path = tmp_path / "02_Patterns"
+    patterns_path.mkdir()
+    # Both patterns intersect on exactly the same 2 files - a genuine tie.
+    (patterns_path / "Zeta.md").write_text("## Links\n- [[A]]\n- [[B]]\n", encoding="utf-8")
+    (patterns_path / "Alpha.md").write_text("## Links\n- [[A]]\n- [[B]]\n", encoding="utf-8")
+    monkeypatch.setattr(patterns, "PATTERNS_PATH", str(patterns_path))
+
+    assert patterns.find_dominant_pattern({"A.md", "B.md"}) == "Alpha"
+
+
 def test_falsify_missing_reasoning_does_not_modify_pattern(tmp_path, monkeypatch):
     patterns_path = tmp_path / "02_Patterns"
     archive_path = tmp_path / "03_Archive"
