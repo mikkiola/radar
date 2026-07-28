@@ -104,7 +104,7 @@ def analyze_and_save(projects):
             continue
 
         prompt = f"""You are a measurement instrument for the AI and agent market ecosystem.
-Respond in Russian language only.
+Respond in English.
 
 Assess whether this opensource project represents a SHIFT or NOISE.
 
@@ -122,13 +122,13 @@ URL: {url}
 {assessments_list}
 
 Отвечай СТРОГО в этом формате:
-НАЗВАНИЕ: [короткое русское название 3-5 слов - суть проекта, например "Браузерный агент для ИИ" или "Self-hosted автоматизация с ИИ"]
+НАЗВАНИЕ: [short English name, 3-5 words, describing the project essence]
 ОЦЕНКА: СДВИГ или ШУМ
 УВЕРЕННОСТЬ: высокая или средняя или низкая
-ЧТО_МЕНЯЕТСЯ: [2-3 предложения - что конкретно меняется в структуре экосистемы]
-АРГУМЕНТАЦИЯ: [1-2 предложения почему такая оценка]
-ЕСЛИ_ПРАВА: [одно конкретное наблюдаемое событие через 12 месяцев которое подтвердит оценку]
-ЕСЛИ_ОШИБЛАСЬ: [одно конкретное наблюдаемое событие через 12 месяцев которое опровергнет оценку]
+ЧТО_МЕНЯЕТСЯ: [2-3 English sentences - what specifically changes in the ecosystem structure]
+АРГУМЕНТАЦИЯ: [1-2 English sentences explaining the assessment]
+ЕСЛИ_ПРАВА: [one specific observable event in 12 months that confirms the assessment, in English]
+ЕСЛИ_ОШИБЛАСЬ: [one specific observable event in 12 months that refutes the assessment, in English]
 СВЯЗИ: [перечисли через запятую от 3 до 5 наиболее связанных паттернов и оценок из списков выше. Предпочитай заполнить 3-5 связей. Оставляй пустым только если действительно нет ни одной осмысленной связи]"""
 
         try:
@@ -168,6 +168,10 @@ URL: {url}
             esli_oshiblas = lines.get("ЕСЛИ_ОШИБЛАСЬ", "")
             svyazi_raw = lines.get("СВЯЗИ", "")
 
+            if uverennost not in {"высокая", "средняя", "низкая"}:
+                print(f"   Неожиданное значение УВЕРЕННОСТЬ: {uverennost!r}, использую 'низкая'")
+                uverennost = "низкая"
+
             if ocenka != "СДВИГ":
                 print(f"   {ocenka} ({uverennost}) - {ru_name[:40]} - пропускаем")
                 continue
@@ -200,13 +204,13 @@ URL: {url}
 **Модель:** {MODEL_CONFIG["haiku"]}
 **Промпт версия:** {PROMPT_VERSION}
 
-## Что меняется в экосистеме
+## What Changes in the Ecosystem
 {chto}
 
-## Аргументация
+## Reasoning
 {arg}
 
-## Фальсифицируемая гипотеза
+## Falsifiable Hypothesis
 **Если права:** {esli_prava}
 **Если ошиблась:** {esli_oshiblas}
 

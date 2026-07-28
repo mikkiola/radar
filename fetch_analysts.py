@@ -126,11 +126,11 @@ def extract_claims_via_haiku(text, issue_date):
 For each claim return JSON:
 {{
   "thesis": "one sentence",
-  "confidence": "high/medium/low",
+  "confidence": "высокая/средняя/низкая",
   "evidence": ["evidence 1", "evidence 2"],
   "verification_horizon": "{verification_horizon}"
 }}
-Respond in Russian language only.
+Respond in English. thesis and evidence values must be in English. confidence must use one of these Russian literals: высокая, средняя, низкая.
 Return only JSON array, no markdown.
 
 Report text:

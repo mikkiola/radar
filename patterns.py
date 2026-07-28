@@ -19,6 +19,7 @@ import html
 import anthropic
 import requests
 from datetime import datetime, timedelta
+from vault_language import ENGLISH_ASSESSMENT_HEADING, is_english_body
 
 MODEL_CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "99_System", "model_config.json")
 
@@ -187,7 +188,7 @@ def extract_shift_summary(content):
     in_section = False
     lines = []
     for line in content.splitlines():
-        if line.startswith("## Что меняется в экосистеме"):
+        if line.startswith((ENGLISH_ASSESSMENT_HEADING, "## Что меняется в экосистеме")):
             in_section = True
             continue
         if in_section:
@@ -354,11 +355,11 @@ def cluster_with_sonnet(assessments, existing_patterns, analysts=None):
    - external_confirmation: claims from EXTERNAL_ANALYSTS that match this cluster (format: "AnalystName DATE (вес W): thesis")
    - our_unique_signals: what OUR_SIGNALS show that EXTERNAL_ANALYSTS do NOT mention
    - external_only_signals: what EXTERNAL_ANALYSTS mention that is NOT in OUR_SIGNALS
-Respond in Russian language only."""
+Respond in English. All external_confirmation, our_unique_signals, and external_only_signals values must be in English."""
         external_json_fields = """,
-      "external_confirmation": ["AnalystName DATE (вес W): тезис который совпадает"],
-      "our_unique_signals": ["что видим мы, аналитики не видят"],
-      "external_only_signals": ["что видят аналитики, нас нет"]"""
+      "external_confirmation": ["AnalystName DATE (weight W): matching thesis"],
+      "our_unique_signals": ["what we see that analysts do not mention"],
+      "external_only_signals": ["what analysts mention that is not in our signals"]"""
 
     prompt = f"""You are a pattern-clustering engine for an open-source technology radar.
 Today's date is {today}.
@@ -370,7 +371,8 @@ CRITICAL RULES:
 - Base ALL conclusions ONLY on the summaries provided. Do not use your training knowledge about market trends.
 - Minimum 2 assessments per cluster.
 - A cluster must represent a STRUCTURAL shift in how knowledge or value is organized.
-- Name each cluster as a short Russian noun phrase (3-6 words) describing WHAT IS CHANGING.
+- Name each cluster as a short English noun phrase (3-6 words) describing WHAT IS CHANGING.
+- All name, description, hypothesis_right, and hypothesis_wrong values must be in English.
 - Orphans = assessments that don't fit any cluster with 2+ members.
 - {existing_text}
 
@@ -380,18 +382,18 @@ OUR_SIGNALS:
 Tasks:
 1. Cluster OUR_SIGNALS into patterns as described above.
 2. For each cluster: check if there is confirmation in EXTERNAL_ANALYSTS.
-3. Find External-only signals — what analysts see that is NOT in OUR_SIGNALS.{external_instructions}
+3. Find External-only signals - what analysts see that is NOT in OUR_SIGNALS.{external_instructions}
 
 Respond ONLY in JSON, no preamble, no markdown backticks:
 {{
   "clusters": [
     {{
-      "name": "Название паттерна на русском",
-      "description": "Одно предложение - что меняется структурно",
+      "name": "English pattern name",
+      "description": "One English sentence describing the structural change",
       "assessment_files": ["filename1.md", "filename2.md"],
       "earliest_signal": "YYYY-MM-DD",
-      "hypothesis_right": "Что увидим через 12 месяцев если паттерн реален",
-      "hypothesis_wrong": "Что увидим через 12 месяцев если ошиблись"{external_json_fields}
+      "hypothesis_right": "What we will observe in 12 months if the pattern is real",
+      "hypothesis_wrong": "What we will observe in 12 months if we are wrong"{external_json_fields}
     }}
   ],
   "orphans": ["filename.md"]
@@ -442,18 +444,18 @@ def create_pattern_file(cluster, covered_files):
 
     external_section = ""
     if external_confirmation or our_unique or external_only:
-        conf_lines = "\n".join(f"- {c}" for c in external_confirmation) if external_confirmation else "- нет"
+        conf_lines = "\n".join(f"- {c}" for c in external_confirmation) if external_confirmation else "- none"
         our_lines = "\n".join(f"- {s}" for s in our_unique) if our_unique else ""
         ext_lines = "\n".join(f"- {s}" for s in external_only) if external_only else ""
 
         external_section = f"""
-## Внешнее подтверждение
+## External Confirmation
 {conf_lines}
 
-## Расхождения
+## Discrepancies
 """
         if our_lines:
-            external_section += f"**Наш уникальный сигнал:**\n{our_lines}\n"
+            external_section += f"**Our Unique Signal:**\n{our_lines}\n"
         if ext_lines:
             external_section += f"**External-only signal:**\n{ext_lines}\n"
 
@@ -464,25 +466,25 @@ def create_pattern_file(cluster, covered_files):
 **Создан:** {today} (автоматически, patterns.py)
 **Статус:** АКТИВНЫЙ
 
-## Суть
+## Summary
 {cluster['description']}
 
-## Почему важно сейчас
+## Why It Matters Now
 [Добавить вручную]
 
-## Если права
+## If Right
 {cluster.get('hypothesis_right', '[Добавить вручную]')}
 
-## Если ошиблась
+## If Wrong
 {cluster.get('hypothesis_wrong', '[Добавить вручную]')}
 {external_section}
-## История наблюдений
-- {today} - паттерн выделен автоматически из {len(cluster['assessment_files'])} оценок
+## Observation History
+- {today} - pattern automatically identified from {len(cluster['assessment_files'])} assessments
 
 ## Правка человека
 <!-- Не согласна с кластером? Добавь строку: - [дата] - [комментарий] -->
 
-## Связи
+## Links
 {"".join(f"- [[{f.replace('.md', '')}]]" + chr(10) for f in cluster['assessment_files'])}
 **Модель:** {MODEL_CONFIG['sonnet']}
 **Промпт версия:** v1.0"""
@@ -546,6 +548,19 @@ def should_falsify(pattern_content):
     return datetime.now() - created >= timedelta(days=MONTHS_FALSIFY * 30)
 
 
+def extract_pattern_hypotheses(pattern_content):
+    """Извлечь гипотезы паттерна из русского или English шаблона."""
+    hypothesis_right = ""
+    hypothesis_wrong = ""
+    lines = pattern_content.splitlines()
+    for i, line in enumerate(lines):
+        if line.startswith(("## If Right", "## Если права")) and i + 1 < len(lines):
+            hypothesis_right = lines[i + 1].strip()
+        if line.startswith(("## If Wrong", "## Если ошиблась")) and i + 1 < len(lines):
+            hypothesis_wrong = lines[i + 1].strip()
+    return hypothesis_right, hypothesis_wrong
+
+
 def falsify_pattern(filepath, pattern_content, assessments):
     dates = re.findall(r"Создан:\*\* (\d{4}-\d{2}-\d{2})", pattern_content)
     if not dates:
@@ -559,14 +574,8 @@ def falsify_pattern(filepath, pattern_content, assessments):
         f"- {a['title']} ({a['date']}): {a['content'][:200]}" for a in newer[:15]
     )
 
-    hypothesis_right = ""
-    hypothesis_wrong = ""
-    lines = pattern_content.splitlines()
-    for i, line in enumerate(lines):
-        if line.startswith("## Если права") and i + 1 < len(lines):
-            hypothesis_right = lines[i + 1].strip()
-        if line.startswith("## Если ошиблась") and i + 1 < len(lines):
-            hypothesis_wrong = lines[i + 1].strip()
+    hypothesis_right, hypothesis_wrong = extract_pattern_hypotheses(pattern_content)
+    response_language = "English" if is_english_body(pattern_content) else "Russian"
 
     prompt = f"""You are evaluating whether a technology pattern hypothesis has been confirmed or refuted.
 Today is {today}.
@@ -582,7 +591,7 @@ New assessments after pattern creation:
 Respond in JSON only:
 {{
   "verdict": "ПОДТВЕРЖДЁН" or "ОПРОВЕРГНУТ" or "РАНО_СУДИТЬ",
-  "reasoning": "2-3 sentences in Russian based only on the assessments above"
+  "reasoning": "2-3 sentences in {response_language} based only on the assessments above"
 }}"""
 
     response = client.messages.create(
@@ -622,7 +631,8 @@ Respond in JSON only:
 
     today_str = datetime.now().strftime("%Y-%m-%d")
     updated = pattern_content.replace("**Статус:** АКТИВНЫЙ", f"**Статус:** {verdict}")
-    updated += f"\n\n## Фальсификация {today_str}\n**Вердикт:** {verdict}\n**Основание:** {reasoning}\nФАЛЬСИФИКАЦИЯ ПРОВЕДЕНА\n"
+    falsification_heading = "## Falsification" if is_english_body(pattern_content) else "## Фальсификация"
+    updated += f"\n\n{falsification_heading} {today_str}\n**Вердикт:** {verdict}\n**Основание:** {reasoning}\nФАЛЬСИФИКАЦИЯ ПРОВЕДЕНА\n"
 
     if verdict == "ОПРОВЕРГНУТ":
         dest = os.path.join(ARCHIVE_PATH, os.path.basename(filepath))

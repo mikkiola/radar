@@ -144,7 +144,7 @@ def generate_post(assessment_content, human_correction=None):
     correction_note = ""
     if human_correction:
         correction_note = f"ВАЖНО: есть правка человека:\n{human_correction}\nИспользуй эту позицию - она финальная.\n"
-    user_prompt = f"""Напиши пост для Telegram-канала на основе этой оценки проекта.
+    user_prompt = f"""Напиши пост для Telegram-канала на основе этой оценки проекта. Входной текст оценки или паттерна может быть на английском как внутренние данные - игнорируй язык входа и отвечай только на русском в голосе канала.
 
 {correction_note}
 ОЦЕНКА:

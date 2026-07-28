@@ -1,7 +1,9 @@
 import requests
 import os
 import json
+import re
 from datetime import date, datetime
+from vault_language import is_english_body
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar/01_Assessments"))
@@ -30,8 +32,10 @@ def get_old_assessments():
         if not filename.endswith(".md"):
             continue
         try:
-            date_str = filename[:10]
-            file_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            match = re.search(r"(\d{4}-\d{2}-\d{2})\.md$", filename)
+            file_date = datetime.strptime(match.group(1), "%Y-%m-%d").date() if match else None
+            if file_date is None:
+                continue
             days_old = (today - file_date).days
             if days_old >= DAYS_THRESHOLD:
                 old_files.append({
@@ -77,6 +81,7 @@ def update_assessment(filepath, filename, days_old):
         content = f.read()
 
     today = date.today().strftime("%Y-%m-%d")
+    response_language = "English" if is_english_body(content) else "Russian"
 
     # Читаем мнение Ольги если есть
     opinion = read_owner_opinion(filepath)
@@ -86,7 +91,7 @@ def update_assessment(filepath, filename, days_old):
     )
 
     prompt = f"""Ты - измерительный прибор агентного и ИИ-рынка.
-Respond in Russian language only.
+Respond in {response_language}. Write ОБНОВЛЕНИЕ in {response_language}.
 
 Ниже оценка opensource-проекта сделанная {days_old} дней назад.
 Твоя задача: оценить актуальность гипотезы на сегодня.
@@ -129,6 +134,12 @@ Respond in Russian language only.
         ocenka = lines.get("ОЦЕНКА", "")
         izmenenie = lines.get("ИЗМЕНЕНИЕ", "")
         obnovlenie = lines.get("ОБНОВЛЕНИЕ", "")
+
+        expected_ocenki = {"СДВИГ", "ШУМ"}
+        expected_izmeneniya = {"подтверждается", "опровергается", "без изменений"}
+        if ocenka not in expected_ocenki or izmenenie not in expected_izmeneniya:
+            print(f"   Неожиданные ОЦЕНКА/ИЗМЕНЕНИЕ для {filename}: {ocenka!r}/{izmenenie!r}")
+            return
 
         opinion_note = " [с учётом мнения Ольги]" if opinion else ""
         new_entry = f"- {today} - {ocenka} ({izmenenie}){opinion_note}: {obnovlenie}"

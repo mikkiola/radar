@@ -1,9 +1,11 @@
 import os
+from datetime import date
 from types import SimpleNamespace
 
 import pytest
 
 import patterns
+import update_assessments
 
 
 def test_valid_json_passes_through_unchanged():
@@ -80,6 +82,60 @@ def test_truncation_inside_open_string_repairs_previous_cluster():
 def test_non_dict_top_level_is_unrecoverable():
     with pytest.raises(patterns.UnrecoverableJSONError):
         patterns.parse_llm_json('[]')
+
+
+@pytest.mark.parametrize(
+    ("heading", "summary"),
+    [
+        ("## Что меняется в экосистеме", "Русская суть сдвига."),
+        ("## What Changes in the Ecosystem", "English shift summary."),
+    ],
+)
+def test_extract_shift_summary_recognizes_both_heading_variants(heading, summary):
+    content = f"""# Assessment
+
+**Оценка:** СДВИГ
+
+{heading}
+{summary}
+
+## Reasoning
+Ignored.
+"""
+
+    assert patterns.extract_shift_summary(content) == summary
+
+
+@pytest.mark.parametrize(
+    ("right_heading", "wrong_heading", "right", "wrong"),
+    [
+        ("## Если права", "## Если ошиблась", "Рост", "Спад"),
+        ("## If Right", "## If Wrong", "Growth", "Decline"),
+    ],
+)
+def test_extract_pattern_hypotheses_recognizes_both_heading_variants(
+    right_heading, wrong_heading, right, wrong
+):
+    content = f"""{right_heading}
+{right}
+
+{wrong_heading}
+{wrong}
+"""
+
+    assert patterns.extract_pattern_hypotheses(content) == (right, wrong)
+
+
+def test_get_old_assessments_parses_trailing_filename_date(tmp_path, monkeypatch):
+    filename = "Some Title 2026-06-24.md"
+    (tmp_path / filename).write_text("# Assessment", encoding="utf-8")
+    monkeypatch.setattr(update_assessments, "VAULT_PATH", str(tmp_path))
+    monkeypatch.setattr(update_assessments, "DAYS_THRESHOLD", 0)
+
+    assessments = update_assessments.get_old_assessments()
+
+    assert assessments[0]["filename"] == filename
+    assert assessments[0]["days_old"] == (date.today() - date(2026, 6, 24)).days
 
 
 def test_falsify_missing_reasoning_does_not_modify_pattern(tmp_path, monkeypatch):
