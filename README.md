@@ -155,7 +155,7 @@ Trust weights are inert with a single analyst. They activate when 3+ analysts ar
 
 ## Requirements / Setup
 
-Python 3. Core scripts depend on `requests` and `anthropic` (installed directly in CI; there is no root `requirements.txt`). The docs/Pages build uses `mkdocs` and `mkdocs-material`, listed in [requirements_pages.txt](requirements_pages.txt).
+Python 3. Core scripts depend on `requests`, `anthropic`, and `ghapi` (installed directly in CI; there is no root `requirements.txt`). The docs/Pages build uses `mkdocs` and `mkdocs-material`, listed in [requirements_pages.txt](requirements_pages.txt).
 
 You'll need an Anthropic API key (`ANTHROPIC_API_KEY`) and, for Telegram publishing, a bot token and channel ID — see Environment variables above.
 

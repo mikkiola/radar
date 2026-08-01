@@ -1,7 +1,13 @@
-from filter import is_relevant
+from filter import passes_filter, metrics
+from ghapi.core import GhApi
+import os
 import requests
 import time
 from datetime import datetime, timedelta
+
+GITHUB_TIMEOUT = 10
+GITHUB_TOKEN = os.environ.get("GITHUB_READ_TOKEN")
+gh_api = GhApi(timeout=GITHUB_TIMEOUT, sync=True, token=GITHUB_TOKEN)
 
 def fetch_hacker_news():
     print("\n📡 Hacker News...")
@@ -49,9 +55,24 @@ def fetch_reddit():
     print(f"   Найдено: {len(projects)}")
     return projects
 
+RECENT_COMMITS_COUNT = 10
+
+def fetch_recent_commits(full_name):
+    owner, repo = full_name.split("/", 1)
+    try:
+        commits = gh_api.repos.list_commits(owner=owner, repo=repo, per_page=RECENT_COMMITS_COUNT)
+        texts = []
+        for c in commits:
+            message = c["commit"].get("message", "")
+            author = c.get("author")
+            author_login = author["login"] if author else ""
+            texts.append(f"{author_login} {message}")
+        return texts
+    except Exception:
+        return []
+
 def fetch_github():
     print("\n📡 GitHub Search...")
-    url = "https://api.github.com/search/repositories"
     cutoff = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
 
     # Срез 1 — новые: молодые проекты, ранний сигнал
@@ -69,25 +90,25 @@ def fetch_github():
     ]
 
     projects = []
-    headers = {"Accept": "application/vnd.github.v3+json"}
 
     for q in new_queries:
-        params = {
-            "q": q + " is:public fork:false archived:false stars:10..500",
-            "sort": "updated",
-            "order": "desc",
-            "per_page": 10,
-        }
         try:
-            r = requests.get(url, params=params, headers=headers, timeout=10)
-            r.raise_for_status()
-            items = r.json().get("items", [])
+            res = gh_api.search.repos(
+                q=q + " is:public fork:false archived:false stars:10..500",
+                sort="updated",
+                order="desc",
+                per_page=10,
+            )
+            items = res.get("items", [])
             for item in items:
                 projects.append({
                     "title": item["full_name"],
                     "description": item.get("description", ""),
                     "url": item["html_url"],
                     "score": item["stargazers_count"],
+                    "forks_count": item.get("forks_count", 0),
+                    "watchers_count": item.get("watchers_count", 0),
+                    "recent_commits": fetch_recent_commits(item["full_name"]),
                     "source": "GitHub/new",
                 })
             time.sleep(1)
@@ -95,22 +116,23 @@ def fetch_github():
             print(f"   Ошибка '{q}': {e}")
 
     for q in hot_queries:
-        params = {
-            "q": q + " is:public fork:false archived:false",
-            "sort": "stars",
-            "order": "desc",
-            "per_page": 10,
-        }
         try:
-            r = requests.get(url, params=params, headers=headers, timeout=10)
-            r.raise_for_status()
-            items = r.json().get("items", [])
+            res = gh_api.search.repos(
+                q=q + " is:public fork:false archived:false",
+                sort="stars",
+                order="desc",
+                per_page=10,
+            )
+            items = res.get("items", [])
             for item in items:
                 projects.append({
                     "title": item["full_name"],
                     "description": item.get("description", ""),
                     "url": item["html_url"],
                     "score": item["stargazers_count"],
+                    "forks_count": item.get("forks_count", 0),
+                    "watchers_count": item.get("watchers_count", 0),
+                    "recent_commits": fetch_recent_commits(item["full_name"]),
                     "source": "GitHub/hot",
                 })
             time.sleep(1)
@@ -131,18 +153,19 @@ def fetch_awesome_lists():
     results = []
     for repo in awesome_repos:
         try:
-            url = f"https://api.github.com/repos/{repo}"
-            resp = requests.get(url, headers={"Accept": "application/vnd.github+json"}, timeout=10)
-            if resp.status_code == 200:
-                data = resp.json()
-                results.append({
-                    "title": data.get("name", repo),
-                    "description": data.get("description", ""),
-                    "url": data.get("html_url", ""),
-                    "score": data.get("stargazers_count", 0),
-                    "topics": data.get("topics", []),
-                    "source": "AwesomeList"
-                })
+            owner, repo_name = repo.split("/", 1)
+            data = gh_api.repos.get(owner=owner, repo=repo_name)
+            results.append({
+                "title": data.get("name", repo),
+                "description": data.get("description", ""),
+                "url": data.get("html_url", ""),
+                "score": data.get("stargazers_count", 0),
+                "forks_count": data.get("forks_count", 0),
+                "watchers_count": data.get("watchers_count", 0),
+                "recent_commits": fetch_recent_commits(repo),
+                "topics": data.get("topics", []),
+                "source": "AwesomeList"
+            })
         except Exception as e:
             print(f"   Ошибка {repo}: {e}")
     print(f"   Найдено: {len(results)}")
@@ -183,7 +206,8 @@ if __name__ == "__main__":
     all_projects += fetch_github()
     all_projects += fetch_awesome_lists()
     unique = deduplicate(all_projects)
-    filtered = [p for p in unique if is_relevant(p)]
+    filtered = [p for p in unique if passes_filter(p)]
     print(f"После фильтра: {len(filtered)} из {len(unique)}")
+    print(f"Scorecard: без данных={metrics['score_missing']}, недоступен={metrics['score_timeout']}")
     print_results(filtered)
     print(f"\n✅ Готово.")
