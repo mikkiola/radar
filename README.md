@@ -1,6 +1,8 @@
 # radar
 
-Automated open-source ecosystem monitoring pipeline powered by Claude API. Collects signals from GitHub, HN, Reddit and AwesomeLists, filters noise, clusters patterns against external analyst opinions, publishes to Telegram, and renders an interactive knowledge graph.
+A measuring instrument for the agentic/AI market — not a news aggregator, not a GitHub scraper. It's a research platform for accumulating, validating, and evolving structured knowledge about shifts in the AI/MCP/LLM ecosystem: collecting signals from GitHub, HN, Reddit and AwesomeLists, filtering noise, clustering patterns against external analyst opinions, publishing to Telegram, and rendering an interactive knowledge graph.
+
+This is a personal research instrument built for the author's own analysis — not a growth or audience product.
 
 Live example: [@radar_public](https://t.me/radar_public)  
 Interactive graph: [opensource-radar-42558a.gitlab.io](https://opensource-radar-42558a.gitlab.io/)
@@ -36,7 +38,7 @@ Vault lives in the `vault` branch of the same repository. Obsidian reads it as a
 
 ---
 
-## Four-layer architecture
+## Five-layer architecture
 
 ```
 Layer 0 → Sources       GitHub / HN / Reddit / AwesomeLists
@@ -81,7 +83,7 @@ Layer 4 adds external analysts as a separate input to pattern clustering. `patte
 | `update_assessments.py` | Re-evaluate assessments older than 30 days | Haiku | Daily |
 | `fetch_analysts.py` | Parse external analysts, extract claims, save to 04_Analysts/ | Haiku | Every Friday |
 | `patterns.py` | Clustering + archiving + falsification + external analyst input | Sonnet | Every Friday |
-| `telegram_post.py` | Generate post and publish to channel | Sonnet | 9:00 and 21:00 |
+| `telegram_post.py` | Generate post and publish to channel | Sonnet | Twice daily |
 | `generate_graph.py` | Build graph.json from wikilinks | — | On Pages build |
 | `generate_indexes.py` | Generate index.md for vault sections | — | On Pages build |
 
@@ -91,15 +93,15 @@ Layer 4 adds external analysts as a separate input to pattern clustering. `patte
 
 Repository: `gitlab.com/lyolich777ka/radar`, branches `master` (scripts) and `vault` (data).
 
-| Job | UTC schedule | Bangkok (UTC+7) | Trigger |
-|---|---|---|---|
-| radar | `0 5 * * *` | 12:00 daily | schedule |
-| publish | `0 2,14 * * *` | 9:00 and 21:00 | `PUBLISH_ONLY=true` |
-| analysts | `0 5 * * 5` | 12:00 Friday | `PATTERN_MODE=weekly` |
-| patterns | `0 5 * * 5` | 12:00 Friday | `PATTERN_MODE=weekly` |
-| pages | on push to master | automatic | `$CI_COMMIT_BRANCH == "master"` |
+| Job | Cadence | Trigger |
+|---|---|---|
+| radar | daily | schedule |
+| publish | twice daily | `PUBLISH_ONLY=true` |
+| analysts | weekly | `PATTERN_MODE=weekly` |
+| patterns | weekly | `PATTERN_MODE=weekly` |
+| pages | on push to master | `$CI_COMMIT_BRANCH == "master"` |
 
-`analysts` runs before `patterns` in the same Friday pipeline (stage `collect` → stage `patterns`).
+`analysts` runs before `patterns` in the same weekly pipeline (stage `collect` → stage `patterns`).
 
 ---
 
@@ -148,3 +150,29 @@ EXTERNAL_ANALYSTS = [
 ```
 
 Trust weights are inert with a single analyst. They activate when 3+ analysts are present and affect how strongly external confirmation influences pattern scoring.
+
+---
+
+## Requirements / Setup
+
+Python 3. Core scripts depend on `requests` and `anthropic` (installed directly in CI; there is no root `requirements.txt`). The docs/Pages build uses `mkdocs` and `mkdocs-material`, listed in [requirements_pages.txt](requirements_pages.txt).
+
+You'll need an Anthropic API key (`ANTHROPIC_API_KEY`) and, for Telegram publishing, a bot token and channel ID — see Environment variables above.
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+---
+
+## Author
+
+Olga Stroganova, 2026.
+
+---
+
+## Contributing
+
+This is a personal research tool built for the author's own use. Pull requests are welcome but may not be reviewed quickly, or at all.
