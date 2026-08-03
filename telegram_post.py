@@ -7,6 +7,8 @@ import argparse
 import requests
 from anthropic import Anthropic
 
+import vault_write
+
 MODEL_CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "99_System", "model_config.json")
 
 def load_model_config():
@@ -35,10 +37,13 @@ def load_assessment(filepath):
         return f.read()
 
 def is_shift_assessment(content):
-    for line in content.splitlines():
-        if line.startswith("**Оценка:**"):
-            return "СДВИГ" in line
-    return False
+    """Читает status из frontmatter, никогда текстовое поле **Оценка:**.
+    CANDIDATE_LOW_CONFIDENCE исключается из публикации автоматически - это просто
+    не VALIDATED_SHIFT, отдельной ветки логики не требуется."""
+    frontmatter, _ = vault_write.parse_frontmatter(content)
+    if frontmatter is None:
+        return False
+    return frontmatter.get("status") == "VALIDATED_SHIFT"
 
 def get_human_correction(content):
     lines = content.splitlines()
@@ -68,7 +73,7 @@ def find_latest_shift(exclude_published=True):
             continue
         content = load_assessment(filepath)
         if is_shift_assessment(content):
-            print(f"Найдена оценка СДВИГ: {filename}")
+            print(f"Найдена оценка VALIDATED_SHIFT: {filename}")
             return filepath, content
     return None, None
 
@@ -203,13 +208,13 @@ def main():
             sys.exit(1)
         content = load_assessment(filepath)
         if not is_shift_assessment(content):
-            print("ОШИБКА: оценка в файле не СДВИГ")
+            print("ОШИБКА: status файла не VALIDATED_SHIFT")
             sys.exit(1)
         filename = args.file
     else:
         filepath, content = find_latest_shift(exclude_published=not args.include_published)
         if not filepath:
-            print("Нет новых оценок СДВИГ для публикации.")
+            print("Нет новых оценок VALIDATED_SHIFT для публикации.")
             sys.exit(0)
         filename = os.path.basename(filepath)
 

@@ -5,10 +5,17 @@ import re
 from datetime import date, datetime
 from vault_language import is_english_body
 
+import vault_write
+
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar/01_Assessments"))
 DAYS_THRESHOLD = 30
 MODEL_CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "99_System", "model_config.json")
+
+VERDICT_TO_STATUS = {
+    "СДВИГ": "VALIDATED_SHIFT",
+    "ШУМ": "REJECTED_NOISE",
+}
 
 
 def load_model_config():
@@ -76,12 +83,18 @@ def read_owner_opinion(filepath):
 
 
 def update_assessment(filepath, filename, days_old):
-    """Читаем файл и просим Claude обновить оценку с учётом мнения Ольги."""
-    with open(filepath, "r", encoding="utf-8") as f:
-        content = f.read()
+    """Читаем файл и просим Claude обновить оценку с учётом мнения Ольги.
+    Пишем через write_verdict_entry() - если новый вердикт отличается от текущего status,
+    статус не флипается напрямую, а уходит в CANDIDATE_LOW_CONFIDENCE (карантин, ждёт
+    второго подтверждения человеком - Фаза 3)."""
+    frontmatter, body = vault_write.read_frontmatter(filepath)
+    if frontmatter is None:
+        print(f"   ОШИБКА: {filename} без frontmatter, пропускаю переоценку")
+        return
 
+    current_status = frontmatter.get("status")
     today = date.today().strftime("%Y-%m-%d")
-    response_language = "English" if is_english_body(content) else "Russian"
+    response_language = "English" if is_english_body(body) else "Russian"
 
     # Читаем мнение Ольги если есть
     opinion = read_owner_opinion(filepath)
@@ -96,7 +109,7 @@ Respond in {response_language}. Write ОБНОВЛЕНИЕ in {response_language
 Ниже оценка opensource-проекта сделанная {days_old} дней назад.
 Твоя задача: оценить актуальность гипотезы на сегодня.
 {opinion_context}
-{content}
+{body}
 
 Отвечай СТРОГО в этом формате:
 ОЦЕНКА: СДВИГ или ШУМ (может измениться или остаться)
@@ -135,24 +148,23 @@ Respond in {response_language}. Write ОБНОВЛЕНИЕ in {response_language
         izmenenie = lines.get("ИЗМЕНЕНИЕ", "")
         obnovlenie = lines.get("ОБНОВЛЕНИЕ", "")
 
-        expected_ocenki = {"СДВИГ", "ШУМ"}
-        expected_izmeneniya = {"подтверждается", "опровергается", "без изменений"}
-        if ocenka not in expected_ocenki or izmenenie not in expected_izmeneniya:
+        if ocenka not in VERDICT_TO_STATUS or izmenenie not in {"подтверждается", "опровергается", "без изменений"}:
             print(f"   Неожиданные ОЦЕНКА/ИЗМЕНЕНИЕ для {filename}: {ocenka!r}/{izmenenie!r}")
             return
 
+        new_mapped_status = VERDICT_TO_STATUS[ocenka]
+        final_status = new_mapped_status if new_mapped_status == current_status else "CANDIDATE_LOW_CONFIDENCE"
+
         opinion_note = " [с учётом мнения Ольги]" if opinion else ""
-        new_entry = f"- {today} - {ocenka} ({izmenenie}){opinion_note}: {obnovlenie}"
+        narrative_line = f"- {today} - {ocenka} ({izmenenie}){opinion_note}: {obnovlenie}"
 
-        updated_content = content.replace(
-            "## История оценок",
-            f"## История оценок\n{new_entry}"
-        )
+        written = vault_write.write_verdict_entry(filepath, final_status, narrative_line)
+        if not written:
+            print(f"   ОШИБКА записи: {filename}")
+            return
 
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(updated_content)
-
-        print(f"   {ocenka} ({izmenenie}){opinion_note} - {filename}")
+        flip_note = f" [status: {current_status} -> {final_status}]" if final_status != current_status else ""
+        print(f"   {ocenka} ({izmenenie}){opinion_note} - {filename}{flip_note}")
 
     except Exception as e:
         print(f"   Ошибка {filename}: {e}")

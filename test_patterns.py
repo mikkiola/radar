@@ -92,9 +92,9 @@ def test_non_dict_top_level_is_unrecoverable():
     ],
 )
 def test_extract_shift_summary_recognizes_both_heading_variants(heading, summary):
+    # read_assessments() всегда передаёт extract_shift_summary() тело файла БЕЗ frontmatter
+    # (frontmatter уже отделён read_frontmatter() до вызова) - фикстура отражает это.
     content = f"""# Assessment
-
-**Оценка:** СДВИГ
 
 {heading}
 {summary}
@@ -136,6 +136,54 @@ def test_get_old_assessments_parses_trailing_filename_date(tmp_path, monkeypatch
 
     assert assessments[0]["filename"] == filename
     assert assessments[0]["days_old"] == (date.today() - date(2026, 6, 24)).days
+
+
+def _write_frontmatter_assessment(path, status, title="Проект"):
+    content = f"""---
+status: {status}
+maturity_score: 5
+novelty_score: 5
+assertion_vector: null
+evidence_log: []
+root_commit_sha: null
+verdict_history: []
+---
+# {title}
+
+**Дата:** 2026-07-01
+**Репозиторий:** https://github.com/example/repo
+
+## What Changes in the Ecosystem
+Summary text.
+"""
+    path.write_text(content, encoding="utf-8")
+
+
+def test_read_assessments_includes_only_validated_shift(tmp_path, monkeypatch):
+    assessments_path = tmp_path / "01_Assessments"
+    assessments_path.mkdir()
+    _write_frontmatter_assessment(assessments_path / "Shift.md", "VALIDATED_SHIFT", title="Shift Project")
+    _write_frontmatter_assessment(assessments_path / "Noise.md", "REJECTED_NOISE", title="Noise Project")
+    _write_frontmatter_assessment(
+        assessments_path / "LowConfidence.md", "CANDIDATE_LOW_CONFIDENCE", title="Low Confidence Project"
+    )
+    monkeypatch.setattr(patterns, "ASSESSMENTS_PATH", str(assessments_path))
+
+    assessments = patterns.read_assessments()
+
+    assert {a["filename"] for a in assessments} == {"Shift.md"}
+
+
+def test_read_assessments_skips_files_without_frontmatter(tmp_path, monkeypatch):
+    assessments_path = tmp_path / "01_Assessments"
+    assessments_path.mkdir()
+    (assessments_path / "Legacy.md").write_text(
+        "# Legacy\n\n**Оценка:** СДВИГ\n\n## What Changes in the Ecosystem\nOld format.\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(patterns, "ASSESSMENTS_PATH", str(assessments_path))
+
+    assert patterns.read_assessments() == []
 
 
 def test_extract_source_block_reads_all_three_fields():

@@ -21,6 +21,8 @@ import requests
 from datetime import datetime, timedelta
 from vault_language import ENGLISH_ASSESSMENT_HEADING, is_english_body
 
+import vault_write
+
 MODEL_CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "99_System", "model_config.json")
 
 def load_model_config():
@@ -270,18 +272,18 @@ def read_analysts():
 
 
 def read_assessments():
-    """Прочитать все СДВИГ-оценки из 01_Assessments/."""
+    """Прочитать все VALIDATED_SHIFT-оценки из 01_Assessments/ - читает только status
+    из frontmatter, никогда текстовое поле **Оценка:** (устраняет Split-Brain)."""
     files = glob.glob(os.path.join(ASSESSMENTS_PATH, "*.md"))
     assessments = []
     for filepath in sorted(files):
-        with open(filepath, "r", encoding="utf-8") as f:
-            content = f.read()
-        if "**Оценка:** СДВИГ" not in content:
+        frontmatter, body = vault_write.read_frontmatter(filepath)
+        if frontmatter is None or frontmatter.get("status") != "VALIDATED_SHIFT":
             continue
         title = ""
         repo_url = ""
         file_date = ""
-        for line in content.splitlines():
+        for line in body.splitlines():
             if line.startswith("# Оценка:"):
                 title = line.replace("# Оценка:", "").strip()
             if line.startswith("**Репозиторий:**"):
@@ -293,8 +295,8 @@ def read_assessments():
             "title": title or os.path.basename(filepath),
             "repo_url": repo_url,
             "date": file_date,
-            "content": extract_shift_summary(content),
-            "source": extract_source_block(content),
+            "content": extract_shift_summary(body),
+            "source": extract_source_block(body),
         })
     return assessments
 
