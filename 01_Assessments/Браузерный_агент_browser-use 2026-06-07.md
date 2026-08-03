@@ -1,3 +1,20 @@
+---
+status: VALIDATED_SHIFT
+maturity_score: null
+novelty_score: null
+assertion_vector: null
+evidence_log: []
+root_commit_sha: null
+verdict_history:
+- date: '2026-07-30'
+  verdict: VALIDATED_SHIFT
+- date: '2026-07-29'
+  verdict: VALIDATED_SHIFT
+- date: '2026-07-28'
+  verdict: VALIDATED_SHIFT
+- date: '2026-06-07'
+  verdict: VALIDATED_SHIFT
+---
 # Оценка: browser-use/browser-use
 
 **Дата:** 2026-06-07

@@ -1,3 +1,18 @@
+---
+status: VALIDATED_SHIFT
+maturity_score: null
+novelty_score: null
+assertion_vector: null
+evidence_log: []
+root_commit_sha: null
+verdict_history:
+- date: '2026-07-31'
+  verdict: VALIDATED_SHIFT
+- date: '2026-07-29'
+  verdict: VALIDATED_SHIFT
+- date: '2026-06-24'
+  verdict: VALIDATED_SHIFT
+---
 # Collaborative AI агенты в shared workspaces
 
 **Дата:** 2026-06-24

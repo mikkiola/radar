@@ -1,3 +1,14 @@
+---
+status: VALIDATED_SHIFT
+maturity_score: null
+novelty_score: null
+assertion_vector: null
+evidence_log: []
+root_commit_sha: null
+verdict_history:
+- date: '2026-07-28'
+  verdict: VALIDATED_SHIFT
+---
 # Verifiable AI Agent Identity Standard
 
 **Дата:** 2026-07-28

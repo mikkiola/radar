@@ -1,3 +1,22 @@
+---
+status: REJECTED_NOISE
+maturity_score: null
+novelty_score: null
+assertion_vector: null
+evidence_log: []
+root_commit_sha: null
+verdict_history:
+- date: '2026-07-31'
+  verdict: REJECTED_NOISE
+- date: '2026-07-30'
+  verdict: REJECTED_NOISE
+- date: '2026-07-29'
+  verdict: REJECTED_NOISE
+- date: '2026-07-28'
+  verdict: REJECTED_NOISE
+- date: '2026-06-10'
+  verdict: REJECTED_NOISE
+---
 # Облегченная автоматизация через Claude Agent
 
 **Дата:** 2026-06-10
