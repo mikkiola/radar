@@ -1,4 +1,4 @@
-image: python:3.11
+image: python:3.12
 
 stages:
   - run
@@ -131,7 +131,7 @@ patterns:
 
 pages:
   stage: pages
-  image: python:3.11
+  image: python:3.12
   variables:
     GIT_STRATEGY: none
   script:
