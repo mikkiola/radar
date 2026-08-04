@@ -3,6 +3,7 @@ import re
 import glob
 import argparse
 import difflib
+import subprocess
 
 import yaml
 
@@ -141,6 +142,47 @@ def print_diff(report):
     print("".join(diff))
 
 
+def verify_local_checkout_matches_origin(vault_path):
+    """Перед --apply сверить список файлов локального чекаута VAULT_PATH с
+    origin/vault - тот же класс риска, что и в инциденте с production cron
+    (Правило 24 CONSTITUTION): локальный чекаут может отставать от origin.
+    Возвращает текст ошибки при расхождении, иначе None."""
+    repo_root = os.path.dirname(os.path.normpath(vault_path))
+
+    fetch = subprocess.run(
+        ["git", "-C", repo_root, "fetch", "origin", "vault"],
+        capture_output=True, text=True,
+    )
+    if fetch.returncode != 0:
+        return f"git fetch origin vault не удался: {fetch.stderr.strip()}"
+
+    ls_tree = subprocess.run(
+        ["git", "-C", repo_root, "ls-tree", "-r", "origin/vault", "--name-only", "--", "01_Assessments"],
+        capture_output=True, text=True,
+    )
+    if ls_tree.returncode != 0:
+        return f"git ls-tree origin/vault не удался: {ls_tree.stderr.strip()}"
+
+    origin_files = {
+        os.path.basename(line) for line in ls_tree.stdout.splitlines() if line.endswith(".md")
+    }
+    local_files = {
+        os.path.basename(f) for f in glob.glob(os.path.join(vault_path, "*.md"))
+    }
+
+    if origin_files == local_files:
+        return None
+
+    parts = []
+    missing_locally = origin_files - local_files
+    extra_locally = local_files - origin_files
+    if missing_locally:
+        parts.append(f"есть в origin/vault, нет локально: {sorted(missing_locally)}")
+    if extra_locally:
+        parts.append(f"есть локально, нет в origin/vault: {sorted(extra_locally)}")
+    return "локальный чекаут отстаёт от origin/vault (" + "; ".join(parts) + "), обновите перед --apply"
+
+
 def main():
     parser = argparse.ArgumentParser(description="Одноразовая миграция 01_Assessments/ на YAML frontmatter (Вариант A, backfill)")
     parser.add_argument("--apply", action="store_true", help="Реально записать файлы (по умолчанию - только dry-run с отчётом)")
@@ -164,6 +206,12 @@ def main():
     print(f"[backfill] режим: {'APPLY (реальная запись)' if args.apply else 'DRY-RUN (без записи)'}")
     print(f"[backfill] файлов к обработке: {len(files)}")
     print()
+
+    if args.apply:
+        mismatch = verify_local_checkout_matches_origin(VAULT_PATH)
+        if mismatch:
+            print(f"[backfill] ОШИБКА: {mismatch}")
+            return
 
     errors = 0
     already_migrated = 0

@@ -19,6 +19,8 @@ radar:
     - cd vault_repo
     - git remote set-url origin https://lyolich777ka:${GITLAB_PUSH_TOKEN}@gitlab.com/lyolich777ka/radar.git
     - git add -A
+    - CHANGED=$(git diff --staged --name-only -- 01_Assessments | grep '\.md$' || true)
+    - if [ -n "$CHANGED" ]; then python3 ../check_frontmatter.py $CHANGED || exit 1; fi
     - |
       if git diff --staged --quiet; then
         echo "Новых оценок нет — нечего пушить"
@@ -70,6 +72,21 @@ analysts:
     - git diff --cached --quiet || (git commit -m "Аналитик Builder Radar $(date '+%Y-%m-%d')" && git pull --rebase origin vault && git push origin vault)
   rules:
     - if: '$PATTERN_MODE == "weekly"'
+
+lint_vault:
+  stage: run
+  script:
+    - pip install pyyaml requests --quiet
+    - git clone --branch vault https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/lyolich777ka/radar.git vault_repo
+    - |
+      if ! python3 check_frontmatter.py vault_repo/01_Assessments; then
+        curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+          -d chat_id="${TELEGRAM_OWNER_ID}" \
+          -d text="lint_vault: обнаружен невалидный frontmatter в 01_Assessments/, pipeline ${CI_PIPELINE_URL}"
+        exit 1
+      fi
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "vault" && $CI_PIPELINE_SOURCE == "push"'
 
 check_models:
   stage: collect
