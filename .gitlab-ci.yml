@@ -87,6 +87,7 @@ lint_vault:
       fi
   rules:
     - if: '$CI_COMMIT_BRANCH == "vault" && $CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
 
 check_models:
   stage: collect
