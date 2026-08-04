@@ -1,3 +1,14 @@
+---
+status: VALIDATED_SHIFT
+maturity_score: null
+novelty_score: null
+assertion_vector: null
+evidence_log: []
+root_commit_sha: null
+verdict_history:
+- date: '2026-08-01'
+  verdict: VALIDATED_SHIFT
+---
 # Local Episodic Memory for Agents
 
 **Дата:** 2026-08-01
