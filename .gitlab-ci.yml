@@ -34,6 +34,24 @@ radar:
     - if: '$CI_PIPELINE_SOURCE == "schedule" && $PUBLISH_ONLY != "true" && $PATTERN_MODE != "weekly"'
     - if: '$CI_PIPELINE_SOURCE == "web" && $PUBLISH_ONLY != "true" && $PATTERN_MODE != "weekly"'
 
+confirm_candidate:
+  stage: run
+  script:
+    - pip install requests pyyaml --quiet
+    - git config --global user.email "radar@gitlab.com"
+    - git config --global user.name "Radar Bot"
+    - git clone --branch vault https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/lyolich777ka/radar.git vault_repo
+    - VAULT_PATH="$(pwd)/vault_repo/01_Assessments" python3 confirm_candidate.py
+    - cd vault_repo
+    - git remote set-url origin https://lyolich777ka:${GITLAB_PUSH_TOKEN}@gitlab.com/lyolich777ka/radar.git
+    - git add -A
+    - 'git commit -m "HITL-подтверждение $CONFIRM_REPO: $CONFIRM_DECISION"'
+    - git pull --rebase origin vault
+    - python3 ../check_frontmatter.py 01_Assessments || exit 1
+    - git push origin vault
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web" && $CONFIRM_REPO'
+
 publish:
   stage: publish
   script:

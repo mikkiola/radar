@@ -17,6 +17,24 @@ VERDICT_TO_STATUS = {
     "ШУМ": "REJECTED_NOISE",
 }
 
+VALID_STATE_VALUES = {
+    "Prototype", "Growing", "Mature", "Maintenance", "Declining", "Archived", "Spam",
+}
+
+
+def _map_state_value(state_raw):
+    """Отобразить сырой STATE-текст от LLM в state_value для write_verdict_entry().
+    Пустая строка (STATE line отсутствует вовсе) -> None - нет данных, признак,
+    что LLM не ответил на этот вопрос. Непустая, но не входящая в
+    VALID_STATE_VALUES -> "invalid" - LLM ответил, но неверным значением, что
+    диагностически отличимо от отсутствия данных (позволяет позже посчитать,
+    как часто LLM промахивается с этой классификацией)."""
+    if state_raw in VALID_STATE_VALUES:
+        return state_raw
+    if state_raw:
+        return "invalid"
+    return None
+
 
 def load_model_config():
     with open(MODEL_CONFIG_PATH) as f:
@@ -114,6 +132,7 @@ Respond in {response_language}. Write ОБНОВЛЕНИЕ in {response_language
 Отвечай СТРОГО в этом формате:
 ОЦЕНКА: СДВИГ или ШУМ (может измениться или остаться)
 ИЗМЕНЕНИЕ: подтверждается или опровергается или без изменений
+STATE: Prototype, Growing, Mature, Maintenance, Declining, Archived или Spam - lifecycle TREND (momentum) репозитория с момента последней проверки, НЕ повтор ОЦЕНКИ другими словами - растёт ли активность/принятие или падает, а не "СДВИГ это или ШУМ"
 ОБНОВЛЕНИЕ: [2-3 предложения - что произошло в экосистеме за это время что влияет на оценку. Если есть мнение владельца - учти его в анализе]"""
 
     try:
@@ -147,10 +166,15 @@ Respond in {response_language}. Write ОБНОВЛЕНИЕ in {response_language
         ocenka = lines.get("ОЦЕНКА", "")
         izmenenie = lines.get("ИЗМЕНЕНИЕ", "")
         obnovlenie = lines.get("ОБНОВЛЕНИЕ", "")
+        state_raw = lines.get("STATE", "")
 
         if ocenka not in VERDICT_TO_STATUS or izmenenie not in {"подтверждается", "опровергается", "без изменений"}:
             print(f"   Неожиданные ОЦЕНКА/ИЗМЕНЕНИЕ для {filename}: {ocenka!r}/{izmenenie!r}")
             return
+
+        state_value = _map_state_value(state_raw)
+        if state_value == "invalid":
+            print(f"   Неожиданный STATE для {filename}: {state_raw!r} - recheck пишется с state_value=invalid")
 
         new_mapped_status = VERDICT_TO_STATUS[ocenka]
         final_status = new_mapped_status if new_mapped_status == current_status else "CANDIDATE_LOW_CONFIDENCE"
@@ -158,7 +182,7 @@ Respond in {response_language}. Write ОБНОВЛЕНИЕ in {response_language
         opinion_note = " [с учётом мнения Ольги]" if opinion else ""
         narrative_line = f"- {today} - {ocenka} ({izmenenie}){opinion_note}: {obnovlenie}"
 
-        written = vault_write.write_verdict_entry(filepath, final_status, narrative_line)
+        written = vault_write.write_verdict_entry(filepath, final_status, narrative_line, state_value=state_value)
         if not written:
             print(f"   ОШИБКА записи: {filename}")
             return

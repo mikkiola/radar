@@ -9,8 +9,8 @@ TELEGRAM_OWNER_ID = os.environ.get("TELEGRAM_OWNER_ID")
 FRONTMATTER_DELIMITER = "---"
 HISTORY_HEADING = "## История оценок"
 CANONICAL_FIELD_ORDER = [
-    "status", "maturity_score", "novelty_score", "assertion_vector",
-    "evidence_log", "root_commit_sha", "verdict_history",
+    "status", "maturity_score", "novelty_score", "state_value", "state_confidence",
+    "assertion_vector", "evidence_log", "root_commit_sha", "verdict_history",
 ]
 
 
@@ -84,7 +84,20 @@ def _send_candidate_low_confidence_dm(filepath, narrative_line):
         print(f"[vault_write] исключение при отправке уведомления: {e}")
 
 
-def write_verdict_entry(filepath, status, narrative_line, extra_frontmatter=None, body_template=None):
+def append_event(frontmatter, event_type, **fields):
+    """Чистая функция - мутирует и возвращает frontmatter, не трогает диск.
+    Единственный сейчас определённый event_type - "state_transition"
+    (date, event_type, state_value, state_confidence). Схема для будущих
+    event_type (license_changed/archived/release, Фаза 3b) не
+    зафиксирована - **fields оставляет это открытым без переписывания
+    сигнатуры позже."""
+    event = {"date": date.today().strftime("%Y-%m-%d"), "event_type": event_type, **fields}
+    frontmatter["evidence_log"] = list(frontmatter.get("evidence_log") or []) + [event]
+    return frontmatter
+
+
+def write_verdict_entry(filepath, status, narrative_line, extra_frontmatter=None,
+                         body_template=None, state_value=None):
     """Единственная точка записи status+verdict_history+'## История оценок' в файл оценки -
     общая для analyze.py (первичная оценка) и update_assessments.py (переоценка). Устраняет
     Split-Brain между машиночитаемым verdict_history и человекочитаемым логом: оба поля
@@ -97,6 +110,14 @@ def write_verdict_entry(filepath, status, narrative_line, extra_frontmatter=None
     Если файл существует - точечно обновляет status, добавляет запись в verdict_history и
     дописывает narrative_line в существующий '## История оценок'; extra_frontmatter и
     body_template игнорируются, остальные поля/секции не трогаются.
+
+    state_value (Фаза 3, Decision B+) - новое LLM-суждение о lifecycle-тренде репозитория,
+    None по умолчанию. Если передан - state_confidence вычисляется детерминированно из
+    количества уже накопленных evidence_log-событий ДО этой записи (0 -> low, 1+ -> high,
+    не LLM self-report), state_value/state_confidence пишутся во frontmatter и
+    append_event() добавляет "state_transition"-событие в evidence_log. Если None (например
+    confirm_candidate.py - человеческое решение, не новое LLM-суждение) - evidence_log не
+    трогается вообще.
 
     Если status == "CANDIDATE_LOW_CONFIDENCE" - шлёт личное уведомление владельцу
     (TELEGRAM_BOT_TOKEN/TELEGRAM_OWNER_ID), независимо от того, кто вызвал функцию.
@@ -121,6 +142,14 @@ def write_verdict_entry(filepath, status, narrative_line, extra_frontmatter=None
     history = list(frontmatter.get("verdict_history") or [])
     history.append({"date": today, "verdict": status})
     frontmatter["verdict_history"] = history
+
+    if state_value is not None:
+        prior_count = len(frontmatter.get("evidence_log") or [])
+        state_confidence = "high" if prior_count >= 1 else "low"
+        frontmatter["state_value"] = state_value
+        frontmatter["state_confidence"] = state_confidence
+        append_event(frontmatter, "state_transition",
+                      state_value=state_value, state_confidence=state_confidence)
 
     if HISTORY_HEADING in body:
         body = body.replace(HISTORY_HEADING, f"{HISTORY_HEADING}\n{narrative_line}", 1)

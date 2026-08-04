@@ -33,6 +33,11 @@ CLASSIFICATION_TOOL = {
             "name_en": {"type": "string", "description": "Short English name, 3-5 words, describing the project essence"},
             "maturity_score": {"type": "integer", "minimum": 1, "maximum": 5},
             "novelty_score": {"type": "integer", "minimum": 1, "maximum": 5},
+            "state_value": {
+                "type": "string",
+                "enum": ["Prototype", "Growing", "Mature", "Maintenance", "Declining", "Archived", "Spam"],
+                "description": "Lifecycle TREND classification - momentum, not a snapshot. Do NOT restate maturity_score in words; this is a different axis (is the project gaining or losing momentum, not how sophisticated the code is today). Prototype = early/experimental, Growing = adoption/activity increasing, Mature = stable and widely used, Maintenance = stable but low activity, Declining = losing relevance or activity, Archived = no longer maintained, Spam = not a real project.",
+            },
             "cross_validation_answer": {
                 "type": "string",
                 "description": "Does the architecture/capability claimed in the README check out against the manifest and root file tree content? Answer using ONLY the README+manifest+file tree provided, not general knowledge about this project.",
@@ -64,7 +69,7 @@ CLASSIFICATION_TOOL = {
             "source_quote": {"type": "string", "description": "exact substring from README/description/title provided above, in the original language, never invented; empty if nothing to cite"},
         },
         "required": [
-            "name_en", "maturity_score", "novelty_score",
+            "name_en", "maturity_score", "novelty_score", "state_value",
             "cross_validation_answer", "cross_validation_confirmed",
             "novelty_checklist_answer", "novelty_checklist_passes",
             "what_changes", "reasoning", "if_right", "if_wrong",
@@ -262,6 +267,8 @@ Maturity scale anchors:
 3 = working project with some adoption, not production-hardened
 5 = production-ready, signs of real usage beyond the author
 
+Additionally classify state_value - a THIRD, independent axis: lifecycle TREND (momentum), not a snapshot of code sophistication. Do not restate maturity_score in different words - answer "is this gaining or losing momentum", not "how sophisticated is this today". See the state_value field description in the tool schema for the exact category definitions.
+
 Проект: {title}
 Описание: {desc}
 URL: {url}
@@ -431,6 +438,7 @@ def analyze_and_save(projects):
 
         novelty_score = result["novelty_score"]
         maturity_score = result["maturity_score"]
+        state_value = result["state_value"]
         cross_validation_confirmed = result["cross_validation_confirmed"]
         novelty_checklist_passes = result["novelty_checklist_passes"]
 
@@ -478,6 +486,7 @@ def analyze_and_save(projects):
         written = vault_write.write_verdict_entry(
             filepath, status, narrative_line,
             extra_frontmatter=extra_frontmatter, body_template=body_template,
+            state_value=state_value,
         )
         if not written:
             print(f"   ОШИБКА записи: {filename}")

@@ -52,3 +52,35 @@ def test_validate_paths_returns_only_invalid():
     finally:
         os.remove(valid)
         os.remove(invalid)
+
+
+def test_file_with_valid_state_value_is_none():
+    path = _write_tmp("---\nstatus: VALIDATED_SHIFT\nstate_value: Growing\n---\nТело\n")
+    try:
+        assert check_frontmatter.validate_file(path) is None
+    finally:
+        os.remove(path)
+
+
+def test_file_with_invalid_state_value_is_error():
+    path = _write_tmp("---\nstatus: VALIDATED_SHIFT\nstate_value: NOT_A_REAL_STATE\n---\nТело\n")
+    try:
+        assert check_frontmatter.validate_file(path) is not None
+    finally:
+        os.remove(path)
+
+
+def test_file_without_state_value_is_none():
+    path = _write_tmp("---\nstatus: VALIDATED_SHIFT\n---\nТело\n")
+    try:
+        assert check_frontmatter.validate_file(path) is None
+    finally:
+        os.remove(path)
+
+
+def test_file_with_state_value_invalid_is_none():
+    path = _write_tmp("---\nstatus: VALIDATED_SHIFT\nstate_value: invalid\n---\nТело\n")
+    try:
+        assert check_frontmatter.validate_file(path) is None
+    finally:
+        os.remove(path)

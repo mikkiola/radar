@@ -11,6 +11,17 @@ VALID_STATUSES = {
     "ARCHIVED_DEAD",
 }
 
+VALID_STATES = {
+    "Prototype",
+    "Growing",
+    "Mature",
+    "Maintenance",
+    "Declining",
+    "Archived",
+    "Spam",
+    "invalid",
+}
+
 
 def validate_file(filepath):
     """Проверить один файл на валидный frontmatter. Возвращает текст ошибки
@@ -29,6 +40,10 @@ def validate_file(filepath):
         return "поле status отсутствует"
     if status not in VALID_STATUSES:
         return f"status '{status}' не входит в {sorted(VALID_STATUSES)}"
+
+    state_value = frontmatter.get("state_value")
+    if state_value is not None and state_value not in VALID_STATES:
+        return f"state_value '{state_value}' не входит в {sorted(VALID_STATES)}"
 
     return None
 
