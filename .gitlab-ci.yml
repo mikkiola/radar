@@ -27,6 +27,7 @@ radar:
       else
         git commit -m "Радар $(date '+%Y-%m-%d') — новые оценки"
         git pull --rebase origin vault
+        python3 ../check_frontmatter.py 01_Assessments || exit 1
         git push origin vault
         echo "Оценки запушены в ветку vault"
       fi
@@ -52,6 +53,7 @@ publish:
       else
         git commit -m "Опубликован пост $(date '+%Y-%m-%d %H:%M')"
         git pull --rebase origin vault
+        python3 ../check_frontmatter.py 01_Assessments || exit 1
         git push origin vault
       fi
   rules:
@@ -69,7 +71,7 @@ analysts:
     - cd vault_repo
     - git remote set-url origin https://lyolich777ka:${GITLAB_PUSH_TOKEN}@gitlab.com/lyolich777ka/radar.git
     - git add -A
-    - git diff --cached --quiet || (git commit -m "Аналитик Builder Radar $(date '+%Y-%m-%d')" && git pull --rebase origin vault && git push origin vault)
+    - git diff --cached --quiet || (git commit -m "Аналитик Builder Radar $(date '+%Y-%m-%d')" && git pull --rebase origin vault && python3 ../check_frontmatter.py 01_Assessments && git push origin vault)
   rules:
     - if: '$PATTERN_MODE == "weekly"'
 
@@ -86,7 +88,8 @@ lint_vault:
         exit 1
       fi
   rules:
-    - if: '$CI_COMMIT_BRANCH == "vault" && $CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
 
 check_models:
   stage: collect
@@ -99,7 +102,7 @@ check_models:
     - cd vault_repo
     - git remote set-url origin https://lyolich777ka:${GITLAB_PUSH_TOKEN}@gitlab.com/lyolich777ka/radar.git
     - git add -A
-    - git diff --cached --quiet || (git commit -m "Проверка модели $(date '+%Y-%m-%d')" && git pull --rebase origin vault && git push origin vault)
+    - git diff --cached --quiet || (git commit -m "Проверка модели $(date '+%Y-%m-%d')" && git pull --rebase origin vault && python3 ../check_frontmatter.py 01_Assessments && git push origin vault)
   rules:
     - if: '$PATTERN_MODE == "weekly"'
 
@@ -120,6 +123,7 @@ patterns:
       else
         git commit -m "Паттерны $(date '+%Y-%m-%d') — обновление"
         git pull --rebase origin vault
+        python3 ../check_frontmatter.py 01_Assessments || exit 1
         git push origin vault
         echo "Паттерны запушены в ветку vault"
       fi
