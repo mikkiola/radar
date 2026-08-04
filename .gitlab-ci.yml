@@ -19,8 +19,7 @@ radar:
     - cd vault_repo
     - git remote set-url origin https://lyolich777ka:${GITLAB_PUSH_TOKEN}@gitlab.com/lyolich777ka/radar.git
     - git add -A
-    - CHANGED=$(git diff --staged --name-only -- 01_Assessments | grep '\.md$' || true)
-    - if [ -n "$CHANGED" ]; then python3 ../check_frontmatter.py $CHANGED || exit 1; fi
+    - python3 ../check_frontmatter.py 01_Assessments || exit 1
     - |
       if git diff --staged --quiet; then
         echo "Новых оценок нет — нечего пушить"
