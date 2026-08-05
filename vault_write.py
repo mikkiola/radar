@@ -10,7 +10,8 @@ FRONTMATTER_DELIMITER = "---"
 HISTORY_HEADING = "## История оценок"
 CANONICAL_FIELD_ORDER = [
     "status", "maturity_score", "novelty_score", "state_value", "state_confidence",
-    "assertion_vector", "evidence_log", "root_commit_sha", "verdict_history",
+    "assertion_vector", "evidence_log", "root_commit_sha",
+    "license_spdx_id", "license_baseline_origin", "verdict_history",
 ]
 
 
@@ -161,4 +162,44 @@ def write_verdict_entry(filepath, status, narrative_line, extra_frontmatter=None
     if status == "CANDIDATE_LOW_CONFIDENCE":
         _send_candidate_low_confidence_dm(filepath, narrative_line)
 
+    return True
+
+
+def append_evidence_only(filepath, events, extra_fields=None):
+    """Пишет evidence_log-события БЕЗ изменения status/verdict_history/тела
+    файла - для recheck_lifecycle.py, где сигнал (license_changed/
+    frozen_entered/...) не является новым вердиктом, файл остаётся в текущем
+    status. Отдельно от write_verdict_entry(): та функция жёстко связывает
+    evidence-запись с verdict_history-записью (верно для реальных вердиктов -
+    analyze.py/update_assessments.py/promote_candidates.py/confirm_candidate.py,
+    где каждый вызов и есть новый вердикт); здесь каждый вызов - НЕ вердикт.
+    Расширять write_verdict_entry() условностью ("писать verdict_history,
+    только если status реально изменился") означало бы вводить скрытую
+    ветвящуюся логику в функцию с 4 существующими, сегодня работающими
+    вызывающими - риск регрессии не оправдан отсутствием одной обёртки.
+    Не вводит второй путь ИЗМЕНЕНИЯ status (extra_fields не предназначен для
+    status - единственный вызывающий, recheck_lifecycle.py, туда status не
+    передаёт) - второй путь ЗАПИСИ evidence_log при неизменном status.
+
+    events - список dict-ов {"event_type": ..., **fields}, каждый передаётся
+    в append_event() как есть. extra_fields - опциональный dict полей
+    frontmatter для точечного обновления в той же записи на диск (например
+    license_spdx_id при обновлении baseline) - один дисковый write на файл
+    за прогон, не два независимых.
+
+    Возвращает True при успешной записи, False при ошибке (файл без
+    frontmatter) - тот же контракт, что write_verdict_entry()."""
+    frontmatter, body = read_frontmatter(filepath)
+    if frontmatter is None:
+        print(f"[vault_write] ОШИБКА: {filepath} без frontmatter, append_evidence_only пропущен")
+        return False
+
+    if extra_fields:
+        frontmatter.update(extra_fields)
+
+    for event in events:
+        fields = {k: v for k, v in event.items() if k != "event_type"}
+        append_event(frontmatter, event["event_type"], **fields)
+
+    write_frontmatter(filepath, frontmatter, body)
     return True

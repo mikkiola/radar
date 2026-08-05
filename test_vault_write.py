@@ -107,3 +107,49 @@ def test_canonical_field_order_places_state_between_novelty_and_assertion():
     order = vault_write.CANONICAL_FIELD_ORDER
     assert order.index("novelty_score") < order.index("state_value") < order.index("assertion_vector")
     assert order.index("state_value") < order.index("state_confidence") < order.index("assertion_vector")
+
+
+def test_canonical_field_order_places_license_between_root_sha_and_verdict_history():
+    order = vault_write.CANONICAL_FIELD_ORDER
+    assert order.index("root_commit_sha") < order.index("license_spdx_id") < order.index("verdict_history")
+    assert order.index("license_spdx_id") < order.index("license_baseline_origin") < order.index("verdict_history")
+
+
+def test_append_evidence_only_writes_events_without_touching_status():
+    content = "---\nstatus: VALIDATED_SHIFT\nevidence_log: []\n---\n## История оценок\n"
+    path = _write_tmp(content)
+    try:
+        written = vault_write.append_evidence_only(path, [{"event_type": "frozen_entered"}])
+        assert written is True
+        frontmatter, body = vault_write.read_frontmatter(path)
+        assert frontmatter["status"] == "VALIDATED_SHIFT"
+        assert "verdict_history" not in frontmatter
+        assert len(frontmatter["evidence_log"]) == 1
+        assert frontmatter["evidence_log"][0]["event_type"] == "frozen_entered"
+        assert body.strip() == "## История оценок"
+    finally:
+        os.remove(path)
+
+
+def test_append_evidence_only_merges_extra_fields():
+    content = "---\nstatus: VALIDATED_SHIFT\nevidence_log: []\n---\n## История оценок\n"
+    path = _write_tmp(content)
+    try:
+        events = [{"event_type": "license_changed", "old": "MIT", "new": "BSL-1.1"}]
+        written = vault_write.append_evidence_only(path, events, extra_fields={"license_spdx_id": "BSL-1.1"})
+        assert written is True
+        frontmatter, _ = vault_write.read_frontmatter(path)
+        assert frontmatter["license_spdx_id"] == "BSL-1.1"
+        assert frontmatter["evidence_log"][0]["old"] == "MIT"
+        assert frontmatter["evidence_log"][0]["new"] == "BSL-1.1"
+    finally:
+        os.remove(path)
+
+
+def test_append_evidence_only_missing_frontmatter_returns_false():
+    path = _write_tmp("нет фронтматтера тут\n")
+    try:
+        written = vault_write.append_evidence_only(path, [{"event_type": "frozen_entered"}])
+        assert written is False
+    finally:
+        os.remove(path)

@@ -119,6 +119,7 @@ def fetch_repo_signal(owner, repo):
         "manifest_content": "",
         "root_files": [],
         "root_commit_sha": None,
+        "license_spdx_id": None,
     }
 
     try:
@@ -152,10 +153,36 @@ def fetch_repo_signal(owner, repo):
         default_branch = meta.get("default_branch") or "main"
         branch_info = gh_api.repos.get_branch(owner, repo, default_branch)
         signal["root_commit_sha"] = branch_info["commit"]["sha"]
+        signal["license_spdx_id"] = (meta.get("license") or {}).get("spdx_id")
     except Exception as e:
         print(f"   HEAD SHA недоступен для {owner}/{repo}: {e}")
 
     return signal
+
+
+def fetch_repo_lifecycle_signal(owner, repo):
+    """Один gh_api.repos.get() вызов - archived/license_spdx_id/pushed_at/private
+    разом, для recheck_lifecycle.py (ежемесячная переоценка VALIDATED_SHIFT).
+    Не переиспользует check_repo_alive() и не изменяет её - разные вызывающие
+    (promote_candidates.py против recheck_lifecycle.py), разный набор нужных
+    полей; дублирование одного repos.get() дешевле риска трогать закрытую,
+    протестированную (67/67) и уже работающую в проде часть Фазы 3 п.1
+    (Decision B+, тот же принцип применён в recheck_lifecycle.py к read_repo_url()).
+    None - не удалось получить данные (сетевая ошибка/rate limit/404) - НЕ
+    факт о состоянии репозитория, вызывающий код обязан пропустить файл в
+    этом прогоне целиком."""
+    try:
+        info = gh_api.repos.get(owner, repo)
+        license_info = info.get("license") or {}
+        return {
+            "archived": info.get("archived", False),
+            "license_spdx_id": license_info.get("spdx_id"),
+            "pushed_at": info.get("pushed_at"),
+            "private": info.get("private", False),
+        }
+    except Exception as e:
+        print(f"   не удалось получить lifecycle-данные о репозитории {owner}/{repo}: {e}")
+        return None
 
 
 ARCHITECTURE_PATTERNS = [
@@ -510,6 +537,8 @@ def analyze_and_save(projects):
             "assertion_vector": result.get("assertion_vector"),
             "evidence_log": [],
             "root_commit_sha": signal["root_commit_sha"],
+            "license_spdx_id": signal["license_spdx_id"],
+            "license_baseline_origin": "initial",
         }
         narrative_line = f"- {today} - {status}: первая оценка"
 
