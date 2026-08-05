@@ -19,7 +19,10 @@ function initGraph() {
                         symbolSize: Math.max(n.symbolSize || 3, 5),
                         value: n.value,
                         itemStyle: {
-                            color: n.value.includes("02_Patterns") ? "#e94560" : "#0f3460",
+                            color: n.value.includes("02_Patterns") ? "#e94560"
+                                : n.status === "CANDIDATE" ? "#f5a623"
+                                : n.status === "CANDIDATE_LOW_CONFIDENCE" ? "#95a5a6"
+                                : "#0f3460",
                             borderColor: "#16213e",
                             borderWidth: 1
                         }

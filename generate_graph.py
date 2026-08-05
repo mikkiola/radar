@@ -5,6 +5,8 @@ import json
 import os
 import re
 
+import vault_write
+
 DOCS_DIR = "docs"
 OUTPUT = os.path.join(DOCS_DIR, "assets", "javascripts", "graph.json")
 
@@ -29,7 +31,13 @@ def main():
     nodes_map = {}
     for i, f in enumerate(files):
         s = slug(f)
-        nodes_map[s] = {"id": str(i), "name": s, "path": f, "symbolSize": 1}
+        status = None
+        if "01_Assessments" in f:
+            with open(f, encoding="utf-8", errors="ignore") as fh:
+                frontmatter, _ = vault_write.parse_frontmatter(fh.read())
+            if frontmatter:
+                status = frontmatter.get("status")
+        nodes_map[s] = {"id": str(i), "name": s, "path": f, "symbolSize": 1, "status": status}
 
     links = []
     for f in files:
@@ -53,7 +61,7 @@ def main():
                 nodes_map[target]["symbolSize"] += 1
 
     data = {
-        "nodes": [{"id": v["id"], "name": v["name"], "symbolSize": min(v["symbolSize"], 30), "value": "/" + v["path"].replace(DOCS_DIR + "/", "").replace(".md", "/")} for v in nodes_map.values()],
+        "nodes": [{"id": v["id"], "name": v["name"], "symbolSize": min(v["symbolSize"], 30), "value": "/" + v["path"].replace(DOCS_DIR + "/", "").replace(".md", "/"), "status": v["status"]} for v in nodes_map.values()],
         "links": links
     }
 
