@@ -10,7 +10,11 @@ evidence_log:
   event_type: state_transition
   state_value: Mature
   state_confidence: low
+- date: '2026-08-05'
+  event_type: ci_broken
 root_commit_sha: null
+license_spdx_id: MIT
+license_baseline_origin: migration
 verdict_history:
 - date: '2026-07-30'
   verdict: VALIDATED_SHIFT

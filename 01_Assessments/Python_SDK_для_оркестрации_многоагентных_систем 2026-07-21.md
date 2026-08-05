@@ -3,8 +3,12 @@ status: VALIDATED_SHIFT
 maturity_score: null
 novelty_score: null
 assertion_vector: null
-evidence_log: []
+evidence_log:
+- date: '2026-08-05'
+  event_type: ci_broken
 root_commit_sha: null
+license_spdx_id: Apache-2.0
+license_baseline_origin: migration
 verdict_history:
 - date: '2026-07-21'
   verdict: VALIDATED_SHIFT
