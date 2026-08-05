@@ -96,6 +96,19 @@ def parse_github_owner_repo(url):
     return match.group(1), match.group(2)
 
 
+def check_repo_alive(owner, repo):
+    """True/False - определённый результат (repo.archived). None - не удалось
+    получить данные (сетевая ошибка/rate limit/404) - это НЕ факт о состоянии
+    репозитория, вызывающий код обязан пропустить файл в этом прогоне, а не
+    трактовать как мёртв или жив."""
+    try:
+        info = gh_api.repos.get(owner, repo)
+        return not info.get("archived", False)
+    except Exception as e:
+        print(f"   не удалось получить данные о репозитории {owner}/{repo}: {e}")
+        return None
+
+
 def fetch_repo_signal(owner, repo):
     """README (обрезан до README_MAX_CHARS) + manifest + список файлов корня + HEAD SHA
     default branch. Graceful degradation - любая часть может отсутствовать (private repo,
@@ -176,6 +189,22 @@ def compute_status(novelty_score, cross_validation_confirmed, novelty_checklist_
     if cross_validation_confirmed and novelty_checklist_passes:
         return "VALIDATED_SHIFT"
     return "CANDIDATE_LOW_CONFIDENCE"
+
+
+def apply_quarantine_gate(verdict):
+    """Новый подтверждённый вердикт уходит в time-based карантин (status CANDIDATE),
+    не публикуется как VALIDATED_SHIFT напрямую - evidence_log на этом call site всегда
+    пуст (новый файл), решение зафиксировано в интервью 05.08.2026 (SPEC.md). Вердикт
+    и готовность к публикации - разные понятия, поэтому это отдельная проверка, а не
+    часть compute_status()."""
+    return "CANDIDATE" if verdict == "VALIDATED_SHIFT" else verdict
+
+
+def confidence_label(status):
+    """Текст в теле файла для владельца, читающего оценку в Obsidian - CANDIDATE
+    (time-based карантин) и CANDIDATE_LOW_CONFIDENCE (эпистемическая неуверенность LLM)
+    низкую уверенность по разным причинам, текст должен их различать."""
+    return "в карантине" if status == "CANDIDATE" else "низкая"
 
 
 def get_existing_patterns():
@@ -442,10 +471,11 @@ def analyze_and_save(projects):
         cross_validation_confirmed = result["cross_validation_confirmed"]
         novelty_checklist_passes = result["novelty_checklist_passes"]
 
-        status = compute_status(novelty_score, cross_validation_confirmed, novelty_checklist_passes)
-        if status is None:
+        verdict = compute_status(novelty_score, cross_validation_confirmed, novelty_checklist_passes)
+        if verdict is None:
             print(f"   ШУМ (novelty={novelty_score}) - {result.get('name_en', title)[:40]} - пропускаем")
             continue
+        status = apply_quarantine_gate(verdict)
 
         name_en = result.get("name_en", title[:50])
         safe_name = name_en.replace(" ", "_").replace("/", "-")[:50]
@@ -457,7 +487,7 @@ def analyze_and_save(projects):
             continue
 
         connections_block = build_connections_block(result.get("connections", []), patterns, assessments)
-        confidence = "высокая" if status == "VALIDATED_SHIFT" else "низкая"
+        confidence = confidence_label(status)
 
         body_template = build_body_template(
             name_en=name_en, today=today, url=url, confidence=confidence,

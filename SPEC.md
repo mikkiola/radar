@@ -1,398 +1,443 @@
-# Radar 2.0 — Фаза 3: state-поле, evidence_log-контракт, HITL-подтверждение — Specification
+# Radar 2.0 — Фаза 3, п.1: `status: CANDIDATE` — time-based карантин — Specification
 
 ## Overview
 
-Decision B+ (принято 04.08.2026, вне репозитория): марковское допущение
-используется только как дешёвая проверка согласованности вывода LLM во
-времени — без полноценной HMM (Baum-Welch/Viterbi/эмиссии). Эта фаза
-закладывает данные (`state_value`/`state_confidence` во frontmatter,
-append-only `evidence_log`), но не считает transition matrix и не строит
-Temporal Consistency Validator — это Фаза 3b, отдельная сессия, после
-накопления истории.
+Roadmap v8 (04-05.08.2026) выносит п.1 Фазы 3 в отдельную сессию: `status:
+CANDIDATE` — карантин, основанный на времени, а не на суждении LLM. Не
+путать с `CANDIDATE_LOW_CONFIDENCE` (эпистемический карантин, уже
+реализован — LLM сама не уверена в выводе в момент оценки). `CANDIDATE`
+решает другую задачу: репозиторию нужно ВРЕМЯ, чтобы показать, доживёт ли
+гипотеза о нём, прежде чем Radar зафиксирует вывод как `VALIDATED_SHIFT`.
 
-Roadmap v7 (статус на 04.08.2026) содержит пять открытых пунктов Фазы 3.
-Эта спека сознательно покрывает только три:
+**Условие присвоения** (решено владельцем до интервью): `evidence_log`
+пуст на момент оценки. Верификация против кода (Rule 28) показала, что на
+единственном call site, где это решение принимается (`compute_status()`,
+`analyze.py:445` — первичная оценка нового репозитория), `evidence_log`
+**всегда** пуст (`extra_frontmatter["evidence_log"] = []` для нового файла,
+[analyze.py:481](analyze.py#L481)) — условие тождественно истинно на этом
+пути. `update_assessments.py` физически не может смайнтить свежий
+`VALIDATED_SHIFT`: несовпадение нового вердикта с текущим `status` уже
+сегодня уходит в `CANDIDATE_LOW_CONFIDENCE`
+([update_assessments.py:180](update_assessments.py#L180)), не в
+`VALIDATED_SHIFT`. Решено в интервью: **эта сессия трогает только
+`analyze.py`, `update_assessments.py` не меняется**.
 
-- **Decision B+**: `state_value`/`state_confidence` во frontmatter.
-- **п.2 (частично)**: `append_event()` + контракт записи в `evidence_log`.
-  Полный `recheck_lifecycle.py` (ghapi-проверки архивации/лицензии/релизов,
-  cron) — вне скоупа.
-- **п.5**: human-in-loop подтверждение `CANDIDATE_LOW_CONFIDENCE` через
-  новый CI job `confirm_candidate`.
+**N дней карантина = 14** (стартовое значение, подлежит фальсификации на
+реальных прогонах).
 
-**п.1 (`status: CANDIDATE`, time-based карантин) вынесен из этой спеки
-полностью** — решено в интервью 04.08.2026. Причина: п.1 по замыслу
-Roadmap требует промоушен-механизма (`CANDIDATE → VALIDATED_SHIFT` через
-N дней), а это часть `recheck_lifecycle.py` (п.2), которая в этой сессии
-не реализуется. Присвоение `CANDIDATE` без промоушена заморозило бы
-такие репозитории — `telegram_post.py`/`patterns.py` читают только
-`status == VALIDATED_SHIFT` ([telegram_post.py:46](telegram_post.py#L46),
-[patterns.py:281](patterns.py#L281)). `CANDIDATE`/`ARCHIVED_DEAD` остаются
-зарезервированными в `VALID_STATUSES`, ни один код-путь их не присваивает
-— как и до этой фазы.
+**Выход из карантина**: `check_repo_alive(owner, repo) -> bool | None`,
+новая функция в `analyze.py` (реиспользует существующие `gh_api` и
+`parse_github_owner_repo()` оттуда же, не создаёт второй `GhApi`-инстанс).
+Решено в интервью: проверяется **только** `repo.archived` —
+`repo.pushed_at` не используется как критерий "недостаточно свежий"
+(зрелые `Maintenance`-репозитории месяцами не пушат, оставаясь валидными;
+требовать push за 14-дневное окно было бы confounder'ом, не причиной
+ненадёжности). Спроектирована для переиспользования будущим
+`recheck_lifecycle.py` (Roadmap п.2, отдельная сессия) — просто добавляет
+ещё один шаг, не требует переписывания.
 
 ## Goals
 
-- [ ] `state_value`/`state_confidence` — новые поля frontmatter, плоские
-  (не вложенные), полностью описательные — ни один существующий код-путь
-  (`compute_status()`, `patterns.py`, `telegram_post.py`) их не читает.
-- [ ] `append_event()` в `vault_write.py` — чистая функция контракта записи
-  в `evidence_log`, вызываемая изнутри `write_verdict_entry()`.
-- [ ] `confirm_candidate` — новый CI job, web-триггер, человеческое
-  подтверждение/отклонение `CANDIDATE_LOW_CONFIDENCE`.
-- [ ] `check_frontmatter.py` — валидация `state_value` против
-  фиксированного набора значений, когда поле присутствует.
+- [x] `analyze.py`: новый файл с подтверждённым вердиктом уходит в
+  `CANDIDATE`, не в `VALIDATED_SHIFT`, напрямую — `compute_status()` не
+  меняется, гейт — отдельная проверка сразу после вызова.
+- [x] `analyze.py`: `check_repo_alive(owner, repo)` — три исхода (жив /
+  мёртв / не удалось определить), не бинарная логика.
+- [x] `promote_candidates.py` — новый скрипт, ежедневный CI job:
+  находит `status == CANDIDATE` старше 14 дней, решает
+  promote (`VALIDATED_SHIFT`) / reject (`REJECTED_NOISE`) / skip (оставить
+  `CANDIDATE`, данные недостоверны в этом прогоне).
+- [x] `.gitlab-ci.yml`: job `promote_candidates`, schedule + `$PROMOTE_ONLY`
+  web-триггер, по паттерну остальных vault-пишущих job'ов (rebase →
+  full-scan гейт → push).
 
 ## Tech Stack
 
-Без изменений от предыдущих фаз: Python 3, PyYAML, `anthropic`/`requests`
-для LLM-вызовов, `pytest`. Новый CI job переиспользует существующий
-паттерн защиты записи в vault (rebase → full-scan гейт → push,
-[.gitlab-ci.yml:28-30](.gitlab-ci.yml#L28-L30)).
+Без изменений: Python 3, `ghapi`, `pyyaml`, `pytest`. Никаких новых
+зависимостей — `ghapi` уже используется в `radar` job'е.
 
 ## Detailed Requirements
 
-### 1. `state_value` / `state_confidence` — новые поля frontmatter
+### 1. Гейт `CANDIDATE` в `analyze.py`
 
-**Ось**: lifecycle/momentum репозитория (растёт/плато/угасает), НЕ
-повторение `maturity_score` (снимок зрелости кода на момент оценки).
-Промпт/tool schema обязаны явно разводить эти два понятия — иначе модель
-просто продублирует одно через другое словами.
+`compute_status()` ([analyze.py:170-178](analyze.py#L170-L178)) **не
+меняется** — остаётся чистой функцией вердикта по существу
+(`VALIDATED_SHIFT` / `CANDIDATE_LOW_CONFIDENCE` / `None`). Решено в
+интервью: смешивать "вердикт оценки" и "готовность к публикации" в одном
+возвращаемом значении — тот же класс путаницы, что уже был между
+`CANDIDATE` и `CANDIDATE_LOW_CONFIDENCE` до их явного разведения в
+предыдущей фазе.
 
-**Источник `state_value`**: новое LLM-суждение, часть уже существующего
-вызова оценки (не отдельный API-запрос):
-
-- `analyze.py` (первичная оценка) — `CLASSIFICATION_TOOL["input_schema"]`
-  ([analyze.py:27-75](analyze.py#L27-L75)) получает новое обязательное
-  поле `state_value` с `"enum": ["Prototype", "Growing", "Mature",
-  "Maintenance", "Declining", "Archived", "Spam"]` и описанием,
-  разводящим его с `maturity_score` (тренд, не снимок). Верификация
-  против кода (Rule 28): вызов идёт через `call_haiku_classification()`
-  ([analyze.py:298](analyze.py#L298)) с `tool_choice: {"type": "tool",
-  "name": "submit_classification"}` — Haiku (не отдельный дорогой вызов,
-  согласуется с Decision B+ "не внедрять HMM дорого"), новое обязательное
-  поле гарантированно вернётся в `result`. **Явный шаг для реализации**:
-  `analyze_and_save()` ([analyze.py:432-481](analyze.py#L432-L481))
-  сейчас читает из `result` только именованные поля и вызывает
-  `write_verdict_entry(filepath, status, narrative_line,
-  extra_frontmatter=extra_frontmatter, body_template=body_template)` без
-  нового параметра — при реализации Milestone 3 нужно добавить
-  `state_value=result["state_value"]` в этот вызов (Milestone 1
-  добавляет параметр в саму функцию, Milestone 3 должен явно соединить
-  их на этом call site, иначе `state_value`/`evidence_log` останутся
-  пустыми несмотря на новое поле в LLM-схеме).
-- `update_assessments.py` (переоценка, Haiku, текстовый промпт) — новая
-  строка в требуемом формате ответа: `STATE: Prototype/Growing/Mature/
-  Maintenance/Declining/Archived/Spam`, парсится тем же `lines.get()`
-  ([update_assessments.py:141-149](update_assessments.py#L141-L149)).
-  **Если `STATE` отсутствует или не входит в набор — recheck всё равно
-  пишется** (текущее поведение `status`/`verdict_history` не блокируется),
-  просто `state_value` не передаётся в `write_verdict_entry()`
-  (`state_value=None` → см. §2, `append_event()` не вызывается). Это
-  отличается от текущей логики `ОЦЕНКА`/`ИЗМЕНЕНИЕ`
-  ([update_assessments.py:151-153](update_assessments.py#L151-L153)), где
-  невалидное значение прерывает весь recheck — здесь `STATE` не блокирует
-  ничего, кроме самого себя.
-
-**Источник `state_confidence`**: НЕ LLM self-report. Детерминированно,
-внутри `write_verdict_entry()`/`append_event()`, из длины `evidence_log`
-**до** текущей записи (см. §2):
-
-- `low` — 0 предыдущих `state_transition`-событий в `evidence_log`.
-- `high` — 1 и более предыдущих событий.
-
-Два бакета (не три) — промежуточный порог не имеет поведенческого смысла,
-пока `state_value`/`state_confidence` чисто описательны.
-
-**Обратная совместимость**: 88 существующих файлов `01_Assessments/` не
-трогаются, backfill-скрипт не пишется. `state_value`/`state_confidence`
-появятся у файла только при следующем естественном recheck через
-`update_assessments.py`. `check_frontmatter.py` не требует их
-присутствия (см. §4) — старые файлы без этих полей остаются валидными.
-
-### 2. `append_event()` — контракт записи в `evidence_log`
-
-`vault_write.py`, новая функция:
+Явный гейт сразу после вызова, в `analyze_and_save()`. Реализовано как
+отдельная маленькая функция `apply_quarantine_gate(verdict)` рядом с
+`compute_status()`, а не инлайн-код на call site — иначе логику
+"VALIDATED_SHIFT -> CANDIDATE" нельзя протестировать без полного мока
+всего пайплайна `analyze_and_save()` (LLM-вызов, GitHub API, файловая
+система). Не нарушает решение интервью "compute_status() не меняется" —
+это по-прежнему отдельная функция, вызываемая сразу после, просто
+именованная, а не инлайн:
 
 ```python
-def append_event(frontmatter, event_type, **fields):
-    """Чистая функция - мутирует и возвращает frontmatter, не трогает диск.
-    Единственный сейчас определённый event_type - "state_transition"
-    (date, event_type, state_value, state_confidence). Схема для будущих
-    event_type (license_changed/archived/release, Фаза 3b) не
-    зафиксирована - **fields оставляет это открытым без переписывания
-    сигнатуры позже."""
-    event = {"date": date.today().strftime("%Y-%m-%d"), "event_type": event_type, **fields}
-    frontmatter["evidence_log"] = list(frontmatter.get("evidence_log") or []) + [event]
-    return frontmatter
+def apply_quarantine_gate(verdict):
+    return "CANDIDATE" if verdict == "VALIDATED_SHIFT" else verdict
 ```
 
-Никакого `state_value_prev` в записи — Фаза 3b, если понадобится transition
-matrix, восстановит переходы последовательным чтением списка (текущая
-запись vs предыдущая по индексу), не дублируя значение в каждой записи.
-
-**`write_verdict_entry()` — новый параметр, единственная точка вызова
-`append_event()`:**
+Call site:
 
 ```python
-def write_verdict_entry(filepath, status, narrative_line, extra_frontmatter=None,
-                         body_template=None, state_value=None):
-    ...
-    frontmatter["status"] = status
-    ...
-    if state_value is not None:
-        prior_count = len(frontmatter.get("evidence_log") or [])
-        state_confidence = "high" if prior_count >= 1 else "low"
-        frontmatter["state_value"] = state_value
-        frontmatter["state_confidence"] = state_confidence
-        append_event(frontmatter, "state_transition",
-                     state_value=state_value, state_confidence=state_confidence)
-    write_frontmatter(filepath, frontmatter, body)
-    ...
+verdict = compute_status(novelty_score, cross_validation_confirmed, novelty_checklist_passes)
+if verdict is None:
+    print(f"   ШУМ (novelty={novelty_score}) - {result.get('name_en', title)[:40]} - пропускаем")
+    continue
+status = apply_quarantine_gate(verdict)
 ```
 
-Один `write_frontmatter()` в конце — `status`+`verdict_history`+
-`state_value`+`state_confidence`+`evidence_log` уходят на диск одним
-вызовом, без риска Split-Brain между частичными записями.
+`status` (не `verdict`) используется дальше по функции без изменений —
+в `filename`, `body_template`, `extra_frontmatter`, `write_verdict_entry()`.
 
-**`state_value=None` (по умолчанию)** — `append_event()` не вызывается,
-`evidence_log`/`state_value`/`state_confidence` не трогаются. Это путь
-для `confirm_candidate.py` (§3, человеческое решение — не LLM-суждение о
-state) и для любого будущего вызова `write_verdict_entry()`, не несущего
-нового state-суждения.
+**Метка `confidence` в теле файла** (было: `"высокая" if status ==
+"VALIDATED_SHIFT" else "низкая"`). `VALIDATED_SHIFT` больше не встречается
+на этом call site — ветка мертва. Решено в интервью: развести `CANDIDATE`
+и `CANDIDATE_LOW_CONFIDENCE` текстом, чтобы владелец, читая файл в
+Obsidian, сразу видел причину низкой уверенности без обращения к `status`
+в frontmatter. Реализовано как отдельная функция `confidence_label(status)`
+(тот же мотив тестируемости, что и `apply_quarantine_gate`):
 
-`CANONICAL_FIELD_ORDER` в `vault_write.py` дополняется: `state_value`,
-`state_confidence` — после `novelty_score`, перед `assertion_vector`.
+```python
+def confidence_label(status):
+    return "в карантине" if status == "CANDIDATE" else "низкая"
+```
 
-### 3. `confirm_candidate` — CI job, HITL-подтверждение `CANDIDATE_LOW_CONFIDENCE`
+Call site: `confidence = confidence_label(status)`.
 
-Нет bot-сервера/webhook — Telegram-уведомление в `_send_candidate_low_
-confidence_dm()` только исходящее. Подтверждение — через GitLab CI
-web-триггер с переменными, по аналогии с `$PUBLISH_ONLY`/`$PATTERN_MODE`/
-`$GRAPH_ONLY`.
+`state_value`/`state_confidence`/`evidence_log` пишутся штатно через
+`write_verdict_entry(..., state_value=state_value)` независимо от статуса
+(Фаза 3, Decision B+) — эта ось не пересекается с `CANDIDATE`-карантином.
 
-**Новый файл `confirm_candidate.py`:**
+### 2. `check_repo_alive()` — определение "жив ли репозиторий"
+
+Новая функция в `analyze.py` (рядом с `parse_github_owner_repo()`,
+реиспользует модульный `gh_api`):
+
+```python
+def check_repo_alive(owner, repo):
+    """True/False - определённый результат (repo.archived). None - не
+    удалось получить данные (сетевая ошибка/rate limit/404) - это НЕ факт
+    о состоянии репозитория, вызывающий код обязан пропустить файл в этом
+    прогоне, а не трактовать как мёртв или жив."""
+    try:
+        info = gh_api.repos.get(owner, repo)
+        return not info.get("archived", False)
+    except Exception as e:
+        print(f"   не удалось получить данные о репозитории {owner}/{repo}: {e}")
+        return None
+```
+
+Доступ к полю ответа API (`info.get(...)`) внутри `try`, не после него — по
+тому же паттерну, что и `fetch_repo_signal()` (весь разбор ответа GitHub
+API внутри `try`, не снаружи). Найдено на этапе diff-review: изначальный
+черновик держал `info.get(...)` вне `try`, что оставляло необработанным
+гипотетический случай, когда `gh_api.repos.get()` возвращает успешный
+ответ, но `.get()` на нём бросает исключение.
+
+Решено в интервью (отклонена полная FSM с `repo_state`/`unknown_since`/
+`LOST` — нарушает Decision B+, вводит состояния без наблюдаемого
+триггера): три исхода через `True`/`False`/`None`, не больше. Ошибка API
+— это отсутствие данных, а не сигнал "мёртв". Формулировка в логах:
+"не удалось получить данные о репозитории", не "недоступен"/"мёртв" —
+эти слова описывали бы факт, которого у нас нет. Риск накопления
+`CANDIDATE`-файлов из-за повторяющихся ошибок API признан и вынесен в
+BACKLOG — не решается в этой сессии, нет наблюдаемого случая, что это
+реально происходит.
+
+`repo.pushed_at` не используется в этой функции (см. Overview).
+
+### 3. `promote_candidates.py` — новый файл
 
 ```python
 import os
-import sys
+from datetime import date
+
 import vault_write
+from analyze import parse_github_owner_repo, check_repo_alive
 
 VAULT_PATH = os.environ.get("VAULT_PATH", "01_Assessments")
+QUARANTINE_DAYS = 14
+
+
+def find_candidate_files():
+    files = []
+    if not os.path.exists(VAULT_PATH):
+        return files
+    for name in sorted(os.listdir(VAULT_PATH)):
+        if not name.endswith(".md"):
+            continue
+        filepath = os.path.join(VAULT_PATH, name)
+        frontmatter, _ = vault_write.read_frontmatter(filepath)
+        if frontmatter and frontmatter.get("status") == "CANDIDATE":
+            files.append(filepath)
+    return files
+
+
+def read_repo_url(body):
+    for line in body.splitlines():
+        if line.startswith("**Репозиторий:**"):
+            return line.split("**Репозиторий:**", 1)[1].strip()
+    return None
+
+
+def process_file(filepath):
+    frontmatter, body = vault_write.read_frontmatter(filepath)
+    if frontmatter is None:
+        print(f"   ОШИБКА: {filepath} без frontmatter, пропускаю")
+        return
+
+    history = frontmatter.get("verdict_history") or []
+    if not history:
+        print(f"   ОШИБКА: {filepath} status=CANDIDATE без verdict_history, пропускаю")
+        return
+
+    candidate_date = date.fromisoformat(history[-1]["date"])
+    days_in_candidate = (date.today() - candidate_date).days
+    if days_in_candidate < QUARANTINE_DAYS:
+        return
+
+    url = read_repo_url(body)
+    owner, repo = parse_github_owner_repo(url)
+    if not owner or not repo:
+        print(f"   ОШИБКА: не удалось разобрать owner/repo из {url!r} в {filepath}")
+        return
+
+    alive = check_repo_alive(owner, repo)
+    today = date.today().strftime("%Y-%m-%d")
+
+    if alive is None:
+        print(f"   {filepath}: данные о репозитории недоступны в этом прогоне, остаётся CANDIDATE")
+        return
+    elif alive:
+        narrative_line = f"- {today} - VALIDATED_SHIFT: карантин пройден ({QUARANTINE_DAYS}+ дней), репозиторий активен - promote_candidates"
+        written = vault_write.write_verdict_entry(filepath, "VALIDATED_SHIFT", narrative_line)
+    else:
+        narrative_line = f"- {today} - REJECTED_NOISE: карантин истёк, репозиторий архивирован - promote_candidates"
+        written = vault_write.write_verdict_entry(filepath, "REJECTED_NOISE", narrative_line)
+
+    if not written:
+        print(f"   ОШИБКА записи: {filepath}")
+        return
+    print(f"   {filepath}: CANDIDATE -> {'VALIDATED_SHIFT' if alive else 'REJECTED_NOISE'}")
+
 
 def main():
-    repo = os.environ.get("CONFIRM_REPO", "")
-    decision = os.environ.get("CONFIRM_DECISION", "")
+    files = find_candidate_files()
+    print(f"Найдено CANDIDATE-файлов: {len(files)}")
+    for filepath in files:
+        try:
+            process_file(filepath)
+        except Exception as e:
+            print(f"   ОШИБКА при обработке {filepath}: {e}")
+    print("Готово.")
 
-    if not repo or "/" in repo or ".." in repo:
-        print(f"ОШИБКА: недопустимое значение CONFIRM_REPO: {repo!r}")
-        sys.exit(1)
-    if decision not in {"approve", "reject"}:
-        print(f"ОШИБКА: CONFIRM_DECISION должен быть 'approve' или 'reject', получено: {decision!r}")
-        sys.exit(1)
-
-    filepath = os.path.join(VAULT_PATH, repo + ".md")
-    if not os.path.exists(filepath):
-        print(f"ОШИБКА: файл не найден: {filepath}")
-        sys.exit(1)
-
-    frontmatter, _ = vault_write.read_frontmatter(filepath)
-    if frontmatter is None or frontmatter.get("status") != "CANDIDATE_LOW_CONFIDENCE":
-        print(f"ОШИБКА: {filepath} не в статусе CANDIDATE_LOW_CONFIDENCE (текущий: {frontmatter.get('status') if frontmatter else None!r})")
-        sys.exit(1)
-
-    today_status = "VALIDATED_SHIFT" if decision == "approve" else "REJECTED_NOISE"
-    narrative_line = f"- {today_status} подтверждено владельцем вручную (HITL, confirm_candidate)" \
-        if decision == "approve" else \
-        f"- отклонено владельцем вручную (HITL, confirm_candidate)"
-
-    written = vault_write.write_verdict_entry(filepath, today_status, narrative_line)
-    if not written:
-        print(f"ОШИБКА записи: {filepath}")
-        sys.exit(1)
-
-    print(f"{repo}: CANDIDATE_LOW_CONFIDENCE -> {today_status}")
 
 if __name__ == "__main__":
     main()
 ```
 
-`state_value` не передаётся (человеческое решение — не новое LLM-суждение,
-см. §2) — `evidence_log` этим вызовом не пополняется, только
-`status`/`verdict_history`.
+`process_file()` вызывается под `try/except` в `main()` — найдено на этапе
+diff-review: без этого один повреждённый/неожиданный файл (например, файл
+без `verdict_history` с ошибкой в другом месте, не покрытой явной
+проверкой) прервал бы весь прогон и оставил необработанными остальные
+`CANDIDATE`-файлы в этом батче. По тому же паттерну, что
+`analyze_and_save()` (try/except вокруг классификации на каждый проект) и
+`update_assessment()` (try/except вокруг всей функции, вызываемой в цикле
+`__main__`).
 
-**Исход approve**: `status → VALIDATED_SHIFT`. Публикация — НЕ мгновенная
-внутри этого job'а. `telegram_post.py` уже умеет `find_latest_shift()`
-([telegram_post.py:64-78](telegram_post.py#L64-L78)) — берёт самый свежий
-неопубликованный `VALIDATED_SHIFT` при каждом плановом прогоне `publish`.
-Следующий плановый `publish` подхватит файл автоматически, без
-дополнительного кода и без новых секретов в `confirm_candidate` job'е.
+**Источник даты**: `verdict_history[-1]["date"]`, без нового поля во
+frontmatter. Инвариант `write_verdict_entry()`
+([vault_write.py:141-144](vault_write.py#L141-L144)): `status` всегда
+равен `verdict_history[-1]["verdict"]` — раз файл отобран по
+`status == "CANDIDATE"`, последняя запись истории обязана быть именно
+записью о присвоении `CANDIDATE`. Решено в интервью: не вводить
+`candidate_since` ради одного job'а.
 
-**Исход reject**: `status → REJECTED_NOISE` — первое реальное присвоение
-этого статуса в коде (сейчас зарезервирован в `VALID_STATUSES`, никем не
-присваивается). Файл остаётся в `01_Assessments/`, как архивная запись
-отклонённой гипотезы; `patterns.py`/`telegram_post.py` игнорируют его, как
-и любой не-`VALIDATED_SHIFT`.
+`state_value=None` (по умолчанию) в обоих вызовах `write_verdict_entry()`
+— решение здесь человеческое/детерминированное (архивирован или нет), не
+новое LLM-суждение, `evidence_log` этим вызовом не пополняется — тот же
+принцип, что и в `confirm_candidate.py` (Фаза 3, §2 предыдущей спеки).
 
-**CI job** (`.gitlab-ci.yml`, следует тому же паттерну защиты, что и
-остальные 5 job'ов, пишущих в vault — rebase → full-scan гейт → push):
+**Telegram**: решено в интервью — тишина при promotion, как при
+`confirm_candidate.py` approve. Публикация всё равно не мгновенная —
+`telegram_post.py` подхватит свежий `VALIDATED_SHIFT` на следующем
+плановом `publish` через `find_latest_shift()`
+([telegram_post.py:64-78](telegram_post.py#L64-L78)). Никаких новых
+секретов сверх `GITHUB_READ_TOKEN` (уже используется `analyze.py`) и
+`GITLAB_PUSH_TOKEN`/`CI_JOB_TOKEN` (git).
+
+`patterns.py`/`telegram_post.py` уже фильтруют строго
+`status == "VALIDATED_SHIFT"` ([patterns.py:281](patterns.py#L281),
+[telegram_post.py:46](telegram_post.py#L46)) — `CANDIDATE` автоматически
+не публикуется и не участвует в паттернах, без дополнительного кода.
+
+### 4. `check_frontmatter.py` — без изменений
+
+`"CANDIDATE"` уже в `VALID_STATUSES` (зарезервировано заранее, до этой
+фазы). Новых полей во frontmatter не вводится — дата читается из уже
+существующего `verdict_history`. Подтверждено в интервью: этот файл в
+текущей сессии не меняется.
+
+### 5. `.gitlab-ci.yml` — новый job `promote_candidates`
 
 ```yaml
-confirm_candidate:
+promote_candidates:
   stage: run
   script:
-    - pip install requests pyyaml --quiet
+    - pip install requests pyyaml ghapi --quiet
     - git config --global user.email "radar@gitlab.com"
     - git config --global user.name "Radar Bot"
     - git clone --branch vault https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/lyolich777ka/radar.git vault_repo
-    - VAULT_PATH="$(pwd)/vault_repo/01_Assessments" python3 confirm_candidate.py
+    - VAULT_PATH="$(pwd)/vault_repo/01_Assessments" python3 promote_candidates.py
     - cd vault_repo
     - git remote set-url origin https://lyolich777ka:${GITLAB_PUSH_TOKEN}@gitlab.com/lyolich777ka/radar.git
     - git add -A
-    - git commit -m "HITL-подтверждение $CONFIRM_REPO: $CONFIRM_DECISION"
-    - git pull --rebase origin vault
-    - python3 ../check_frontmatter.py 01_Assessments || exit 1
-    - git push origin vault
+    - |
+      if git diff --staged --quiet; then
+        echo "Нет CANDIDATE-файлов для обработки"
+      else
+        git commit -m "Карантин: promote_candidates $(date '+%Y-%m-%d')"
+        git pull --rebase origin vault
+        python3 ../check_frontmatter.py 01_Assessments || exit 1
+        git push origin vault
+      fi
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "web" && $CONFIRM_REPO'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web" && $PROMOTE_ONLY == "true"'
 ```
 
-`rules:` триггерится по наличию `$CONFIRM_REPO`, не по отдельному
-булеву флагу (`$CONFIRM_MODE == "true"`) — значение и так обязательно
-для идентификации файла, второй флаг был бы избыточен. Без этого условия
-любой `web`-запуск без остальных namespace-переменных запустил бы
-`confirm_candidate` с пустым `$CONFIRM_REPO` вместе со всеми остальными
-web-job'ами.
+`promote_candidates.py` импортирует `analyze.py`, а тот безусловно
+импортирует `requests`/`ghapi` и читает (не проверяет)
+`ANTHROPIC_API_KEY`/грузит `MODEL_CONFIG` из
+`99_System/model_config.json` (файл существует в master-ветке, путь
+строится от `__file__`, не от `VAULT_PATH` — [analyze.py:18](analyze.py#L18)) —
+безопасно импортировать без реального ключа. Верифицировано (Rule 28):
+`analyze.py` не импортирует пакет `anthropic` напрямую, вызывает Anthropic
+API через `requests` — поэтому `anthropic` в `pip install` job'а не
+нужен.
 
-Секреты job'а: только `GITLAB_PUSH_TOKEN`/`CI_JOB_TOKEN` (git) —
-`TELEGRAM_*`/`ANTHROPIC_API_KEY` не нужны, `write_verdict_entry()` шлёт
-Telegram-уведомление только при `status == CANDIDATE_LOW_CONFIDENCE`
-([vault_write.py:132-133](vault_write.py#L132-L133)), не при выходе из
-этого статуса.
+Существующий daily-schedule (тот же, что триггерит `radar`/`lint_vault`)
+покрывает `promote_candidates` без правки расписания в GitLab UI —
+job фильтруется только через `rules`, отдельного нового schedule не
+создаётся.
 
-### 4. `check_frontmatter.py` — валидация `state_value`
-
-```python
-VALID_STATES = {
-    "Prototype", "Growing", "Mature", "Maintenance",
-    "Declining", "Archived", "Spam",
-}
-```
-
-В `validate_file()`: если `state_value` присутствует (не `None`) —
-должен входить в `VALID_STATES`, иначе — ошибка, тем же путём, что и
-`status` ([check_frontmatter.py:27-31](check_frontmatter.py#L27-L31)).
-Если поле отсутствует — не ошибка (обратная совместимость с 88 файлами
-без `state_value`, см. §1).
+**Web-триггер**: решено в интервью — `$PROMOTE_ONLY == "true"`, по
+паттерну `$PUBLISH_ONLY`/`$CONFIRM_REPO`/`$PATTERN_MODE`. Без отдельной
+переменной голый `$CI_PIPELINE_SOURCE == "web"` запускал бы
+`promote_candidates` при любом ручном запуске любого другого job'а.
+Назначение — только инженерная проверка/отладка, штатная эксплуатация
+исключительно через schedule.
 
 ## Non-Functional Requirements
 
-1. `append_event()` не имеет побочных эффектов — чистая функция,
-   мутирует и возвращает переданный `frontmatter`, не читает/пишет диск.
-2. `state_value`/`state_confidence` не меняют поведение `compute_status()`,
-   `patterns.py`, `telegram_post.py` — полностью описательные поля в этой
-   фазе, поведенческий эффект только в Фазе 3b.
-3. `confirm_candidate.py` не интерполирует пользовательский ввод в
-   команды оболочки — `$CONFIRM_REPO`/`$CONFIRM_DECISION` используются
-   только как значения Python-переменных после валидации, не как часть
-   shell-команды.
-4. `python3 -m py_compile confirm_candidate.py` перед коммитом.
+1. `check_repo_alive()` не имеет побочных эффектов кроме одного сетевого
+   вызова `gh_api.repos.get()` — не пишет на диск, не мутирует vault.
+2. `promote_candidates.py` не трогает файлы вне `status == CANDIDATE` и не
+   продвигает файлы моложе `QUARANTINE_DAYS` — оба условия проверяются до
+   любой записи.
+3. Несколько подходящих `CANDIDATE`-файлов обрабатываются за один прогон
+   job'а, один git commit на весь батч — по паттерну `radar`/`patterns`
+   job'ов, не по одному коммиту на файл.
+4. Ошибка получения данных о репозитории (сеть/rate limit/404) не
+   трактуется как "мёртв" — файл остаётся `CANDIDATE`, обрабатывается
+   заново на следующем плановом прогоне.
+5. `python3 -m py_compile analyze.py promote_candidates.py` перед
+   коммитом.
+6. Никакого em-dash/en-dash в python-строках.
 
 ## Security Considerations
 
-- **Path traversal в `$CONFIRM_REPO`** — валидируется явно (запрет `/` и
-  `..`), несмотря на то, что запускать `confirm_candidate` через GitLab
-  Run Pipeline может только участник проекта с правами. Решено не
-  полагаться только на права доступа — дешёвая проверка, права могут
-  измениться, а невалидированный путь в `os.path.join()` — прямой риск
-  чтения/записи вне `01_Assessments/`.
-- Без новых секретов сверх уже существующих (`GITLAB_PUSH_TOKEN`,
-  `CI_JOB_TOKEN`).
-- `check_frontmatter.py` остаётся без побочных эффектов (без изменений от
-  предыдущей ревизии) — новая валидация `state_value` того же вида
-  (только чтение), не нарушает NFR предыдущей спеки.
+- `promote_candidates.py` не принимает внешний ввод, определяющий, какой
+  файл обрабатывать (в отличие от `confirm_candidate.py`'s
+  `$CONFIRM_REPO`) — сам перечисляет `01_Assessments/` по
+  `status == CANDIDATE`. Поверхности path traversal через CI-переменные
+  здесь нет.
+- Новых секретов сверх уже существующих (`GITHUB_READ_TOKEN`,
+  `GITLAB_PUSH_TOKEN`, `CI_JOB_TOKEN`) не требуется.
+- `check_repo_alive()` ошибку API трактует как "нет данных", не как
+  "мёртв"/"жив" — намеренное решение, чтобы неполные данные не приводили
+  к неверному REJECTED_NOISE/VALIDATED_SHIFT (Graceful Degradation).
 
 ## Test Plan
 
-1. **Unit-тесты `append_event()`** — новые, в `test_vault_write.py`
-   (или отдельный файл, на усмотрение реализации): чистота функции
-   (не трогает файлы), корректная схема `state_transition`-события,
-   накопление нескольких событий в `evidence_log`.
-2. **Unit-тесты `write_verdict_entry()` с `state_value`** — три случая:
-   `state_value=None` (текущее поведение не меняется, `evidence_log`
-   нетронут), новый файл с `state_value` (confidence=`low`, 0 предыдущих
-   событий), существующий файл с уже одним событием в `evidence_log`
-   (confidence=`high`).
-3. **Unit-тесты `confirm_candidate.py`** (`test_confirm_candidate.py`,
-   локально, без реального web-прогона — решено в интервью 04.08.2026):
-   path traversal (`/`, `..`) отклоняется, невалидный `CONFIRM_DECISION`
-   отклоняется, отсутствующий файл — ошибка, файл с status не
-   `CANDIDATE_LOW_CONFIDENCE` — ошибка, happy-path approve → `status ==
-   VALIDATED_SHIFT`, happy-path reject → `status == REJECTED_NOISE`.
-   Реальный web-триггер `confirm_candidate` в GitLab CI — решение
-   владельца после мержа в master, вне этой сессии (мутирует реальные
-   оценки, риск случайной публикации в канал при approve).
-4. **`check_frontmatter.py` — новые кейсы в `test_check_frontmatter.py`**:
-   `state_value` из `VALID_STATES` — валиден; произвольная строка —
-   невалиден; отсутствие поля — валиден (обратная совместимость).
-5. **Реальный LLM-вызов `analyze.py` на 1-2 известных репозиториях**
-   (Rule 28, дополнение — тестирование реальным вызовом на реальных
-   данных, а не только схема-валидацией): один явно зрелый/stable
-   репозиторий, один явно свежий prototype — подтвердить, что
-   `state_value` действительно различается между ними и не дублирует
-   `maturity_score` словами. Выбор конкретных репозиториев — на этапе
-   реализации.
+1. **Гейт в `analyze.py`** (`test_analyze.py` или отдельный файл):
+   `compute_status()` возвращает `"VALIDATED_SHIFT"` → итоговый `status`
+   становится `"CANDIDATE"`; возвращает `"CANDIDATE_LOW_CONFIDENCE"` →
+   остаётся без изменений; возвращает `None` → файл по-прежнему не
+   создаётся (текущее поведение не сломано).
+2. **Метка `confidence`**: `status == "CANDIDATE"` → `"в карантине"`;
+   `status == "CANDIDATE_LOW_CONFIDENCE"` → `"низкая"`.
+3. **`check_repo_alive()` — mock-тесты**: `gh_api.repos.get` возвращает
+   `{"archived": True}` → `False`; `{"archived": False}` → `True`;
+   выбрасывает исключение → `None`.
+4. **`promote_candidates.py` — mock-тесты** (`test_promote_candidates.py`):
+   - `days_in_candidate < 14` → пропуск, `write_verdict_entry` не
+     вызывается.
+   - `days_in_candidate >= 14`, `check_repo_alive` → `True` → пишется
+     `VALIDATED_SHIFT`, `state_value=None`.
+   - `days_in_candidate >= 14`, `check_repo_alive` → `False` → пишется
+     `REJECTED_NOISE`.
+   - `days_in_candidate >= 14`, `check_repo_alive` → `None` → пропуск,
+     файл остаётся `CANDIDATE`, ничего не пишется.
+   - файл без `verdict_history` (не должен встречаться при корректной
+     записи, но защита есть) → ошибка в лог, пропуск.
+5. **Реальный ghapi-вызов `check_repo_alive()`** (Rule 28, тот же принцип,
+   что реальный LLM-вызов в предыдущей фазе): один заведомо архивированный
+   репозиторий (`archived: true`), один заведомо активный — подтвердить
+   `False`/`True` соответственно на реальном GitHub API, не только на
+   моках.
 
-   **Выполнено 04.08.2026** (напрямую через
-   `fetch_repo_signal()`+`build_prompt()`+`call_haiku_classification()`,
-   без записи в vault и без Telegram — скрипт вне репозитория). Три
-   репозитория, включая decoupling-тест (два репозитория с ОДИНАКОВЫМ
-   `maturity_score`, чтобы исключить гипотезу "state_value просто
-   пересказывает maturity_score словами"):
+   **Выполнено 05.08.2026** (прямой вызов `analyze.check_repo_alive()`,
+   без записи в vault):
 
-   | Репозиторий | maturity_score | state_value | Комментарий |
-   |---|---|---|---|
-   | случайный репозиторий с GitHub Search, `created > 2026-07-01`, 0 звёзд (свежий prototype) | 1-2 | `Prototype` | ожидаемо |
-   | `facebook/react` (эталон зрелого, активно развивающегося) | 5 | `Mature` | |
-   | `angular/angular.js` (AngularJS 1.x, EOL/заменён Angular 2+, но полноценный production-grade код) | 5 | `Maintenance` | **decoupling подтверждён**: тот же `maturity_score`, что у React, но другой `state_value` — модель различает "зрелый и растущий" от "зрелый, но неактивный", а не дублирует одно через другое |
+   | Репозиторий | archived (реальный GitHub API) | `check_repo_alive()` |
+   |---|---|---|
+   | `facebook/react` (активный, эталон из Test Plan предыдущей фазы) | `False` | `True` |
+   | `jquery/jquery-mobile` (архивирован, `full_name` → `jquery-archive/jquery-mobile`) | `True` | `False` |
 
-   Вывод: `state_value` — не переформулировка `maturity_score`, ось
-   реально независима на практике, не только по замыслу схемы.
-6. `python3 -m py_compile confirm_candidate.py` и затронутых файлов
-   (`vault_write.py`, `analyze.py`, `update_assessments.py`,
-   `check_frontmatter.py`).
+   Оба результата совпали с ожидаемыми.
+6. `python3 -m py_compile analyze.py promote_candidates.py`.
 
 ## Milestones
 
-1. [ ] `append_event()` + `state_value`-параметр `write_verdict_entry()`
-   в `vault_write.py`, `CANONICAL_FIELD_ORDER` обновлён.
-2. [ ] Unit-тесты `append_event()`/`write_verdict_entry()` (Test Plan §1-2).
-3. [ ] `state_value` в `CLASSIFICATION_TOOL` (`analyze.py`) — enum +
-   описание, разводящее с `maturity_score`.
-4. [ ] `STATE:` в текстовом промпте `update_assessments.py`, парсинг,
-   мягкая деградация при невалидном/отсутствующем значении.
-5. [ ] `check_frontmatter.py` — `VALID_STATES` + валидация (Test Plan §4).
-6. [ ] `confirm_candidate.py` + unit-тесты (Test Plan §3).
-7. [ ] `confirm_candidate` job в `.gitlab-ci.yml`.
-8. [x] Реальный LLM-вызов на 1-2 известных репозиториях, ручная проверка
-   `state_value` vs `maturity_score` (Test Plan §5) — выполнено
-   04.08.2026, decoupling подтверждён (`react` vs `angular.js`, см.
-   таблицу в Test Plan §5).
-9. [ ] Полный diff, явное подтверждение владельца перед commit/push
+1. [x] `analyze.py`: гейт `VALIDATED_SHIFT -> CANDIDATE` после
+   `compute_status()`, обновлённая метка `confidence`.
+2. [x] `analyze.py`: `check_repo_alive(owner, repo)`.
+3. [x] Unit-тесты Milestone 1-2 (Test Plan §1-3).
+4. [x] `promote_candidates.py`: полный флоу (поиск CANDIDATE, проверка
+   14 дней через `verdict_history[-1]`, `check_repo_alive`,
+   promote/reject/skip).
+5. [x] Unit-тесты `promote_candidates.py` (Test Plan §4).
+6. [x] `.gitlab-ci.yml`: job `promote_candidates` (schedule +
+   `$PROMOTE_ONLY` web-триггер).
+7. [x] Реальный ghapi-вызов на 2 известных репозиториях (Test Plan §5).
+8. [ ] Полный diff, явное подтверждение владельца перед commit/push
    (CONSTITUTION, без исключений).
 
 ## Open Questions / Decisions Needed
 
-Все развилки этого интервью закрыты (04.08.2026):
-- п.1 (`CANDIDATE` time-based карантин) — вынесен из скоупа полностью,
-  отдельная сессия после того, как `recheck_lifecycle.py` (п.2, остаток)
-  реализован — без промоушен-механизма присвоение `CANDIDATE` заморозило
-  бы репозитории (см. Overview).
-- `state`/`status` — не пересекаются: `status` управляет публикацией и
-  квалификацией, `state_value`/`state_confidence` полностью описательны
-  в этой фазе.
-- `state_value` vs `maturity_score` — разные оси (тренд vs снимок),
-  требует явного различения в промпте/schema, не просто новое поле рядом
-  со старым.
-- Реальный web-прогон `confirm_candidate` в CI — отложен на решение
-  владельца после мержа (мутирует реальные данные, риск публикации).
+Все развилки этого интервью закрыты (05.08.2026):
+- Гейт живёт как отдельная проверка после `compute_status()`, не внутри
+  неё — `compute_status()` не меняется.
+- `update_assessments.py` не трогается — не может смайнтить свежий
+  `VALIDATED_SHIFT` уже сегодня.
+- `check_repo_alive()` смотрит только на `archived`, `pushed_at` не
+  используется как критерий свежести.
+- Не прошёл карантин через 14 дней → сразу `REJECTED_NOISE`, без
+  повторных циклов ожидания.
+- Ошибка API при проверке → пропуск прогона, файл остаётся `CANDIDATE`,
+  не трактуется как "мёртв".
+- Дата присвоения `CANDIDATE` берётся из `verdict_history[-1]`, нового
+  поля во frontmatter нет.
+- Promotion — без Telegram-уведомления, тишина как при
+  `confirm_candidate.py` approve.
+- `promote_candidates` — отдельный CI job, реиспользует существующий
+  daily-schedule через `rules`, web-триггер только через `$PROMOTE_ONLY`.
+
+Открытых пунктов для этапа реализации не осталось.
