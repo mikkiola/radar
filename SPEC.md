@@ -454,6 +454,37 @@ This is a mandatory closing step, not an optional follow-up — the
 9-of-10 result above is sufficient to consider the branch merge-ready,
 but not sufficient to consider SPEC A itself done.
 
+### Related but out-of-scope finding: `filter.py` `AttributeError` (2026-08-06)
+
+The post-merge `pages` verification run surfaced a second, unrelated
+production bug via `radar`'s real execution: `src/filter.py:38` crashed
+with `AttributeError: 'NoneType' object has no attribute 'lower'`.
+`project.get("description", "").lower()` only substitutes the default
+when the `description` key is *absent* — the GitHub API returns
+`description: null` (not a missing key) for repositories with no
+description, so `.get()` returned `None`, not `""`, and `.lower()`
+crashed on it.
+
+**This is not a SPEC A architecture bug.** The traceback path
+(`/builds/lyolich777ka/radar/src/filter.py`) confirms the opposite: the
+new `src/` layout resolved correctly — this is a pre-existing logic bug
+that real GitHub API data happened to trigger during this acceptance
+run, unrelated to the file reorganization. It surfaced here only
+because this was the first real (non-mocked) `radar` execution against
+live GitHub data since the migration.
+
+Fixed in a standalone commit directly to `master` (not on the SPEC A
+branch, not part of the migration diff), following the same
+verify-before-fixing process as the rest of this spec (Rule 28/31):
+`project.get(x) or default` instead of `project.get(x, default)`,
+applied to all three same-pattern fields in `is_relevant()` —
+`description` (confirmed crash), `title` (same pattern, plausible
+`None` from the HN Algolia API), and `topics` (same pattern, would
+raise `TypeError` instead of `AttributeError` if ever `None`). Verified
+with a targeted reproduction of the exact crash (`None`
+description/topics/title) plus the full `pytest` suite (99 passed) before
+commit. See commit `2908007` on `master`.
+
 ## Milestones
 
 1. [x] Create migration branch (`spec-a-runtime-architecture`).
@@ -467,12 +498,35 @@ but not sufficient to consider SPEC A itself done.
    green, `radar` correctly suppressed by its own guard,
    `confirm_candidate` intentionally skipped (mutates real data).
    `pages` failed for a structural reason unrelated to the migration
-   (see Acceptance Run Result above) — **not yet verified**.
-9. [ ] Merge to `master` (step 8) — owner decision pending, not
-   performed by the agent.
-10. [ ] **Mandatory, separate from step 9**: verify `pages` green via
-    a `web`-source trigger with `GRAPH_ONLY=true`, after the merge.
-    SPEC A remains open until this specific step passes.
+   (see Acceptance Run Result above).
+9. [x] Merge to `master` (step 8) — via GitLab MR, owner-confirmed,
+   merge commit `c5816e7`.
+10. [x] **Mandatory, separate from step 9**: `pages` verified green via
+    a `web`-source trigger with `GRAPH_ONLY=true`, after the merge —
+    pipeline `#2737567158` on `master`, **Passed**, 4/4 jobs green
+    (`lint_vault`, `radar`, `pages`, `pages:deploy`). `radar` also ran
+    for real in this pipeline (not gated) and passed, which additionally
+    validated the `filter.py` fix (see below) against live GitHub data,
+    not just the local smoke test.
+
+## SPEC A: CLOSED (2026-08-06)
+
+All 10 CI jobs are now confirmed on `master` with the `src/` + `tests/`
+layout: 9 via the pre-merge acceptance run on
+`spec-a-runtime-architecture` (`lint_vault`, `promote_candidates`,
+`recheck_lifecycle`, `publish`, `analysts`, `check_models`, `patterns`
+green; `radar` correctly self-suppressed by its guard;
+`confirm_candidate` intentionally not exercised — mutates real data,
+structurally cannot fire without `CONFIRM_REPO`), plus `pages`
+confirmed separately after merge (pipeline `#2737567158`, together with
+`radar` running for real and passing). Zero-behavior-change criterion
+met for all 10 jobs. `pages:deploy` (GitLab Pages' own deploy step,
+downstream of the `pages` job's artifact) also came back green,
+confirming the built site itself was accepted.
+
+Everything under "Out of Scope for SPEC A" below remains genuinely out
+of scope — SPEC A.5, SPEC A.6, SPEC E, SPEC C, SPEC B, SPEC D are
+separate future sessions, not started here.
 
 ## Decisions Log (from interview, 2026-08-06)
 
