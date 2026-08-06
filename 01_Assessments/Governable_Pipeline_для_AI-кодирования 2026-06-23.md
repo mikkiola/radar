@@ -12,6 +12,8 @@ evidence_log:
   state_confidence: low
 - date: '2026-08-05'
   event_type: ci_broken
+- date: '2026-08-06'
+  event_type: ci_restored
 root_commit_sha: null
 license_spdx_id: MIT
 license_baseline_origin: migration
