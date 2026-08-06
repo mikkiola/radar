@@ -468,7 +468,6 @@ def analyze_and_save(projects):
 
     os.makedirs(VAULT_PATH, exist_ok=True)
     assessed_urls = get_assessed_urls()
-    new_shifts = []
 
     for p in projects[:10]:
         title = p.get("title", "")
@@ -552,23 +551,6 @@ def analyze_and_save(projects):
             continue
 
         print(f"   {status} (maturity={maturity_score}, novelty={novelty_score}) - {name_en}")
-        if status == "VALIDATED_SHIFT":
-            new_shifts.append(name_en)
-
-    # Уведомление в личку при новых VALIDATED_SHIFT оценках
-    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
-    owner_id = os.environ.get("TELEGRAM_OWNER_ID")
-    if new_shifts and bot_token and owner_id:
-        msg = "Новые VALIDATED_SHIFT оценки:\n" + "\n".join(f"- {name}" for name in new_shifts)
-        try:
-            requests.post(
-                f"https://api.telegram.org/bot{bot_token}/sendMessage",
-                json={"chat_id": owner_id, "text": msg},
-                timeout=10
-            )
-            print(f"Уведомление отправлено: {len(new_shifts)} VALIDATED_SHIFT")
-        except Exception as e:
-            print(f"Ошибка отправки уведомления: {e}")
 
 
 if __name__ == "__main__":
