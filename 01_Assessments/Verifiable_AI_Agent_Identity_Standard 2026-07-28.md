@@ -19,6 +19,7 @@ verdict_history:
 **Уверенность:** высокая
 **Модель:** claude-haiku-4-5-20251001
 **Промпт версия:** v1.0
+**Часть паттерна:** [[Cryptographic Trust as Native Agent Architecture 2026-08-04]] (не новый сигнал - 2-е подтверждение, 2026-08-06)
 **Источник:**
   файл: GitHub description
   локация: не указана

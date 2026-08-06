@@ -21,6 +21,7 @@ verdict_history:
 **Уверенность:** высокая
 **Модель:** claude-haiku-4-5-20251001
 **Промпт версия:** v1.0
+**Часть паттерна:** [[Human Verification Embedded in Agent Loops 2026-08-04]] (не новый сигнал - 1-е подтверждение, 2026-08-06)
 **Источник:**
   файл: GitHub project description
   локация: не указана
