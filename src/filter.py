@@ -34,9 +34,9 @@ EXCLUDE_WORDS = [
 ]
 
 def is_relevant(project):
-    title = project.get("title", "").lower()
-    description = project.get("description", "").lower()
-    topics = [t.lower() for t in project.get("topics", [])]
+    title = (project.get("title") or "").lower()
+    description = (project.get("description") or "").lower()
+    topics = [t.lower() for t in (project.get("topics") or [])]
 
     for word in EXCLUDE_WORDS:
         if word in title:
