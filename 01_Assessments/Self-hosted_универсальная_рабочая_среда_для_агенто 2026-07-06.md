@@ -2,15 +2,23 @@
 status: VALIDATED_SHIFT
 maturity_score: null
 novelty_score: null
+state_value: Growing
+state_confidence: high
 assertion_vector: null
 evidence_log:
 - date: '2026-08-05'
   event_type: ci_broken
+- date: '2026-08-06'
+  event_type: state_transition
+  state_value: Growing
+  state_confidence: high
 root_commit_sha: null
 license_spdx_id: NOASSERTION
 license_baseline_origin: migration
 verdict_history:
 - date: '2026-07-06'
+  verdict: VALIDATED_SHIFT
+- date: '2026-08-06'
   verdict: VALIDATED_SHIFT
 ---
 # Self-hosted универсальная рабочая среда для агентов
@@ -40,6 +48,7 @@ Bike4Mind переопределяет архитектуру агентной �
 Проект реальный, за ним стоит опытная команда с credible треком (создатель GoPets, эксит в Zynga, GM/Director of Product на MafiaWars/FarmVille) — это не соло-энтузиаст, а профессиональная команда с реальным бизнес-опытом.
 
 ## История оценок
+- 2026-08-06 - СДВИГ (подтверждается) [с учётом мнения Ольги]: За последний месяц экосистема агентных платформ ускорила движение в сторону локальной инфраструктуры — крупные облачные провайдеры начали активнее предлагать offline-режимы, но это работает скорее в пользу Bike4Mind как де-факто open-source стандарта суверенного управления. Команда с треком создания GoPets/FarmVille демонстрирует серьёзность намерений профессиональным уровнем исполнения, что критично для adoption в production-среде. Интеграции с основными фреймворками (LangChain, AutoGen) продолжают расширяться, подтверждая гипотезу о переходе от облачной зависимости к локальным системам контроля.
 - 2026-07-06 - СДВИГ: первая оценка
 
 ## Связи
