@@ -14,19 +14,19 @@ radar:
     - git config --global user.email "radar@gitlab.com"
     - git config --global user.name "Radar Bot"
     - git clone --branch vault https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/lyolich777ka/radar.git vault_repo
-    - VAULT_PATH="$(pwd)/vault_repo/01_Assessments" PATTERNS_PATH="$(pwd)/vault_repo/02_Patterns" python3 analyze.py
-    - VAULT_PATH="$(pwd)/vault_repo/01_Assessments" python3 update_assessments.py
+    - VAULT_PATH="$(pwd)/vault_repo/01_Assessments" PATTERNS_PATH="$(pwd)/vault_repo/02_Patterns" python3 src/analyze.py
+    - VAULT_PATH="$(pwd)/vault_repo/01_Assessments" python3 src/update_assessments.py
     - cd vault_repo
     - git remote set-url origin https://lyolich777ka:${GITLAB_PUSH_TOKEN}@gitlab.com/lyolich777ka/radar.git
     - git add -A
-    - python3 ../check_frontmatter.py 01_Assessments || exit 1
+    - python3 ../src/check_frontmatter.py 01_Assessments || exit 1
     - |
       if git diff --staged --quiet; then
         echo "Новых оценок нет — нечего пушить"
       else
         git commit -m "Радар $(date '+%Y-%m-%d') — новые оценки"
         git pull --rebase origin vault
-        python3 ../check_frontmatter.py 01_Assessments || exit 1
+        python3 ../src/check_frontmatter.py 01_Assessments || exit 1
         git push origin vault
         echo "Оценки запушены в ветку vault"
       fi
@@ -41,13 +41,13 @@ confirm_candidate:
     - git config --global user.email "radar@gitlab.com"
     - git config --global user.name "Radar Bot"
     - git clone --branch vault https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/lyolich777ka/radar.git vault_repo
-    - VAULT_PATH="$(pwd)/vault_repo/01_Assessments" python3 confirm_candidate.py
+    - VAULT_PATH="$(pwd)/vault_repo/01_Assessments" python3 src/confirm_candidate.py
     - cd vault_repo
     - git remote set-url origin https://lyolich777ka:${GITLAB_PUSH_TOKEN}@gitlab.com/lyolich777ka/radar.git
     - git add -A
     - 'git commit -m "HITL-подтверждение $CONFIRM_REPO: $CONFIRM_DECISION"'
     - git pull --rebase origin vault
-    - python3 ../check_frontmatter.py 01_Assessments || exit 1
+    - python3 ../src/check_frontmatter.py 01_Assessments || exit 1
     - git push origin vault
   rules:
     - if: '$CI_PIPELINE_SOURCE == "web" && $CONFIRM_REPO'
@@ -59,7 +59,7 @@ promote_candidates:
     - git config --global user.email "radar@gitlab.com"
     - git config --global user.name "Radar Bot"
     - git clone --branch vault https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/lyolich777ka/radar.git vault_repo
-    - VAULT_PATH="$(pwd)/vault_repo/01_Assessments" python3 promote_candidates.py
+    - VAULT_PATH="$(pwd)/vault_repo/01_Assessments" python3 src/promote_candidates.py
     - cd vault_repo
     - git remote set-url origin https://lyolich777ka:${GITLAB_PUSH_TOKEN}@gitlab.com/lyolich777ka/radar.git
     - git add -A
@@ -69,7 +69,7 @@ promote_candidates:
       else
         git commit -m "Карантин: promote_candidates $(date '+%Y-%m-%d')"
         git pull --rebase origin vault
-        python3 ../check_frontmatter.py 01_Assessments || exit 1
+        python3 ../src/check_frontmatter.py 01_Assessments || exit 1
         git push origin vault
       fi
   rules:
@@ -83,7 +83,7 @@ recheck_lifecycle:
     - git config --global user.email "radar@gitlab.com"
     - git config --global user.name "Radar Bot"
     - git clone --branch vault https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/lyolich777ka/radar.git vault_repo
-    - VAULT_PATH="$(pwd)/vault_repo/01_Assessments" python3 recheck_lifecycle.py
+    - VAULT_PATH="$(pwd)/vault_repo/01_Assessments" python3 src/recheck_lifecycle.py
     - cd vault_repo
     - git remote set-url origin https://lyolich777ka:${GITLAB_PUSH_TOKEN}@gitlab.com/lyolich777ka/radar.git
     - git add -A
@@ -93,7 +93,7 @@ recheck_lifecycle:
       else
         git commit -m "Переоценка lifecycle: recheck_lifecycle $(date '+%Y-%m-%d')"
         git pull --rebase origin vault
-        python3 ../check_frontmatter.py 01_Assessments || exit 1
+        python3 ../src/check_frontmatter.py 01_Assessments || exit 1
         git push origin vault
       fi
   rules:
@@ -108,7 +108,7 @@ publish:
     - git config --global user.name "Radar Bot"
     - git clone --branch vault https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/lyolich777ka/radar.git vault_repo
     - mkdir -p vault_repo/99_System
-    - VAULT_PATH="$(pwd)/vault_repo/01_Assessments" PUBLISHED_LOG="$(pwd)/vault_repo/99_System/published_posts.log" python3 telegram_post.py
+    - VAULT_PATH="$(pwd)/vault_repo/01_Assessments" PUBLISHED_LOG="$(pwd)/vault_repo/99_System/published_posts.log" python3 src/telegram_post.py
     - cd vault_repo
     - git remote set-url origin https://lyolich777ka:${GITLAB_PUSH_TOKEN}@gitlab.com/lyolich777ka/radar.git
     - git add -A
@@ -118,7 +118,7 @@ publish:
       else
         git commit -m "Опубликован пост $(date '+%Y-%m-%d %H:%M')"
         git pull --rebase origin vault
-        python3 ../check_frontmatter.py 01_Assessments || exit 1
+        python3 ../src/check_frontmatter.py 01_Assessments || exit 1
         git push origin vault
       fi
   rules:
@@ -132,11 +132,11 @@ analysts:
     - git config --global user.email "radar@gitlab.com"
     - git config --global user.name "Radar Bot"
     - git clone --branch vault https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/lyolich777ka/radar.git vault_repo
-    - python3 fetch_analysts.py --vault vault_repo
+    - python3 src/fetch_analysts.py --vault vault_repo
     - cd vault_repo
     - git remote set-url origin https://lyolich777ka:${GITLAB_PUSH_TOKEN}@gitlab.com/lyolich777ka/radar.git
     - git add -A
-    - git diff --cached --quiet || (git commit -m "Аналитик Builder Radar $(date '+%Y-%m-%d')" && git pull --rebase origin vault && python3 ../check_frontmatter.py 01_Assessments && git push origin vault)
+    - git diff --cached --quiet || (git commit -m "Аналитик Builder Radar $(date '+%Y-%m-%d')" && git pull --rebase origin vault && python3 ../src/check_frontmatter.py 01_Assessments && git push origin vault)
   rules:
     - if: '$PATTERN_MODE == "weekly"'
 
@@ -146,7 +146,7 @@ lint_vault:
     - pip install pyyaml requests --quiet
     - git clone --branch vault https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/lyolich777ka/radar.git vault_repo
     - |
-      if ! python3 check_frontmatter.py vault_repo/01_Assessments; then
+      if ! python3 src/check_frontmatter.py vault_repo/01_Assessments; then
         curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
           -d chat_id="${TELEGRAM_OWNER_ID}" \
           -d text="lint_vault: обнаружен невалидный frontmatter в 01_Assessments/, pipeline ${CI_PIPELINE_URL}"
@@ -163,11 +163,11 @@ check_models:
     - git config --global user.email "radar@gitlab.com"
     - git config --global user.name "Radar Bot"
     - git clone --branch vault https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/lyolich777ka/radar.git vault_repo
-    - VAULT_PATH="$(pwd)/vault_repo" python3 check_model_updates.py
+    - VAULT_PATH="$(pwd)/vault_repo" python3 src/check_model_updates.py
     - cd vault_repo
     - git remote set-url origin https://lyolich777ka:${GITLAB_PUSH_TOKEN}@gitlab.com/lyolich777ka/radar.git
     - git add -A
-    - git diff --cached --quiet || (git commit -m "Проверка модели $(date '+%Y-%m-%d')" && git pull --rebase origin vault && python3 ../check_frontmatter.py 01_Assessments && git push origin vault)
+    - git diff --cached --quiet || (git commit -m "Проверка модели $(date '+%Y-%m-%d')" && git pull --rebase origin vault && python3 ../src/check_frontmatter.py 01_Assessments && git push origin vault)
   rules:
     - if: '$PATTERN_MODE == "weekly"'
 
@@ -178,7 +178,7 @@ patterns:
     - git config --global user.email "radar@gitlab.com"
     - git config --global user.name "Radar Bot"
     - git clone --branch vault https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/lyolich777ka/radar.git vault_repo
-    - VAULT_PATH="$(pwd)/vault_repo" python3 patterns.py
+    - VAULT_PATH="$(pwd)/vault_repo" python3 src/patterns.py
     - cd vault_repo
     - git remote set-url origin https://lyolich777ka:${GITLAB_PUSH_TOKEN}@gitlab.com/lyolich777ka/radar.git
     - git add -A
@@ -188,7 +188,7 @@ patterns:
       else
         git commit -m "Паттерны $(date '+%Y-%m-%d') — обновление"
         git pull --rebase origin vault
-        python3 ../check_frontmatter.py 01_Assessments || exit 1
+        python3 ../src/check_frontmatter.py 01_Assessments || exit 1
         git push origin vault
         echo "Паттерны запушены в ветку vault"
       fi
@@ -207,8 +207,8 @@ pages:
     - mkdir -p docs/01_Assessments docs/02_Patterns docs/assets/javascripts docs/assets/stylesheets
     - cp -r vault_content/01_Assessments/. docs/01_Assessments/
     - cp -r vault_content/02_Patterns/. docs/02_Patterns/
-    - python3 generate_indexes.py
-    - python3 generate_graph.py
+    - python3 src/generate_indexes.py
+    - python3 src/generate_graph.py
     - mkdocs build --site-dir public
   artifacts:
     paths:

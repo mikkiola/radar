@@ -5,7 +5,7 @@
 Radar's Python modules, tests, and `.gitlab-ci.yml` currently live in a
 flat layout at the repo root, with imports working via `sys.path[0]`
 (the directory of the invoked script). This spec moves to a
-`src/radar/` + `tests/` layout matching Python open-source community
+`src/` + `tests/` layout matching Python open-source community
 expectations, with **zero change in pipeline behavior**: all 10 GitLab
 CI jobs must behave identically before and after.
 
@@ -13,15 +13,54 @@ This is SPEC A of five independent specs decided with the owner on
 2026-08-06 (see "Out of scope" section below for the full queue). Only
 SPEC A is in scope for this session.
 
+## Revision: `src/radar/` → `src/` (found during implementation, 2026-08-06)
+
+The original interview settled on `src/radar/` + `tests/` (nested
+package directory, matching the eventual-pip-install rationale). During
+implementation, moving all files into `src/radar/` and running the real
+`pytest` suite against it surfaced a contradiction not caught at
+interview time: `src/radar/` is a **packaging convention** — it exists
+so that `radar` becomes an importable package name. But this same SPEC
+already decided CI invokes scripts by **direct path**
+(`python3 src/analyze.py`, not `python3 -m radar.analyze`), with a
+**minimal `pyproject.toml`** (no `[project]` table, no `[build-system]`,
+no `pip install -e .`). There is no package use of the `radar/`
+directory anywhere in this spec — only the naming convention was
+adopted, none of the packaging it implies.
+
+Running `pytest tests/` against `src/radar/` with
+`pythonpath = ["src"]` (as originally specified) produced
+`ModuleNotFoundError` on every test file: `pythonpath = ["src"]` puts
+`src/` on `sys.path`, not `src/radar/`, so flat imports like
+`import vault_write` (used consistently by every test file and every
+internal script) cannot resolve — they'd need `import radar.vault_write`
+instead, which none of the existing code uses and which nothing in this
+spec proposed rewriting.
+
+**Resolution**: drop the nested `radar/` directory. Final layout is
+`src/` with all 18 `.py` files and `99_System/` directly inside it, no
+intermediate package folder. `pythonpath = ["src"]` then puts `src/`
+itself on `sys.path`, matching the flat `import vault_write` style
+everywhere else in the codebase — the same behavior scripts already get
+at runtime via `sys.path[0]` when invoked directly. No test file
+content changed; this was a path-only correction, consistent with
+every other "path-only, no logic change" decision in this spec.
+
+All directory-tree references, the per-job table, and prose below are
+already updated to `src/` (not `src/radar/`) to reflect this. The
+pip-install rationale for adopting `src/` (rather than staying flat at
+repo root) still holds — `src/<package>/` nesting can be added later,
+at the point install is actually needed, without disturbing `tests/`.
+
 ## Goals
 
-- [ ] Adopt `src/radar/` + `tests/` layout (owner decision: src/ now,
+- [ ] Adopt `src/` + `tests/` layout (owner decision: src/ now,
       not flat — Radar may be pip-installed later; laying the
       structure down now avoids a second migration).
 - [ ] Zero behavior change across all 10 CI jobs (Rule 31: verified by
       a real acceptance CI run, not by reading `.gitlab-ci.yml`).
 - [ ] `vault_write.py` (9 internal dependents) migrated last, after
-      all other modules are stable in `src/radar/`.
+      all other modules are stable in `src/`.
 - [ ] Remove the stray untracked `gitlab.com/` directory (empty,
       accidental `git clone` artifact — done in this session, see
       Decisions Log).
@@ -67,7 +106,7 @@ session; several corrected a stale prior-session summary.
   internal.
 - All internal imports are flat and rely on `sys.path[0]` being the
   invoked script's own directory. **Direct-path invocation**
-  (`python3 src/radar/analyze.py`, decided below) preserves this with
+  (`python3 src/analyze.py`, decided below) preserves this with
   zero code changes, because Python still sets `sys.path[0]` to the
   script's directory regardless of where that directory sits in the
   tree.
@@ -85,9 +124,9 @@ MODEL_CONFIG_PATH = os.path.join(
 Affected: `analyze.py`, `check_model_updates.py`, `fetch_analysts.py`,
 `patterns.py`, `telegram_post.py`, `update_assessments.py`.
 
-If these 6 files move into `src/radar/` while `99_System/` stays at
-repo root, all six break on first CI run (`src/radar/99_System/` does
-not exist). **Decision: move `99_System/` into `src/radar/99_System/`
+If these 6 files move into `src/` while `99_System/` stays at
+repo root, all six break on first CI run (`src/99_System/` does
+not exist). **Decision: move `99_System/` into `src/99_System/`
 alongside the code.** Zero logic change in the 6 files — same
 principle as leaving VAULT_PATH untouched (see below): a pure path
 move, not a logic change, keeps the two change types from being mixed
@@ -130,7 +169,7 @@ Only job with `GIT_STRATEGY: none` plus an explicit
 default checkout). `generate_indexes.py`/`generate_graph.py` resolve
 `docs/...` paths relative to cwd, not `__file__` — cwd stays repo root
 throughout the `pages` job script (no `cd` before invoking them), so
-moving the two scripts into `src/radar/` requires no logic change,
+moving the two scripts into `src/` requires no logic change,
 only updating the invocation path in `.gitlab-ci.yml`. `mkdocs.yml`'s
 `docs_dir: docs` is also cwd-relative and unaffected.
 
@@ -154,7 +193,7 @@ only updating the invocation path in `.gitlab-ci.yml`. `mkdocs.yml`'s
 ### 1. Target directory structure
 
 ```
-src/radar/
+src/
     analyze.py
     backfill_frontmatter.py
     check_frontmatter.py
@@ -200,7 +239,7 @@ logic change — the `__file__`-relative code stays identical).
 ### 2. `pyproject.toml` — minimal scope
 
 Decision: CI invokes scripts by direct path
-(`python3 src/radar/analyze.py`), not `python3 -m radar.analyze` and
+(`python3 src/analyze.py`), not `python3 -m radar.analyze` and
 not via `pip install -e .`. A full `[project]` metadata table would
 therefore go unused and risks drifting from real dependencies. Only
 add what's used today:
@@ -232,15 +271,15 @@ with no `cd`) are **not unified** in SPEC A — only the script path
 changes in both styles:
 
 - 8-job style: `python3 ../check_frontmatter.py 01_Assessments` →
-  `python3 ../src/radar/check_frontmatter.py 01_Assessments`
+  `python3 ../src/check_frontmatter.py 01_Assessments`
   (still relative to `vault_repo/` after `cd`).
 - `lint_vault` style: `python3 check_frontmatter.py vault_repo/01_Assessments` →
-  `python3 src/radar/check_frontmatter.py vault_repo/01_Assessments`.
+  `python3 src/check_frontmatter.py vault_repo/01_Assessments`.
 
 ### 5. `.gitlab-ci.yml` — per-job script path updates
 
 Every `python3 <script>.py` invocation across all 10 jobs gets
-`src/radar/` prepended to `<script>.py`. `VAULT_PATH`,
+`src/` prepended to `<script>.py`. `VAULT_PATH`,
 `PATTERNS_PATH`, `PUBLISHED_LOG` env var *values* are untouched (they
 point at `vault_repo/...`, not at the code location). The `--vault`
 CLI flag value in the `analysts` job is untouched for the same
@@ -248,16 +287,16 @@ reason. Full per-job diff:
 
 | Job | Script invocation changes |
 |---|---|
-| `radar` | `analyze.py` → `src/radar/analyze.py`; `update_assessments.py` → `src/radar/update_assessments.py`; both `check_frontmatter.py` calls get `src/radar/` per rule above |
-| `confirm_candidate` | `confirm_candidate.py` → `src/radar/confirm_candidate.py`; `check_frontmatter.py` call updated |
-| `promote_candidates` | `promote_candidates.py` → `src/radar/promote_candidates.py`; `check_frontmatter.py` call updated |
-| `recheck_lifecycle` | `recheck_lifecycle.py` → `src/radar/recheck_lifecycle.py`; `check_frontmatter.py` call updated |
-| `publish` | `telegram_post.py` → `src/radar/telegram_post.py`; `check_frontmatter.py` call updated |
-| `analysts` | `fetch_analysts.py --vault vault_repo` → `src/radar/fetch_analysts.py --vault vault_repo`; `check_frontmatter.py` call updated |
-| `lint_vault` | `check_frontmatter.py vault_repo/01_Assessments` → `src/radar/check_frontmatter.py vault_repo/01_Assessments` (no `cd`, no other changes) |
-| `check_models` | `check_model_updates.py` → `src/radar/check_model_updates.py`; `check_frontmatter.py` call updated |
-| `patterns` | `patterns.py` → `src/radar/patterns.py`; `check_frontmatter.py` call updated |
-| `pages` | `generate_indexes.py` → `src/radar/generate_indexes.py`; `generate_graph.py` → `src/radar/generate_graph.py`; `git clone --branch master` step unchanged (clones the new layout wholesale); `requirements_pages.txt` install unchanged (stays at root); `mkdocs build` unchanged |
+| `radar` | `analyze.py` → `src/analyze.py`; `update_assessments.py` → `src/update_assessments.py`; both `check_frontmatter.py` calls get `src/` per rule above |
+| `confirm_candidate` | `confirm_candidate.py` → `src/confirm_candidate.py`; `check_frontmatter.py` call updated |
+| `promote_candidates` | `promote_candidates.py` → `src/promote_candidates.py`; `check_frontmatter.py` call updated |
+| `recheck_lifecycle` | `recheck_lifecycle.py` → `src/recheck_lifecycle.py`; `check_frontmatter.py` call updated |
+| `publish` | `telegram_post.py` → `src/telegram_post.py`; `check_frontmatter.py` call updated |
+| `analysts` | `fetch_analysts.py --vault vault_repo` → `src/fetch_analysts.py --vault vault_repo`; `check_frontmatter.py` call updated |
+| `lint_vault` | `check_frontmatter.py vault_repo/01_Assessments` → `src/check_frontmatter.py vault_repo/01_Assessments` (no `cd`, no other changes) |
+| `check_models` | `check_model_updates.py` → `src/check_model_updates.py`; `check_frontmatter.py` call updated |
+| `patterns` | `patterns.py` → `src/patterns.py`; `check_frontmatter.py` call updated |
+| `pages` | `generate_indexes.py` → `src/generate_indexes.py`; `generate_graph.py` → `src/generate_graph.py`; `git clone --branch master` step unchanged (clones the new layout wholesale); `requirements_pages.txt` install unchanged (stays at root); `mkdocs build` unchanged |
 
 `pip install ...` lines in every job are **unchanged** (inline,
 per-job — consolidating into a shared `requirements.txt` was
@@ -298,12 +337,12 @@ Within the branch, file migration order:
    already be reachable; see note below).
 4. Move `vault_write.py` (+`99_System/`) last, once every module that
    imports it has already been updated to invoke from
-   `src/radar/` — at that point `vault_write.py` moving into the same
+   `src/` — at that point `vault_write.py` moving into the same
    directory is the final, most isolated step, testable on its own
    before the branch merge.
 
    **Note on step 3/4 ordering**: because `sys.path[0]` is set to the
-   *invoked* script's own directory, a script in `src/radar/` doing
+   *invoked* script's own directory, a script in `src/` doing
    `import vault_write` requires `vault_write.py` to be in that same
    directory — it cannot resolve to a `vault_write.py` still sitting
    at repo root. This means steps 3 and 4 cannot be split across
@@ -385,6 +424,12 @@ not part of SPEC A.
 
 - src/ layout adopted now, not flat — owner: Radar may be
   pip-installed later, avoid a second migration.
+- `src/radar/` (nested package directory) revised to flat `src/`
+  during implementation (2026-08-06) — see "Revision" section above.
+  Found via a real `pytest` run, not caught at interview time: the
+  nested folder was a packaging convention with no packaging behind
+  it (no `[project]` table, no `-m radar.module` invocation), and it
+  broke every test file's flat `import vault_write`-style imports.
 - `gitlab.com/lyolich777ka/` stray empty directory deleted this
   session (`rm -rf gitlab.com`), confirmed harmless accidental clone
   artifact, not tracked by git.
@@ -399,7 +444,7 @@ not part of SPEC A.
   (not deferred), specifically so the `pythonpath` choice is backed by
   a real repository pin, not just informal reliance on the local
   machine's installed version.
-- `99_System/` moves into `src/radar/99_System/` alongside the code —
+- `99_System/` moves into `src/99_System/` alongside the code —
   matches the "path-only change, no logic change" principle applied
   everywhere else in this spec, because 6 files resolve
   `model_config.json` via `__file__`-relative paths.
