@@ -408,17 +408,71 @@ not part of SPEC A.
    under a new "Acceptance Run Result" subsection before closing
    SPEC A (same pattern as the prior `recheck_lifecycle` spec's §13).
 
+### Acceptance Run Result (2026-08-06, branch `spec-a-runtime-architecture`)
+
+8 of 10 jobs triggered via `web` source with gating variables set
+per-job; 7 came back green: `lint_vault`, `promote_candidates`,
+`recheck_lifecycle`, `publish`, `analysts`, `check_models`, `patterns`.
+
+- `radar` — correctly did **not** run. Suppressed by the
+  `$PUBLISH_ONLY != "true" && $PATTERN_MODE != "weekly" && $LIFECYCLE_ONLY != "true"`
+  guard on its `web` rule (see the rules-block verification done before
+  the trigger) — the run intentionally set one of those three
+  variables to gate other jobs one at a time, which correctly kept
+  `radar` from firing alongside them. Not run standalone in this
+  acceptance pass; not a gap, this was the expected behavior of the
+  guard being exercised.
+- `confirm_candidate` — intentionally not run. Owner decision: it
+  mutates real assessment data on approve/reject, and no
+  `CONFIRM_REPO`/`CONFIRM_DECISION` were supplied, which the rules
+  verification confirmed means it structurally cannot fire (bare
+  `$CONFIRM_REPO` truthiness check is false when the variable is
+  entirely absent).
+- **`pages` — failed**:
+  `python3: can't open file '/builds/lyolich777ka/radar/src/generate_indexes.py': [Errno 2] No such file or directory`.
+  Root cause confirmed from the log, **not a migration bug**: `pages`
+  is the one job (see "Verified Against Current Code" above) with an
+  explicit `git clone --branch master ...` instead of the default
+  pipeline checkout — it always clones `master` regardless of which
+  branch the pipeline itself runs on. `master` does not yet have this
+  migration merged, so `src/generate_indexes.py` genuinely does not
+  exist there. This is a **structural limitation of `pages`**: it can
+  never be exercised on a feature branch under the current
+  architecture, migration-related or not.
+
+  **Owner-confirmed decision**: do not work around this with a
+  temporary `.gitlab-ci.yml` change before merge (branch to point
+  `pages`'s clone at the feature branch, test, then revert) — the cost
+  (extra commits solely to test, a revert before merge) outweighs the
+  benefit, given `pages` uses the same new path structure that all 7
+  passing jobs already exercised successfully.
+
+**SPEC A is NOT considered closed until `pages` is separately verified
+green after the merge to `master`**, triggered via `web` source with
+`GRAPH_ONLY=true` (see rules block: `$CI_PIPELINE_SOURCE == "web" && $GRAPH_ONLY == "true"`).
+This is a mandatory closing step, not an optional follow-up — the
+9-of-10 result above is sufficient to consider the branch merge-ready,
+but not sufficient to consider SPEC A itself done.
+
 ## Milestones
 
-1. [ ] Create migration branch.
-2. [ ] Move zero-dependent/zero-dependency files (step 1).
-3. [ ] Move leaf-to-hub files (step 2).
-4. [ ] Move remaining `vault_write.py`-dependent files (step 3).
-5. [ ] Move `vault_write.py` + `99_System/` (step 4).
-6. [ ] Move tests, add `pyproject.toml` + `requirements-dev.txt` (step 5).
-7. [ ] Update `.gitlab-ci.yml` (step 6).
-8. [ ] Rule 31 acceptance run, all 10 jobs (step 7).
-9. [ ] Merge to `master` (step 8).
+1. [x] Create migration branch (`spec-a-runtime-architecture`).
+2. [x] Move zero-dependent/zero-dependency files (step 1).
+3. [x] Move leaf-to-hub files (step 2).
+4. [x] Move remaining `vault_write.py`-dependent files (step 3).
+5. [x] Move `vault_write.py` + `99_System/` (step 4).
+6. [x] Move tests, add `pyproject.toml` + `requirements-dev.txt` (step 5).
+7. [x] Update `.gitlab-ci.yml` (step 6).
+8. [x] Rule 31 acceptance run, 8 of 10 jobs triggered (step 7) — 7
+   green, `radar` correctly suppressed by its own guard,
+   `confirm_candidate` intentionally skipped (mutates real data).
+   `pages` failed for a structural reason unrelated to the migration
+   (see Acceptance Run Result above) — **not yet verified**.
+9. [ ] Merge to `master` (step 8) — owner decision pending, not
+   performed by the agent.
+10. [ ] **Mandatory, separate from step 9**: verify `pages` green via
+    a `web`-source trigger with `GRAPH_ONLY=true`, after the merge.
+    SPEC A remains open until this specific step passes.
 
 ## Decisions Log (from interview, 2026-08-06)
 
