@@ -8,7 +8,8 @@ from vault_language import is_english_body
 import vault_write
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
-VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar/01_Assessments"))
+VAULT_ROOT = os.environ.get("VAULT_ROOT", os.path.expanduser("~/radar/radar"))
+ASSESSMENTS_PATH = os.path.join(VAULT_ROOT, "01_Assessments")
 DAYS_THRESHOLD = 30
 MODEL_CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "99_System", "model_config.json")
 
@@ -49,11 +50,11 @@ def get_old_assessments():
     today = date.today()
     old_files = []
 
-    if not os.path.exists(VAULT_PATH):
-        print(f"   Vault не найден: {VAULT_PATH}")
+    if not os.path.exists(ASSESSMENTS_PATH):
+        print(f"   Vault не найден: {ASSESSMENTS_PATH}")
         return []
 
-    for filename in os.listdir(VAULT_PATH):
+    for filename in os.listdir(ASSESSMENTS_PATH):
         if not filename.endswith(".md"):
             continue
         try:
@@ -65,7 +66,7 @@ def get_old_assessments():
             if days_old >= DAYS_THRESHOLD:
                 old_files.append({
                     "filename": filename,
-                    "filepath": os.path.join(VAULT_PATH, filename),
+                    "filepath": os.path.join(ASSESSMENTS_PATH, filename),
                     "days_old": days_old
                 })
         except Exception:

@@ -86,7 +86,7 @@ def test_missing_verdict_history_skipped(monkeypatch):
 
 def test_find_candidate_files_filters_by_status(monkeypatch):
     tmpdir = tempfile.mkdtemp()
-    monkeypatch.setattr(promote_candidates, "VAULT_PATH", tmpdir)
+    monkeypatch.setattr(promote_candidates, "ASSESSMENTS_PATH", tmpdir)
 
     candidate_path = os.path.join(tmpdir, "a-candidate.md")
     other_path = os.path.join(tmpdir, "b-validated.md")

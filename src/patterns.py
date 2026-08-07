@@ -32,11 +32,11 @@ def load_model_config():
 MODEL_CONFIG = load_model_config()
 
 
-VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar"))
-ASSESSMENTS_PATH = os.path.join(VAULT_PATH, "01_Assessments")
-PATTERNS_PATH = os.path.join(VAULT_PATH, "02_Patterns")
-ARCHIVE_PATH = os.path.join(VAULT_PATH, "03_Archive")
-ANALYSTS_PATH = os.path.join(VAULT_PATH, "04_Analysts")
+VAULT_ROOT = os.environ.get("VAULT_ROOT", os.path.expanduser("~/radar/radar"))
+ASSESSMENTS_PATH = os.path.join(VAULT_ROOT, "01_Assessments")
+PATTERNS_PATH = os.path.join(VAULT_ROOT, "02_Patterns")
+ARCHIVE_PATH = os.path.join(VAULT_ROOT, "03_Archive")
+ANALYSTS_PATH = os.path.join(VAULT_ROOT, "04_Analysts")
 
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_OWNER_ID = os.environ.get("TELEGRAM_OWNER_ID")
@@ -797,7 +797,7 @@ def run_falsification(assessments):
 # ---------------------------------------------------------------------------
 
 def main():
-    print(f"[patterns] vault: {VAULT_PATH}")
+    print(f"[patterns] vault: {VAULT_ROOT}")
 
     if not os.path.exists(ASSESSMENTS_PATH):
         print(f"[patterns] ОШИБКА: папка не найдена: {ASSESSMENTS_PATH}")

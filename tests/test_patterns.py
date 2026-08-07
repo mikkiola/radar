@@ -129,7 +129,7 @@ def test_extract_pattern_hypotheses_recognizes_both_heading_variants(
 def test_get_old_assessments_parses_trailing_filename_date(tmp_path, monkeypatch):
     filename = "Some Title 2026-06-24.md"
     (tmp_path / filename).write_text("# Assessment", encoding="utf-8")
-    monkeypatch.setattr(update_assessments, "VAULT_PATH", str(tmp_path))
+    monkeypatch.setattr(update_assessments, "ASSESSMENTS_PATH", str(tmp_path))
     monkeypatch.setattr(update_assessments, "DAYS_THRESHOLD", 0)
 
     assessments = update_assessments.get_old_assessments()

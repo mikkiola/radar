@@ -16,7 +16,7 @@ def _tmp_vault_with_file(content):
 
 
 def _run(vault_path, repo, decision, monkeypatch):
-    monkeypatch.setattr(confirm_candidate, "VAULT_PATH", vault_path)
+    monkeypatch.setattr(confirm_candidate, "ASSESSMENTS_PATH", vault_path)
     monkeypatch.setenv("CONFIRM_REPO", repo)
     monkeypatch.setenv("CONFIRM_DECISION", decision)
 

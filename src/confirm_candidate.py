@@ -3,7 +3,8 @@ import sys
 
 import vault_write
 
-VAULT_PATH = os.environ.get("VAULT_PATH", "01_Assessments")
+VAULT_ROOT = os.environ.get("VAULT_ROOT", os.path.expanduser("~/radar/radar"))
+ASSESSMENTS_PATH = os.path.join(VAULT_ROOT, "01_Assessments")
 
 
 def main():
@@ -17,7 +18,7 @@ def main():
         print(f"ОШИБКА: CONFIRM_DECISION должен быть 'approve' или 'reject', получено: {decision!r}")
         sys.exit(1)
 
-    filepath = os.path.join(VAULT_PATH, repo + ".md")
+    filepath = os.path.join(ASSESSMENTS_PATH, repo + ".md")
     if not os.path.exists(filepath):
         print(f"ОШИБКА: файл не найден: {filepath}")
         sys.exit(1)

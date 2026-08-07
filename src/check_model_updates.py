@@ -5,8 +5,8 @@ import requests
 from datetime import date
 
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "99_System", "model_config.json")
-VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar"))
-FEEDBACK_DIR = os.path.join(VAULT_PATH, "98_Feedback", "Infrastructure")
+VAULT_ROOT = os.environ.get("VAULT_ROOT", os.path.expanduser("~/radar/radar"))
+FEEDBACK_DIR = os.path.join(VAULT_ROOT, "98_Feedback", "Infrastructure")
 DOCS_URL = "https://platform.claude.com/docs/en/about-claude/models/overview"
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_OWNER_ID = os.environ.get("TELEGRAM_OWNER_ID")
