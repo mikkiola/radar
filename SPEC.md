@@ -1665,21 +1665,67 @@ push/web-triggered pipeline run, not YAML inference):
 
 ## Milestones
 
-1. [ ] Local TruffleHog full-history run, both branches, triage,
+1. [x] Local TruffleHog full-history run, both branches, triage,
    rotate anything real.
-2. [ ] Local Betterleaks baseline run, both branches, triage
+2. [x] Local Betterleaks baseline run, both branches, triage
    (allowlist or rotate as needed).
-3. [ ] Create `requirements-security.txt`.
-4. [ ] Branch `spec-e-security-scanning`, edit `.gitlab-ci.yml`:
+3. [x] Create `requirements-security.txt`.
+4. [x] Branch `spec-e-security-scanning`, edit `.gitlab-ci.yml`:
    `security` stage first, `security_secrets` + `security_deps` jobs.
-5. [ ] Full diff review, explicit owner confirmation before commit.
-6. [ ] Push, real web-triggered acceptance run on the branch (both new
+5. [x] Full diff review, explicit owner confirmation before commit.
+6. [x] Push, real web-triggered acceptance run on the branch (both new
    jobs green, no unrelated job fires).
-7. [ ] Direct merge to `master`, owner-confirmed.
-8. [ ] Post-merge acceptance: real web-triggered pipeline on `master`,
+7. [x] Direct merge to `master`, owner-confirmed.
+8. [x] Post-merge acceptance: real web-triggered pipeline on `master`,
    both jobs green.
-9. [ ] This SPEC.md section updated with acceptance results; queue
+9. [x] This SPEC.md section updated with acceptance results; queue
    pointer moved to SPEC C.
+
+### Acceptance Run Result (2026-08-07)
+
+**Isolation risk found and resolved before triggering anything**: unlike
+SPEC A.6's `test` job (`push`-triggered, cleanly isolated),
+`security_secrets`/`security_deps` require `schedule` or `web` — a bare
+`web` pipeline on this project also satisfies `radar`'s rule (`web &&
+$PUBLISH_ONLY != "true" && $PATTERN_MODE != "weekly" &&
+$LIFECYCLE_ONLY != "true"`), and every variable that would suppress
+`radar` turns on a different production job (`publish`,
+`check_models`/`patterns`/`analysts`, or `recheck_lifecycle`
+respectively) — no variable combination isolates just the two new
+jobs. This is a pre-existing property of `.gitlab-ci.yml`'s rules, not
+something SPEC E introduced. Flagged explicitly to the owner before
+triggering; owner accepted `radar` (and `lint_vault`, same situation)
+firing alongside the two new jobs as a real side effect, rather than
+this SPEC silently expanding scope to also refactor the trigger
+isolation of five pre-existing jobs.
+
+**Branch run** — pipeline `#2739617177` on `spec-e-security-scanning`
+(`web` source, sha `cdbdab0`): four jobs fired, all `status:
+"success"` — `security_secrets`, `security_deps`, `lint_vault`,
+`radar`. Exactly the four predicted (the other 9 jobs' rules require
+`push` or a specific gating variable not set here) — confirms
+isolation from everything else.
+
+**Post-merge run** — direct `git merge --ff-only` to `master`
+(`cdbdab0`), pushed. Two pipelines resulted:
+- automatic `push`-triggered pipeline `#2739636945`: `test` and
+  `pages` both `success` (the SPEC A.6 coexistence check, still holds
+  — unaffected by SPEC E since `security_secrets`/`security_deps`
+  don't fire on `push`).
+- manual `web`-triggered pipeline `#2739638228` (per Rule 31, real run
+  not inferred): same four jobs as the branch run —
+  `security_secrets`, `security_deps`, `lint_vault`, `radar` — all
+  `status: "success"`.
+
+Verification method: same as SPEC A.6 — GitLab public read-only API
+(project ID `82780086`, no token), `/pipelines/:id/jobs` job-level
+`status` field (`/jobs/:id` and `/jobs/:id/trace` both return `401`
+even for this public project — reconfirmed here, `/pipelines/:id/jobs`
+remains the only usable unauthenticated endpoint for this).
+
+Both `git merge` and both pipeline triggers completed with explicit
+owner confirmation before each shared-state action, per the project's
+[ЗАПРОС]-before-action process.
 
 ## Open Questions / Decisions Needed
 
@@ -1744,5 +1790,40 @@ against this repo for a direct comparison).
 Conclusion: repo is clean per both tools' full-history scan of both
 branches. `security_secrets` (Betterleaks) can go straight to
 hard-fail in CI with no baseline allowlist file needed.
+
+## SPEC E: CLOSED (2026-08-07)
+
+`security` stage added first in `.gitlab-ci.yml`. Two new jobs,
+`schedule`/`web`-triggered, hard-fail (`allow_failure` defaults to
+`false`) + Telegram notification on any finding, matching
+`lint_vault`'s existing pattern:
+
+- `security_secrets` — Betterleaks `v1.7.3` (pinned, checksum-verified
+  at download time), scans `master` (`GIT_DEPTH: 0` for full history)
+  and `vault` (fresh clone, already full history by default).
+- `security_deps` — `pip-audit` against new `requirements-security.txt`
+  (consolidates every runtime + dev dependency named anywhere in the
+  project).
+
+Local one-time baseline (TruffleHog `v3.96.0` + Betterleaks `v1.7.3`,
+full history, both branches) ran before the CI job went in hard-failing
+— clean: TruffleHog's only findings were 6 confirmed false positives
+(Lob detector matching Python test-function names), Betterleaks found
+nothing. No rotation, no allowlist file needed. TruffleHog itself is
+not wired into CI — one-time audit per Decision #7, not a recurring
+check.
+
+Verified on a feature branch (`web`-triggered, isolated to the 4
+predicted jobs) and post-merge on `master` (`web`-triggered, same 4
+jobs green; separately, the automatic `push`-triggered pipeline
+confirmed `test`+`pages` coexistence still holds) — see "Acceptance
+Run Result" above. Real CI runs, not YAML inference, per Rule 31.
+
+A pre-existing `.gitlab-ci.yml` property was surfaced during
+acceptance-run planning (no clean way to `web`-trigger this project
+without also firing `radar` or another production job) — flagged to
+the owner explicitly rather than silently expanding this SPEC's scope
+to fix it. Left as-is; a candidate for its own SPEC if it ever becomes
+a real problem.
 
 **Full queue order**: SPEC A → SPEC A.5 → SPEC A.6 → SPEC E → SPEC C.
