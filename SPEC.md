@@ -615,7 +615,8 @@ lost between sessions.
   documentation changes. Last in the queue.
 
 **Full queue order**: SPEC A → SPEC A.5 → SPEC A.6 → SPEC E → SPEC C
-→ SPEC B → SPEC D.
+→ SPEC B → SPEC D. **SPEC A.5 closed 2026-08-07 (see below) — SPEC A.6
+is next.**
 
 ## Open Questions / Decisions Needed
 
@@ -1018,14 +1019,50 @@ principle SPEC A applied to `filter.py`.
 7. [x] Real CI acceptance run (8 jobs, 7 live + 1 dry), all green — see
    "Acceptance Run Result" above. One unrelated pipeline-race finding
    surfaced and diagnosed (see "Related but out-of-scope finding").
-8. [ ] Direct merge to `master` (no MR), owner-confirmed.
-9. [ ] Update this SPEC.md section with the closure note (mirroring how
-   SPEC A was closed) and update the "Full queue order" pointer to
-   SPEC A.6 as next.
+8. [x] Direct merge to `master` (no MR), owner-confirmed — merge commit
+   `10523e4`, pushed to `origin/master`.
+9. [x] This SPEC.md section updated with the closure note below; "Full
+   queue order" pointer updated to SPEC A.6 as next.
+
+## SPEC A.5: CLOSED (2026-08-07)
+
+All 4 `VAULT_PATH` path-resolution mechanisms collapsed into one:
+`VAULT_ROOT` (env var, always the vault root) with per-script derived
+subdirectory constants. 10 `.py` files migrated (9 CI-invoked +
+`backfill_frontmatter.py`, added mid-session after Rule 28 verification
+found it missing from the original inventory), `.gitlab-ci.yml` updated
+across all 9 affected job script lines, 4 test files updated for the
+renamed monkeypatch targets.
+
+Verification: `py_compile` clean on all 10 files, local `pytest` 99/99
+passed both before and after merge. Full diff review (separate pass
+from the line-by-line SPEC check) caught 2 real bugs before commit —
+`patterns.py:800` referencing the now-undefined `VAULT_PATH`
+(`NameError` at runtime) and a stale docstring reference — both fixed
+pre-commit. Rule 31 acceptance: 5 web-triggered pipelines, all 7 live
+primary jobs (`radar`, `promote_candidates`, `recheck_lifecycle`,
+`publish`, `analysts`, `check_models`, `patterns`) confirmed green,
+`confirm_candidate` verified via dry-run (code read + local `pytest`)
+per owner decision. One unrelated pipeline-write-race surfaced during
+acceptance (`radar` vs `recheck_lifecycle` on a shared file, see
+"Related but out-of-scope finding" above) — diagnosed via the GitLab
+API as non-data-losing and unrelated to this spec's scope, resolved by
+retry once the racing job had finished.
+
+Process note: this session also produced a new standing decision
+(not specific to SPEC A.5) — GitLab MRs are reserved for SPEC-A-scale
+architecture changes; smaller tasks merge directly after a green
+acceptance run, no MR ceremony. Applied here: branch pushed, a
+GitLab "create MR" link was obtained but never used, merged directly
+into `master` instead (commit `10523e4`) after owner confirmation.
+
+Everything under "Out of Scope for SPEC A" above remains genuinely out
+of scope for A.5 as well — **SPEC A.6 (pytest wired into CI) is next.**
 
 ## Open Questions / Decisions Needed
 
 None remaining — all forks resolved during interview (2026-08-07), plus
 the `backfill_frontmatter.py` gap found and resolved during this
 session's Rule 28 verification (owner: include as 10th file, see
-"Verified Inventory" correction above).
+"Verified Inventory" correction above). SPEC A.5 is closed; see
+"SPEC A.5: CLOSED" above.
