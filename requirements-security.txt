@@ -1,0 +1,7 @@
+requests
+anthropic
+ghapi
+pyyaml
+mkdocs
+mkdocs-material
+pytest

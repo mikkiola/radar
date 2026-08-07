@@ -1370,3 +1370,379 @@ None remaining — all forks resolved during interview (2026-08-07),
 including the mid-interview stage-blocking/`allow_failure` correction
 (see "Verified Against Current Code" and Decisions above). SPEC A.6 is
 closed; see "SPEC A.6: CLOSED" above.
+
+---
+
+# SPEC E: Security Scanning (Secrets + Dependency CVEs + One-Time Deep History Audit) — Specification
+
+## Overview
+
+Add security scanning as its own check class, ahead of SPEC C (GitHub
+mirroring) on purpose — anything forgotten in the git history (a
+secret, a vulnerable dependency) should surface before the repo
+becomes visible on GitHub, not after. Three tools, three different
+jobs (compactness verified per-tool at interview, not assumed):
+Betterleaks (recurring secret scanning, both branches, CI-gated),
+pip-audit (recurring dependency-CVE scanning, both branches'
+combined runtime+dev deps), TruffleHog (one-time deep history audit
+of both branches, run locally, not wired into CI).
+
+## Verified Against Current Code (2026-08-07)
+
+### Real inventory (grepped, not assumed)
+
+- 11 jobs in `.gitlab-ci.yml`, stages `test -> run -> publish ->
+  collect -> patterns -> pages`: `test`, `radar`, `confirm_candidate`,
+  `promote_candidates`, `recheck_lifecycle`, `publish`, `analysts`,
+  `lint_vault`, `check_models`, `patterns`, `pages`. All on `image:
+  python:3.12`.
+- `requirements-dev.txt`: `pytest>=7` only.
+- `requirements_pages.txt`: `mkdocs`, `mkdocs-material`, `pyyaml`,
+  `requests` — unpinned (project convention, not a pinned-lockfile
+  project).
+- Runtime deps inline across `pip install` lines in every other job:
+  `requests`, `anthropic`, `ghapi`, `pyyaml` (grepped from all 11
+  `pip install` invocations in the file).
+- `lint_vault` (existing job, same class of check — periodic,
+  schedule/web-triggered, notifies via Telegram on failure) is the
+  structural template this SPEC's two new jobs follow: `pip install
+  ... --quiet`, clone `vault_repo` read-only via
+  `${CI_JOB_TOKEN}`, `rules: [schedule, web]` with no extra variable
+  gating (fires on *every* scheduled/web pipeline regardless of which
+  other job's purpose-specific variable is set — existing behavior,
+  not something this SPEC introduces).
+
+### Tool availability — checked live, not presumed
+
+| Tool | pip-installable? | Verified fact |
+|---|---|---|
+| `pip-audit` | yes | PyPI, v2.10.1, official PyPA tool, uses free OSV.dev DB, no API key |
+| `safety` | yes | PyPI, v3.8.1, but v3.x pushes toward a safety-platform account/API key for full DB access — rejected for this reason |
+| Gitleaks | no | Not on PyPI. Go binary, GitHub releases. Latest `v8.30.1` |
+| Betterleaks | no | Not on PyPI. Go binary, GitHub releases. Latest `v1.7.3` (released 2026-07-31), repo created 2026-02-03, 1616 stars, 72 open issues, MIT, not archived. Release assets include `checksums.txt` + `checksums.txt.sigstore.json` |
+| TruffleHog (v3, `trufflesecurity/trufflehog`) | no | Go binary, GitHub releases. Latest `v3.96.0` |
+| `truffleHog` (pip, v2.2.1) | yes, but a trap | Deprecated, abandoned v2, entropy-only — not the tool this SPEC means |
+| `trufflehog3` | yes, but a trap | Unrelated third-party reimplementation, not the official project |
+
+### Prior context — not starting from zero
+
+A manual grep audit already happened (session 2026-07-17): master
+(~247 matches) and vault (~339 matches) checked against
+`sk-ant-`/`ghp_`/`glpat-`/`xoxb-`/`AIza` patterns — every match was an
+env-variable reference, no real leak found. Separately, the
+`obsidian-git` plugin (vendored binary/plugin code) was found
+committed into vault's history — a repo-hygiene issue, not a secret,
+still unresolved, out of scope here. This SPEC does not start from a
+blank slate, but a manual grep is not the same as a purpose-built
+scanner, and there have been many commits since — hence Betterleaks
+and TruffleHog both re-check for real.
+
+## Decisions (from interview, 2026-08-07)
+
+1. **Dependency CVE scanner: `pip-audit`**, not `safety`. Free OSV.dev
+   backend, no account/API key — matches the project's "no extra
+   service, no extra secret" bias. `safety` v3.x's push toward a
+   platform account was the deciding factor against it.
+2. **Binary install method for both Go tools: `curl` + pinned release
+   version**, not `curl | sh` install scripts. Version pinned
+   literally in `.gitlab-ci.yml` — reproducible, no "whatever's
+   latest today" drift.
+3. **Secret scanner: Betterleaks**, not Gitleaks — resolved as a
+   mid-interview fork (see below), against the interviewer's
+   recommendation of Gitleaks. Owner's explicit call.
+4. **Betterleaks trigger: `schedule` + `web`, both branches**
+   (`master` and `vault`, cloned/scanned separately) — same
+   trigger shape as `lint_vault`. `vault` is the higher-risk branch
+   (real data written every run) and must not go unscanned.
+5. **On a finding (Betterleaks or pip-audit): hard fail**
+   (`allow_failure: false`, the job's default) **+ Telegram
+   notification**, reusing the existing `TELEGRAM_BOT_TOKEN` /
+   `TELEGRAM_OWNER_ID` CI variables and `lint_vault`'s
+   curl-to-Telegram pattern. A red pipeline is the point — nothing
+   should be easy to ignore.
+6. **pip-audit source: new `requirements-security.txt`** at repo
+   root (master branch), consolidating every runtime + dev dependency
+   named anywhere in the project (`requests`, `anthropic`, `ghapi`,
+   `pyyaml`, `mkdocs`, `mkdocs-material`, `pytest`) into one audit
+   target — unpinned, matching the existing `requirements-dev.txt` /
+   `requirements_pages.txt` convention (all inline `pip install`s in
+   the project are already unpinned, so auditing pinned versions would
+   report against something nothing actually runs). Triggered on
+   `schedule` + `web`, same shape as the Betterleaks job.
+7. **TruffleHog: run locally, once, not wired into CI.** This is a
+   one-time deep-history audit, not a recurring check — adding a
+   permanent CI job for a one-off would be scope creep and a
+   maintenance burden with no ongoing payoff. Scans full history
+   (`--only-verified` pass for a clean "rotate this now" signal, plus
+   a separate full/unverified pass for completeness — verified
+   findings are definitive, unverified ones are still worth knowing
+   about even if TruffleHog couldn't confirm the credential is live).
+   Both branches (`master`, `vault`).
+8. **New `security` stage, placed first** in `stages:` (ahead of
+   `test`): `security, test, run, publish, collect, patterns, pages`.
+   Matches the task's own framing (security should be visible before
+   anything else, ahead of SPEC C). Schedule/web-triggered jobs don't
+   block each other by stage order (confirmed empirically in SPEC
+   A.6's acceptance run for the `test` stage), so this reordering
+   carries no coexistence risk for the existing 11 jobs.
+9. **Two separate jobs**, not one combined job: `security_secrets`
+   (Betterleaks) and `security_deps` (pip-audit). Independent
+   pass/fail status in the GitLab UI, one tool's failure doesn't
+   suppress the other's from even running.
+10. **Sequencing: local baseline/triage first, hard-fail CI job
+    second.** Both Betterleaks and TruffleHog get a manual local run
+    against full history first; any false positive shaped like the
+    known "env-var reference" pattern from the 2026-07-17 audit gets
+    resolved (allowlist or confirmed-safe) *before* `security_secrets`
+    is added to `.gitlab-ci.yml` as a hard-fail job. Avoids landing a
+    red pipeline on day one from noise that was already known to
+    exist.
+11. **Remediation scope: rotation only.** If Betterleaks or TruffleHog
+    finds a real secret, this SPEC covers rotating it (existing
+    Absolute Rule — one secret per service/task). Purging it from git
+    history (`git filter-repo` / BFG) is explicitly **out of scope**
+    here — it's a destructive, history-rewriting operation with its
+    own blast radius (every SHA changes, interacts with SPEC C's
+    future GitHub mirror) and deserves its own SPEC if it's ever
+    needed.
+12. **CVE remediation process**: on a `pip-audit` finding, bump the
+    affected package's pin in `requirements-security.txt` (or drop the
+    unpinned entry to a `>=fixed-version` floor) and verify the
+    inline `pip install` lines across the 11 jobs pick up the fix
+    (they're already unpinned, so they'll get the patched version
+    automatically — `requirements-security.txt` exists to *catch*
+    this, not to *pin* what's installed at runtime).
+
+### Mid-interview fork: Gitleaks vs Betterleaks (2026-08-07)
+
+Owner flagged, mid-interview, that Gitleaks has a same-author
+"spiritual successor," Betterleaks — verified live via web search and
+GitHub API, not assumed:
+
+- Betterleaks: `betterleaks/betterleaks`, created 2026-02-03, latest
+  `v1.7.3` (2026-07-31), 1616 stars, 72 open issues, MIT. Built by
+  Zach Rice — the original Gitleaks author, who lost repository/name
+  control and restarted under a new name. Same CLI philosophy
+  (`betterleaks git <path>` scans full history by default,
+  `betterleaks dir <path>` for a working-tree-only scan — not
+  byte-for-byte identical to Gitleaks' `detect --source`, "drop-in"
+  per the project's own claim but not independently confirmed flag-
+  for-flag at interview time). Detection engine: Token Efficiency (BPE
+  tokenization) instead of Shannon entropy — 98.6% vs 70.4% recall
+  claimed on the CredData benchmark (self-reported by the
+  project/Aikido, not third-party verified). Release assets are
+  checksum + sigstore-signed.
+- Gitleaks: `v8.30.1`, 8 years of history, huge CI-example ecosystem,
+  author has publicly stated it "will remain stable and continue to
+  receive security patches" despite stepping back to build Betterleaks.
+
+Interviewer's recommendation was Gitleaks — for a tool whose first-ever
+role in this project is a hard-fail CI gate, a proven 8-year tool
+carries less unknown-unknown risk than a 6-month-old one (72 open
+issues is a meaningful count at that age), and the recall benchmark is
+self-published by an interested party. **Owner overrode this and chose
+Betterleaks** — the better detection engine and the direct relevance
+to the exact false-positive class already seen in the 2026-07-17 manual
+audit (env-var-reference matches) were the deciding factors. Recorded
+as an explicit owner override, not a silent pick.
+
+## Detailed Requirements
+
+### 1. `requirements-security.txt` (new file, repo root, master)
+
+```
+requests
+anthropic
+ghapi
+pyyaml
+mkdocs
+mkdocs-material
+pytest
+```
+
+Unpinned, matching existing convention. Consolidates every dependency
+named anywhere in `.gitlab-ci.yml` or `requirements_pages.txt` /
+`requirements-dev.txt` into one `pip-audit -r` target.
+
+### 2. `.gitlab-ci.yml` — new `security` stage, two new jobs
+
+`stages:` gains `security` as the first entry.
+
+`security_secrets` (Betterleaks):
+- `stage: security`
+- `variables: GIT_DEPTH: "0"` — GitLab's default checkout for the
+  job's own working copy (`master`) may be a shallow clone; Betterleaks
+  scanning full history requires `GIT_DEPTH: 0` explicitly, otherwise
+  it silently only sees the last N commits. (The `git clone --branch
+  vault ...` step for the vault side is a plain `git clone`, not
+  GitLab's automatic checkout, so it already gets full history without
+  this variable — only the `master` side needs it.)
+- `curl`-download pinned `betterleaks_1.7.3_linux_x64.tar.gz` from the
+  `betterleaks/betterleaks` GitHub release, verify against
+  `checksums.txt`, `chmod +x`.
+- Scan `master`'s own working copy, then `git clone --branch vault`
+  (read-only, `${CI_JOB_TOKEN}`, same pattern as every other job) and
+  scan that.
+- On any finding: POST to Telegram (`TELEGRAM_BOT_TOKEN` /
+  `TELEGRAM_OWNER_ID`, same curl pattern as `lint_vault`), `exit 1`.
+- `rules: [schedule, web]`, no extra variable gate — same shape as
+  `lint_vault`.
+
+`security_deps` (pip-audit):
+- `stage: security`
+- `pip install pip-audit --quiet`
+- `pip-audit -r requirements-security.txt`
+- On any finding: same Telegram pattern, `exit 1`.
+- `rules: [schedule, web]`.
+
+Neither job needs `GITLAB_PUSH_TOKEN` — both are read-only, they don't
+write back to `vault`.
+
+### 3. Local one-time TruffleHog run (not in CI)
+
+Pinned `trufflehog_3.96.0_linux_amd64` (or the macOS build for a local
+Mac run), against local clones of both `master` and `vault` with full
+history present. Two passes: `--only-verified` first (definitive,
+"rotate this now" signal), then a full unverified pass for
+completeness. Results triaged manually; any confirmed secret gets
+rotated per the existing Absolute Rule.
+
+### 4. Local one-time Betterleaks baseline (before the CI job exists)
+
+Same two branches, full history, run locally before
+`security_secrets` is added to `.gitlab-ci.yml`. Any finding shaped
+like the 2026-07-17 audit's env-var-reference false positives gets
+resolved — either confirmed genuinely safe and allowlisted (see
+"Betterleaks allowlist mechanism — confirmed" below), or, if real,
+rotated before the CI job goes in hard-failing.
+
+#### Betterleaks allowlist mechanism — confirmed (2026-08-07, `betterleaks --help`, v1.7.3)
+
+Installed the real binary and read `--help` rather than guessing —
+resolves the Open Question left at interview time:
+
+- `-b/--baseline-path <file>` — path to a baseline of already-accepted
+  findings (the actual "allowlist" mechanism for known false
+  positives).
+- `-i/--gitleaks-ignore-path <path>` (default `.`) — looks for
+  `.betterleaksignore` **or** `.gitleaksignore` in that path.
+- `-c/--config <file>` — custom rule config; precedence: `--config` →
+  `BETTERLEAKS_CONFIG`/`GITLEAKS_CONFIG` env → `BETTERLEAKS_CONFIG_TOML`/
+  `GITLEAKS_CONFIG_TOML` env → `.betterleaks.toml` or `.gitleaks.toml`
+  in the target path.
+
+No discrepancy from what was assumed at interview time — confirms the
+project's own "drop-in" claim: both native `.betterleaks*` filenames
+and legacy `.gitleaks*` filenames are read natively, no translation
+needed. If the local baseline run below needs an allowlist, it goes in
+a `.gitleaksignore` (or `.betterleaksignore`) at repo root, committed
+to `master`.
+
+## Test Plan / Acceptance
+
+Per Rule 31 (this SPEC touches `.gitlab-ci.yml`, requires a real
+push/web-triggered pipeline run, not YAML inference):
+
+1. Local baseline runs (TruffleHog, Betterleaks) completed and triaged
+   first — see Decisions #10 above. Any real finding rotated before
+   proceeding.
+2. `requirements-security.txt` added, `security` stage + both new jobs
+   added to `.gitlab-ci.yml` on a feature branch.
+3. Full diff review + explicit owner confirmation before commit/push
+   (mandatory, every commit).
+4. Real web-triggered pipeline on the feature branch: confirm both
+   `security_secrets` and `security_deps` fire and reach `status:
+   "success"` (post-triage state should be clean — a failure here
+   means the baseline triage missed something, not a spec defect).
+   Confirm no unrelated job fires alongside them (same isolation check
+   pattern as SPEC A.6's acceptance run).
+5. Direct `git merge` to `master` (no MR — below SPEC-A architectural
+   scale), owner-confirmed.
+6. Post-merge: real web-triggered pipeline on `master`, confirm both
+   jobs still fire and pass there too.
+7. This SPEC.md section updated with acceptance run results; "Full
+   queue order" pointer updated to SPEC C as next.
+
+## Milestones
+
+1. [ ] Local TruffleHog full-history run, both branches, triage,
+   rotate anything real.
+2. [ ] Local Betterleaks baseline run, both branches, triage
+   (allowlist or rotate as needed).
+3. [ ] Create `requirements-security.txt`.
+4. [ ] Branch `spec-e-security-scanning`, edit `.gitlab-ci.yml`:
+   `security` stage first, `security_secrets` + `security_deps` jobs.
+5. [ ] Full diff review, explicit owner confirmation before commit.
+6. [ ] Push, real web-triggered acceptance run on the branch (both new
+   jobs green, no unrelated job fires).
+7. [ ] Direct merge to `master`, owner-confirmed.
+8. [ ] Post-merge acceptance: real web-triggered pipeline on `master`,
+   both jobs green.
+9. [ ] This SPEC.md section updated with acceptance results; queue
+   pointer moved to SPEC C.
+
+## Open Questions / Decisions Needed
+
+None remaining — resolved during implementation (2026-08-07):
+
+- ~~Exact Betterleaks allowlist/ignore-config filename and syntax~~ —
+  resolved, see "Betterleaks allowlist mechanism — confirmed" above
+  (`.gitleaksignore`/`.betterleaksignore` + `-b/--baseline-path`).
+- ~~Whether the local baseline surfaces a real finding~~ — resolved,
+  see "Local Baseline Run Result" below. Clean on both tools; no
+  rotation, no allowlist needed.
+
+### Local Baseline Run Result (2026-08-07)
+
+Ran against local full clones of both `master` and `vault` (`git
+clone --branch <X> https://gitlab.com/lyolich777ka/radar.git`, no
+`--single-branch` — note: this pulls every remote branch's objects
+into both local clones regardless of which branch is checked out, so
+each clone already contained the complete history of both `master`
+and `vault`; confirmed via `git branch -a` in each clone and via
+identical scan byte-counts/results between the two. This doesn't
+affect the CI job design below — GitLab CI's automatic checkout *is*
+single-branch by default, so the explicit `git clone --branch vault`
+step in `security_secrets` remains necessary there.)
+
+**TruffleHog v3.96.0** (binary downloaded from
+`trufflesecurity/trufflehog` release `v3.96.0`, darwin_arm64,
+checksum verified against the release's `_checksums.txt` before
+execution):
+- `--only-verified` pass: 6 findings, all `DetectorName: Lob`, all
+  confirmed false positives — `Raw` value in every case is a Python
+  test function name (`test_frozen_entered_then_no_dup_next_run`,
+  `test_validate_paths_returns_only_invalid`,
+  `test_unknown_alive_state_stays_candidate`,
+  `test_file_with_valid_state_value_is_none`,
+  `test_non_dict_top_level_is_unrecoverable`,
+  `test_valid_json_passes_through_unchanged`, across
+  `tests/test_recheck_lifecycle.py`, `tests/test_check_frontmatter.py`,
+  `tests/test_promote_candidates.py`, `tests/test_patterns.py`), which
+  happens to match Lob's API key format (`test_...`) closely enough
+  that TruffleHog's live verification call against Lob's API returned
+  a false "verified" positive — a known false-positive class for the
+  Lob detector, not a real credential of any kind.
+- Full pass (verification still runs by default, `--only-verified`
+  only changes output filtering, confirmed via `unverified_secrets: 0`
+  in both the filtered and unfiltered run): same 6 Lob false positives,
+  zero additional findings across 2113 chunks / ~3.8MB / 118+209
+  commits combined object graph.
+- No real secret found. No rotation needed.
+
+**Betterleaks v1.7.3** (binary downloaded from `betterleaks/betterleaks`
+release `v1.7.3`, darwin_arm64, checksum verified against the
+release's `checksums.txt` before execution): `betterleaks git
+<clone-path>` against both local clones — **"no leaks found"**, zero
+findings on either. No allowlist needed (nothing to allowlist). This
+outcome — Betterleaks producing zero false positives where TruffleHog's
+Lob detector produced 6 — is a small real-world data point in favor of
+the Betterleaks-over-Gitleaks call made mid-interview, though it's a
+single data point, not a controlled comparison (Gitleaks was never run
+against this repo for a direct comparison).
+
+Conclusion: repo is clean per both tools' full-history scan of both
+branches. `security_secrets` (Betterleaks) can go straight to
+hard-fail in CI with no baseline allowlist file needed.
+
+**Full queue order**: SPEC A → SPEC A.5 → SPEC A.6 → SPEC E → SPEC C.
