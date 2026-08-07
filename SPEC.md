@@ -1827,3 +1827,273 @@ to fix it. Left as-is; a candidate for its own SPEC if it ever becomes
 a real problem.
 
 **Full queue order**: SPEC A → SPEC A.5 → SPEC A.6 → SPEC E → SPEC C.
+
+# SPEC C: GitHub Push Mirroring — Specification
+
+## Overview
+
+Mirror `master` (code only, not `vault`) from GitLab (source of truth)
+to a public GitHub repository, for discoverability, using GitLab's
+native push-mirroring feature — no CI code involved.
+
+## Goals
+
+- [ ] `master` pushed to GitHub automatically on every push to GitLab,
+      via GitLab's built-in push mirror (no custom CI job).
+- [ ] `vault` branch never reaches GitHub.
+- [ ] New GitHub PAT scoped minimally, stored only where it's actually
+      consumed (the Mirroring form), not duplicated into CI/CD Variables.
+- [ ] GitHub-side repo clearly marked as a mirror, protected against
+      accidental direct writes.
+
+## Resolutions carried in from interview
+
+These were decided before or during this interview and are not
+reopened:
+
+1. **New GitHub PAT, separate from `GITHUB_READ_TOKEN`.** Rationale:
+   "one secret per service/task" is already the project's standing rule
+   (precedent: `git-cli-local` token ≠ `GITHUB_READ_TOKEN`). Push
+   mirroring is a new task with different rights (push, not read) →
+   new secret by the same principle. Decided by the owner before this
+   interview started; not reopened.
+
+2. **PAT storage: Mirroring form only, not duplicated into GitLab
+   CI/CD Variables.** The brief assumed parity with the project's other
+   6 secrets (`ANTHROPIC_API_KEY`, `GITHUB_READ_TOKEN`,
+   `GITLAB_PUSH_TOKEN`, `TELEGRAM_BOT_TOKEN`/`CHANNEL_ID`/`OWNER_ID`),
+   all of which live in CI/CD Variables because a CI job reads them.
+   Verified against the real `.gitlab-ci.yml` (12 jobs, no mirror-related
+   job) and GitLab's mirroring mechanism during this interview: push
+   mirroring is driven by a GitLab daemon, not by `.gitlab-ci.yml` — no
+   job reads this credential, so it lives only in Settings → Repository
+   → Mirroring → Password (write-only after save, visible only for
+   reset, Maintainer+ only). Duplicating it into CI/CD Variables would
+   create a second copy with no consumer — attack-surface and future-audit
+   confusion, not a useful hedge. If a future CI job genuinely needs this
+   token, add it to CI/CD Variables at that point, with an explicit reason.
+
+3. **PAT scope: fine-grained, repository-scoped to the new GitHub mirror
+   repo only, `Contents: Read and write` permission.** Minimal blast
+   radius — compromise of this token grants no access to any other
+   repository on the GitHub account, unlike a classic `repo`-scope PAT.
+
+4. **Branch scope: `master` only.** `vault` is project data (assessments,
+   patterns, candidates), not code, on its own git history unrelated to
+   `master`. Discoverability is a code concern. `vault` public/private
+   status is a separate, not-yet-decided backlog item and must not be
+   settled implicitly via a mirroring config choice.
+
+5. **GitHub repo: same slug (`radar`), public.** Matches the GitLab slug;
+   public matches the discoverability goal (mirroring for a private repo
+   would defeat the purpose).
+
+6. **Sync-failure monitoring: GitLab's built-in email notification to
+   Maintainers is sufficient.** No new CI job or Telegram hook — the
+   mirror is not production-critical (GitLab remains source of truth),
+   so a dedicated monitoring job would be cost without matching benefit.
+   Failures also surface visually in Settings → Mirroring as an
+   `error` status.
+
+7. **GitHub-side hardening: both a README mirror notice and GitHub
+   branch protection on `master`.** Different risk classes — the README
+   note (GitLab is source of truth, PRs/issues go there) guards against
+   human confusion; branch protection (no direct push except the
+   mirror's own credential) guards against silent divergence from source
+   of truth if the GitHub side ever gets a stray collaborator with write
+   access. Both are near-zero-cost; the savings from skipping either
+   don't justify leaving a free, avoidable risk in place.
+
+8. **No `.gitlab-ci.yml` changes, no feature branch for CI code.**
+   Confirmed by grepping the current file (12 jobs, `security → test →
+   run → publish → collect → patterns → pages`, nothing mirror-related)
+   and cross-checking GitLab's docs during this interview: push
+   mirroring is entirely UI-configured. The only repo-content change in
+   this SPEC is the README mirror notice (Resolution 7), landed directly
+   — below the SPEC-A-scale threshold for an MR per the project's
+   standing process rule.
+
+## Discovered constraint: branch exclusion mechanism
+
+GitLab push mirrors have **no blacklist** for branches — there is only
+one filtering option, **"Only mirror protected branches"** (a
+whitelist). Confirmed against GitLab's docs during this interview.
+Checked the repo's current protected-branch state via the public read-only
+API (`GET /projects/82780086/protected_branches`) — **empty**, neither
+`master` nor `vault` is currently protected.
+
+To satisfy Resolution 4 (`master`-only mirroring), `master` must
+become a protected branch and `vault` must not, with "Only mirror
+protected branches" enabled on the mirror. This is a new required setup
+step, not previously covered in the brief. Protecting a branch is a
+protected-branch action — per the project's known constraint, this
+requires the GitLab web UI (unavailable from CLI/Claude Code).
+
+## Implementation Steps (all manual, owner-executed via web UI)
+
+Claude Code has no GitHub access, no GitLab token, and no CLI for
+either platform in this environment — every step below is a
+`[ЗАПРОС]`-style owner action. Sequencing matters (protection before
+mirror config, mirror config before test push).
+
+1. **[ЗАПРОС] GitHub: create empty repository.**
+   Action: create a new **public** repository named `radar` under the
+   owner's GitHub account. Do not initialize with README/license/
+   .gitignore — must be empty so the first push mirror sync is a clean
+   fast-forward. Confirm?
+
+2. **[ЗАПРОС] GitHub: create fine-grained PAT.**
+   Action: Settings → Developer settings → Personal access tokens →
+   Fine-grained tokens → Generate new token. Repository access:
+   "Only select repositories" → `radar` (the one just created).
+   Permissions: Repository permissions → Contents → **Read and write**.
+   No other permissions. Expiration: owner's choice (GitHub caps
+   fine-grained PATs at 1 year; note the expiry date so it can be
+   rotated before it silently breaks the mirror). Confirm scope and
+   proceed?
+
+3. **[ЗАПРОС] GitLab: protect `master`.**
+   Action: Settings → Repository → Protected branches → Protect →
+   branch `master`. Default "Allowed to push/merge: Maintainers" is
+   fine (mirroring reads from the local repo, it doesn't need special
+   push rights on the GitLab side). Do **not** protect `vault`. Confirm?
+
+4. **[ЗАПРОС] GitLab: configure the push mirror.**
+   Action: Settings → Repository → Mirroring repositories → Add:
+   - Git repository URL: `https://github.com/<owner>/radar.git`
+   - Mirror direction: **Push**
+   - Authentication method: **Username and Password**
+     - Username: GitHub username
+     - Password: the fine-grained PAT from step 2
+   - Check **"Only mirror protected branches"** (this is what excludes
+     `vault`, per the discovered constraint above)
+   - Leave "Keep divergent refs" unchecked (not needed — GitHub side has
+     no independent history to preserve)
+
+   Confirm before saving (this stores a live credential)?
+
+5. **[ЗАПРОС] GitHub: branch protection on `master` (executed via
+   Rulesets, not classic branch protection — corrected below).**
+   Action: Settings → Rules → Rulesets → New branch ruleset.
+   - Ruleset Name: `master`
+   - Enforcement status: **Active** (not the default `Disabled`)
+   - Target branches: Add target → **Add a branch name pattern** →
+     `master` (not "Include default branch" — an empty repo's default
+     branch is typically `main`, which won't match; `master` doesn't
+     exist as a ref yet until the mirror's first push)
+   - Rules: check **Restrict updates** (this is the actual mechanism —
+     "only bypass-listed actors can update matching refs"; GitHub's
+     current Rulesets UI replaced the classic "Restrict who can push"
+     checkbox this SPEC originally assumed). Also keep **Restrict
+     deletions** and **Block force pushes** checked.
+   - Bypass list → Add bypass → role **Repository admin** (Rulesets'
+     bypass list only offers roles/apps, not individual usernames —
+     the repo owner holds the admin role by virtue of creating the
+     repo in step 1, so this covers the account the mirror
+     authenticates as without blocking it)
+   - Create
+
+   Corrected against the actual GitHub UI during acceptance execution
+   (2026-08-07) — GitHub had moved to Rulesets since this SPEC's
+   original terms were drafted from general knowledge, not verified
+   live.
+
+6. **README mirror notice (Claude Code executes, direct to `master`,
+   no MR — Resolution 8).**
+   Add a short note near the top of `README.md` stating GitHub is a
+   read-only mirror, GitLab is source of truth, and PRs/issues belong
+   on GitLab. Exact wording to be drafted at implementation time and
+   shown to the owner before committing (small, reversible, in-repo
+   change — not a `[ЗАПРОС]` for external-system state, but still shown
+   before commit per the "verify real path before write" rule).
+
+## Test Plan (Acceptance Run)
+
+1. After steps 1-5 above are confirmed done by the owner, Claude Code
+   makes the README-notice commit (step 6) directly to `master` on
+   GitLab and pushes it.
+2. Wait for GitLab's mirror sync (up to 1 minute, since "Only mirror
+   protected branches" is on — GitLab's docs state 1 minute for
+   protected-branch-only mirrors vs. 5 minutes otherwise).
+3. Verify via the **public, unauthenticated GitHub API** (repo is
+   public, no token needed) that the commit SHA on
+   `github.com/<owner>/radar` `master` matches the commit SHA just
+   pushed to `gitlab.com/lyolich777ka/radar` `master`:
+   `curl -s https://api.github.com/repos/<owner>/radar/commits/master | jq .sha`
+4. Separately confirm `vault` did **not** appear as a branch on GitHub:
+   `curl -s https://api.github.com/repos/<owner>/radar/branches | jq '.[].name'`
+   must not list `vault`.
+5. Green = both checks pass. This is a real API check against live
+   state, not YAML/UI inference, per the project's standing verification
+   rule.
+
+## Security Considerations
+
+- PAT is fine-grained, single-repo, `Contents: RW` only — minimal blast
+  radius if leaked (Resolution 3).
+- PAT lives in exactly one place (the Mirroring form), consistent with
+  "one secret, one consumer, no idle copies" (Resolution 2).
+- GitHub-side branch protection (step 5) prevents the mirror's own
+  target from becoming a second writable copy of the codebase reachable
+  by anyone but the owner and the mirror credential.
+- `vault` exclusion is enforced structurally (protected-branches
+  whitelist), not by convention — it cannot be pushed by accident once
+  step 3+4 are in place correctly.
+
+## Milestones
+
+1. [ ] GitHub repo + PAT created (steps 1-2)
+2. [ ] GitLab `master` protected, `vault` left unprotected (step 3)
+3. [ ] Push mirror configured and saved (step 4)
+4. [ ] GitHub branch protection on `master` (step 5)
+5. [ ] README mirror notice committed directly to `master` (step 6)
+6. [ ] Acceptance run green (commit SHA match + `vault` absence, per
+       Test Plan)
+
+## Open Questions / Decisions Needed
+
+None — all resolved during this interview (see "Resolutions carried in
+from interview" above).
+
+## SPEC C: CLOSED (2026-08-07)
+
+Owner confirmed Y and executed steps 1-5 (GitHub repo `mikkiola/radar`
+created public/empty, fine-grained PAT scoped to that repo with
+`Contents: RW`, GitLab `master` protected via Protected branches,
+push mirror configured with "Only mirror protected branches", GitHub
+branch protection on `master`).
+
+Step 5 required a live correction during execution: GitHub's current
+UI is **Rulesets**, not the classic "Add branch protection rule" flow
+this SPEC originally assumed from general knowledge. Corrected in
+place (see Implementation Steps, step 5) rather than left to cause a
+mismatch — actual config used: Ruleset `master`, Enforcement `Active`,
+target branches by name pattern `master` (not "default branch" — an
+empty repo's default is `main`, which wouldn't match), rules
+`Restrict updates` + `Restrict deletions` + `Block force pushes`,
+bypass list role `Repository admin` (Rulesets bypass only supports
+roles/apps, not individual usernames — the owner holds admin by virtue
+of creating the repo, so this covers the mirror's authenticating
+account without a per-user option).
+
+README mirror notice (step 6) committed directly to `master`
+(`9434826` / full SHA `94348263cbaf99c6a15786e63ddf818315e73147`,
+2026-08-07) — no feature branch, per Resolution 8 (below the
+SPEC-A-scale threshold for an MR).
+
+**Acceptance Run Result** — real API checks against live state, not
+UI/YAML inference, per the project's standing verification rule:
+
+- `curl https://api.github.com/repos/mikkiola/radar/commits/master` →
+  `sha: 94348263cbaf99c6a15786e63ddf818315e73147` — **exact match**
+  with the commit just pushed to `gitlab.com/lyolich777ka/radar`
+  `master`. Mirror sync completed within the ~1-minute window expected
+  for protected-branches-only mirrors.
+- `curl https://api.github.com/repos/mikkiola/radar/branches` →
+  `["master"]` only — **`vault` confirmed absent**, structural
+  exclusion via the protected-branches whitelist mechanism holds.
+
+Both checks green. SPEC C closed, no further action needed. GitLab
+remains source of truth; GitHub is a live, working read-only mirror.
+
+**Full queue order**: SPEC A → SPEC A.5 → SPEC A.6 → SPEC E → SPEC C.
