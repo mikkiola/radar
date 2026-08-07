@@ -2097,3 +2097,189 @@ Both checks green. SPEC C closed, no further action needed. GitLab
 remains source of truth; GitHub is a live, working read-only mirror.
 
 **Full queue order**: SPEC A → SPEC A.5 → SPEC A.6 → SPEC E → SPEC C.
+
+# SPEC B: Repository Discoverability — Specification
+
+## Overview
+
+Make the repository understandable to an external developer within 30
+seconds, by bringing README, badges, and GitHub/GitLab metadata up to
+date with the real state of the codebase after SPEC A/A.6/E/C. Not a
+generic-template rewrite — SPEC D (separate, later) owns reformulating
+the docs as a reusable domain-agnostic pattern. SPEC B describes Radar
+as it actually is (an AI/agentic-tooling-market signal detector).
+
+## Audit findings (real, grepped against the repo — 2026-08-07)
+
+1. **README Scripts table**: documents 9 of ~19 files in `src/`. Missing
+   entirely: `backfill_frontmatter.py`, `check_frontmatter.py`,
+   `check_model_updates.py`, `confirm_candidate.py`,
+   `promote_candidates.py`, `recheck_lifecycle.py`, `scorecard.py`,
+   `vault_language.py`, `vault_write.py`. Existing entries also lack the
+   `src/` path prefix (stale since the SPEC A reorg).
+2. **README CI/CD table**: documents 5 of 13 jobs in `.gitlab-ci.yml`.
+   Missing: `security_secrets`, `security_deps`, `test`,
+   `confirm_candidate`, `promote_candidates`, `recheck_lifecycle`,
+   `lint_vault`, `check_models`.
+3. **README Environment variables table**: missing `GITHUB_READ_TOKEN`,
+   which is real and used in `src/radar_step0.py` and `src/analyze.py`.
+4. **No top-level directory tree** anywhere in README — only the
+   `vault` branch's internal structure is shown (`Vault structure`
+   section). A first-time reader has no map of `src/`, `tests/`,
+   `docs/`, `requirements*.txt` at the code-repo level.
+5. **No badges** at all.
+6. **GitHub topics**: empty (checked via public API,
+   `api.github.com/repos/mikkiola/radar`). **GitLab topics**: already
+   has 12 well-chosen, pipeline-accurate topics (`agentic-ai`,
+   `ai-agents`, `github-actions`, `knowledge-management`, `llm`,
+   `market-intelligence`, `open-source`, `python`,
+   `research-automation`, `signal-detection`, `technology-radar`,
+   `Trend-analysis`) — set prior to this SPEC, not duplicated effort.
+7. **Descriptions differ in wording** between GitLab and GitHub (same
+   substance, different phrasing — GitHub's was written during SPEC C).
+8. **GitHub Releases**: empty. **Social preview image**: unset (GitHub
+   shows its default placeholder).
+9. Confirmed not in scope for this audit: `radar_step0.py` and
+   `filter.py` are not directly CI-invoked — they're imported as
+   library modules inside `analyze.py` (`from radar_step0 import ...`,
+   `from filter import is_relevant`), which is what the `radar` job
+   actually runs. The accurate table entry for them is "helper module
+   used by analyze.py", not a standalone scheduled step — noted so the
+   rewritten table doesn't just copy the old (inaccurate) framing.
+
+## Resolutions from interview
+
+1. **README Scripts and CI/CD tables: full rewrite**, not a partial
+   patch. Grepped fresh against `src/*.py` and `.gitlab-ci.yml` at
+   implementation time (not copied from this SPEC's audit snapshot,
+   which could drift before implementation lands).
+2. **Add a top-level repository structure tree** near the top of
+   README, before the existing `## How it works` section. Covers
+   `src/`, `tests/`, `docs/`, root config/requirements files — not the
+   vault-branch layout (already covered separately).
+3. **Badges**: `License: MIT` (static, shields.io, links to `LICENSE`)
+   and `Python 3.12` (static, matches `image: python:3.12` in
+   `.gitlab-ci.yml`). **No CI pipeline-status badge** — the project has
+   no push-triggered job that would keep such a badge meaningfully
+   live (daily/weekly schedule-triggered jobs wouldn't move a
+   push-pipeline badge), so it would read as more current than it is.
+4. **Add `GITHUB_READ_TOKEN`** to the README's Environment variables
+   table — real, in-use, was simply omitted.
+5. **GitHub topics: copy all 12 from GitLab verbatim.** GitLab's list
+   already reflects actual pipeline content, not generic AI buzzwords —
+   reuse it rather than re-deriving a second list.
+6. **GitHub description: align to the GitLab wording** ("An AI
+   ecosystem radar that detects structural shifts in open-source AI by
+   analyzing GitHub, Hacker News, and Reddit, then clustering signals
+   into long-term patterns."). GitLab treated as the source-of-truth
+   phrasing since it already matches the topics list.
+7. **Social preview image: deferred**, out of scope for this SPEC.
+   Requires a designed image; not core to the routine discoverability
+   scope here. GitHub falls back to its neutral default placeholder —
+   not broken, just not customized.
+8. **GitHub Releases: deferred**, out of scope. No versioned
+   functionality or semantic-versioning scheme exists yet — the
+   pipeline runs continuously (daily/weekly jobs), not in discrete
+   releases. A tag today would carry no real release-notes content.
+   Candidate for its own trigger once real versioned functionality
+   exists, or for SPEC D.
+
+## Implementation Steps
+
+1. **[ЗАПРОС] Claude Code edits `README.md` directly** (whole-file
+   replace is the standing exception for this file per the project's
+   write rules): rewrite the Scripts table (all `src/*.py`, fresh grep
+   against real files), rewrite the CI/CD table (all jobs in
+   `.gitlab-ci.yml`, fresh grep), add `GITHUB_READ_TOKEN` to
+   Environment variables, add the two badges under the title, add a
+   top-level repository structure tree before `## How it works`. Diff
+   shown to the owner before commit. Commit and push directly to
+   `master` (below the SPEC-A-scale MR threshold).
+
+2. **[ЗАПРОС] Owner: GitHub → repo Settings → General → Topics.**
+   Add all 12: `agentic-ai`, `ai-agents`, `github-actions`,
+   `knowledge-management`, `llm`, `market-intelligence`, `open-source`,
+   `python`, `research-automation`, `signal-detection`,
+   `technology-radar`, `Trend-analysis`. (Claude Code has no GitHub
+   token/CLI in this environment — manual UI action.)
+
+3. **[ЗАПРОС] Owner: GitHub → repo Settings → General → Description.**
+   Replace with: "An AI ecosystem radar that detects structural shifts
+   in open-source AI by analyzing GitHub, Hacker News, and Reddit, then
+   clustering signals into long-term patterns."
+
+## Test Plan (Acceptance Run)
+
+1. After step 1's commit is pushed, verify the push-mirror carried it
+   to GitHub (per SPEC C's mechanism) via the public GitHub API —
+   commit SHA on `github.com/mikkiola/radar` `master` matches the
+   commit just pushed to GitLab `master`.
+2. After steps 2-3, verify via the public GitHub API
+   (`api.github.com/repos/mikkiola/radar`) that `topics` contains all
+   12 entries and `description` matches the GitLab wording.
+3. Manually re-read the updated README top-to-bottom and confirm: an
+   external reader gets what the project does, how it's laid out, and
+   what's running in CI, without needing to open `.gitlab-ci.yml` or
+   `ls src/` themselves.
+
+## Security Considerations
+
+None — this SPEC touches no secrets, no CI code, no auth. Purely docs
+and repo metadata.
+
+## Milestones
+
+1. [ ] README rewritten (Scripts, CI/CD, env vars, badges, structure
+       tree) and committed to `master`
+2. [ ] GitHub topics synced (step 2)
+3. [ ] GitHub description synced (step 3)
+4. [ ] Acceptance run green (mirror sync + topics/description API
+       check + manual read-through)
+
+## Open Questions / Decisions Needed
+
+None — all resolved during this interview (see "Resolutions from
+interview" above).
+
+## SPEC B: CLOSED (2026-08-07)
+
+Owner confirmed Y. Implementation:
+
+- **Step 1** (README rewrite) — Claude Code committed directly to
+  `master`, no feature branch (below the SPEC-A-scale MR threshold):
+  `7948c9f` / full SHA `7948c9fe2b153a9aad4add5506eb4390b39dd861`.
+  Scripts table expanded from 9 to 18 entries (all of `src/*.py`, with
+  `src/` path prefix and accurate "helper module vs CI-invoked job"
+  framing per the audit finding). CI/CD table expanded from 5 to 13
+  jobs, matching `.gitlab-ci.yml` exactly. Added `GITHUB_READ_TOKEN` to
+  Environment variables, a top-level repository structure tree, and
+  `License: MIT` + `Python 3.12` badges.
+- **Steps 2-3** (GitHub topics + description) — owner-executed via
+  GitHub UI. Topics were already in place (added prior to this SPEC's
+  execution window, consistent with the audit's finding that GitLab's
+  topics predate SPEC B). Description updated to the GitLab-aligned
+  wording.
+
+**Acceptance Run Result** — real API checks against live state, not
+inference, per the project's standing verification rule:
+
+- `curl https://api.github.com/repos/mikkiola/radar/commits/master` →
+  `sha: 7948c9fe2b153a9aad4add5506eb4390b39dd861` — **exact match**
+  with the README commit pushed to `gitlab.com/lyolich777ka/radar`
+  `master`. Push-mirror sync (SPEC C mechanism) confirmed still
+  working correctly.
+- `curl https://api.github.com/repos/mikkiola/radar` → `description`
+  **matches** the GitLab wording exactly; `topics` contains all 12
+  entries — GitHub lowercases topic slugs automatically
+  (`Trend-analysis` → `trend-analysis`), a platform normalization, not
+  a discrepancy against what was entered.
+- Manual read-through of the updated README confirmed: project
+  purpose, directory layout, script roles, and CI job triggers are all
+  now visible without opening `.gitlab-ci.yml` or listing `src/`
+  separately.
+
+All three checks green. SPEC B closed, no further action needed.
+Social preview and GitHub Releases remain deferred (Resolutions 7-8),
+not blockers.
+
+**Full queue order**: SPEC A → SPEC A.5 → SPEC A.6 → SPEC E → SPEC C → SPEC B.
