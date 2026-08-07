@@ -624,3 +624,408 @@ verify no other file (outside the grepped `*.py` set) references the
 old flat paths — e.g. check `.gitignore` patterns, any shell scripts,
 or CI cache keys that assume repo-root-level `.py` files, before
 starting the migration branch.
+
+---
+
+# SPEC A.5: VAULT_PATH Mechanism Unification — Specification
+
+## Overview
+
+SPEC A moved all `.py` files into `src/` without touching *how* each
+script resolves the vault's filesystem path — that was deliberately
+deferred (see "Out of scope" above) to keep the two risk classes
+(file-move vs. logic-change) separable under Rule 31 acceptance. This
+spec does the deferred logic change: collapses 4 different
+path-resolution mechanisms into one.
+
+## Verified Inventory (2026-08-07, grepped against real code — not the
+original task brief, which undercounted the affected jobs)
+
+4 mechanisms confirmed in the code:
+
+1. `VAULT_PATH` env var pointing directly at `01_Assessments/`
+2. `VAULT_PATH` env var pointing at the vault root
+3. `--vault` CLI flag pointing at the vault root
+4. positional CLI argument (`check_frontmatter.py` only)
+
+The original task brief said "5 jobs" — the real count of jobs whose
+**primary** script resolves the vault path via one of these mechanisms
+is **8**: `radar`, `confirm_candidate`, `promote_candidates`,
+`recheck_lifecycle`, `publish` (mechanism 1), `analysts` (mechanism 3),
+`check_models`, `patterns` (mechanism 2). `lint_vault` is a 9th job
+using mechanism 4 as its sole script. `pages` uses no VAULT_PATH
+mechanism at all — hardcoded `cp -r` in `.gitlab-ci.yml`. "5" appears to
+be the count for mechanism 1 alone.
+
+**Correction found during Rule 28 line-by-line verification (2026-08-07,
+this session)**: a **10th file**, `src/backfill_frontmatter.py`, also
+uses mechanism 1 (`VAULT_PATH` env var, absolute leaf default
+`~/radar/radar/01_Assessments`, line 10) and was missing from the
+original inventory above and from the Per-File Change Plan. It is not
+invoked by any `.gitlab-ci.yml` job (confirmed by grep) — it is a
+one-off manual migration script ("Одноразовая миграция
+01_Assessments/ на YAML frontmatter, Вариант A, backfill"), run by hand,
+not by CI, matching SPEC A's own prior classification of it as "not
+imported by anything, import nothing internal." **Owner decision:
+include it as the 10th migrated file**, for full mechanism consistency
+across the repo even where CI never exercises it — see its Per-File
+Change Plan entry below.
+
+Mechanism 1 additionally has two different fallback-default patterns:
+absolute (`~/radar/radar/01_Assessments`, in `analyze.py` /
+`update_assessments.py` / `telegram_post.py`) and relative
+(`"01_Assessments"`, in `confirm_candidate.py` / `promote_candidates.py`
+/ `recheck_lifecycle.py`). Never triggered in CI (the var is always set
+explicitly there) but relevant to local dev.
+
+## Decisions (from interview, 2026-08-07)
+
+- **Chosen mechanism**: single env var, always pointing at the vault
+  **root**. Every script derives its own subdirectory path(s) via
+  `os.path.join(...)` — matches the pattern `patterns.py` and
+  `check_model_updates.py` already use today. Chosen over "always point
+  at `01_Assessments`" because that pattern breaks down for scripts
+  needing multiple subdirectories (`patterns.py` needs 4); chosen over
+  "CLI flag everywhere" because it would require adding `argparse` to 6
+  scripts that currently just read `os.environ` directly, for no
+  behavioral gain.
+- **Renamed to `VAULT_ROOT`** (not kept as `VAULT_PATH`). Semantics
+  change for 6 of 8 scripts (root instead of leaf) — a same-name env var
+  with silently different meaning is a bug risk if anyone (including a
+  future Claude session working from memory) sets it the old way.
+  Renaming makes the old usage fail loudly (`KeyError`/empty path)
+  instead of silently pointing at the wrong directory.
+- **Fallback default**: single absolute value everywhere —
+  `os.path.expanduser("~/radar/radar")` — replacing both prior
+  patterns. Never exercised in CI (var always set explicitly there);
+  only affects local runs without `VAULT_ROOT` set.
+- **Derived subdirectory constants named `ASSESSMENTS_PATH`** (not a
+  per-script bespoke name) — follows the existing precedent in
+  `patterns.py`, which `tests/test_patterns.py` already monkeypatches by
+  that name.
+- **`PATTERNS_PATH` (currently a separate env var in `analyze.py`) and
+  `PUBLISHED_LOG` (currently a separate env var in `telegram_post.py`)
+  are folded into `VAULT_ROOT`-derived constants**, dropping their
+  standalone env-var overrides. One override variable for the whole
+  pipeline, not per-script secondary overrides.
+- **`fetch_analysts.py`'s `--vault` CLI flag is removed.** It becomes a
+  plain `os.environ.get("VAULT_ROOT", ...)` read like every other
+  script. `import argparse` is removed from the file entirely — the
+  `--vault` flag was its only use.
+- **`check_frontmatter.py` (mechanism 4, positional argument) is
+  explicitly out of scope** — not silently excluded. It's a different
+  contract (accepts a path as a CLI argument, not an env var) already
+  consistent across all 8 call sites, and it's a lint utility, not part
+  of the vault-path-resolution problem the task describes.
+- **`pages` job is explicitly out of scope** — no VAULT_PATH mechanism
+  exists there today; this spec unifies path *resolution*, not
+  introduces one where none existed.
+- **Test files are in scope, in the same MR**: renaming the derived
+  constant breaks `monkeypatch.setattr(module, "VAULT_PATH", ...)` calls
+  in 4 test files. Fixing production code without fixing tests in the
+  same change would leave `pytest` broken on the branch.
+- **Migration branch**: separate branch + MR, merged to `master` only
+  after a green acceptance run — same reasoning as SPEC A. Most affected
+  jobs trigger on `schedule`, so a broken intermediate state on `master`
+  risks a live scheduled run mid-migration.
+- **Acceptance scope**: all 8 primary jobs triggered for real via GitLab
+  web trigger on the migration branch. `confirm_candidate` is the one
+  exception — dry run only (code read + local `pytest`), unless a real
+  `CANDIDATE` file happens to exist in the vault at merge time, since it
+  requires a real `$CONFIRM_REPO` HITL target and the others make live
+  Anthropic API calls that cost money and don't need duplicating for
+  this one job's sake.
+
+## Per-File Change Plan
+
+### `src/analyze.py`
+```python
+# before
+VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar/01_Assessments"))
+PATTERNS_PATH = os.environ.get("PATTERNS_PATH", os.path.expanduser("~/radar/radar/02_Patterns"))
+
+# after
+VAULT_ROOT = os.environ.get("VAULT_ROOT", os.path.expanduser("~/radar/radar"))
+ASSESSMENTS_PATH = os.path.join(VAULT_ROOT, "01_Assessments")
+PATTERNS_PATH = os.path.join(VAULT_ROOT, "02_Patterns")
+```
+All other `VAULT_PATH` references in the file (lines 238, 245, 247, 254,
+256, 469, 509) → `ASSESSMENTS_PATH`.
+
+### `src/update_assessments.py`
+```python
+# before
+VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar/01_Assessments"))
+
+# after
+VAULT_ROOT = os.environ.get("VAULT_ROOT", os.path.expanduser("~/radar/radar"))
+ASSESSMENTS_PATH = os.path.join(VAULT_ROOT, "01_Assessments")
+```
+All other `VAULT_PATH` references (lines 52, 53, 56, 68) → `ASSESSMENTS_PATH`.
+
+### `src/confirm_candidate.py`
+```python
+# before
+VAULT_PATH = os.environ.get("VAULT_PATH", "01_Assessments")
+
+# after
+VAULT_ROOT = os.environ.get("VAULT_ROOT", os.path.expanduser("~/radar/radar"))
+ASSESSMENTS_PATH = os.path.join(VAULT_ROOT, "01_Assessments")
+```
+Line 20 (`os.path.join(VAULT_PATH, repo + ".md")`) → `ASSESSMENTS_PATH`.
+
+### `src/promote_candidates.py`
+```python
+# before
+VAULT_PATH = os.environ.get("VAULT_PATH", "01_Assessments")
+
+# after
+VAULT_ROOT = os.environ.get("VAULT_ROOT", os.path.expanduser("~/radar/radar"))
+ASSESSMENTS_PATH = os.path.join(VAULT_ROOT, "01_Assessments")
+```
+Lines 13, 15, 18 → `ASSESSMENTS_PATH`.
+
+### `src/recheck_lifecycle.py`
+```python
+# before
+VAULT_PATH = os.environ.get("VAULT_PATH", "01_Assessments")
+
+# after
+VAULT_ROOT = os.environ.get("VAULT_ROOT", os.path.expanduser("~/radar/radar"))
+ASSESSMENTS_PATH = os.path.join(VAULT_ROOT, "01_Assessments")
+```
+Lines 14, 16, 19 → `ASSESSMENTS_PATH`.
+
+### `src/telegram_post.py`
+```python
+# before
+VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar/01_Assessments"))
+PUBLISHED_LOG = os.environ.get("PUBLISHED_LOG", os.path.expanduser("~/radar/radar/99_System/published_posts.log"))
+
+# after
+VAULT_ROOT = os.environ.get("VAULT_ROOT", os.path.expanduser("~/radar/radar"))
+ASSESSMENTS_PATH = os.path.join(VAULT_ROOT, "01_Assessments")
+PUBLISHED_LOG = os.path.join(VAULT_ROOT, "99_System", "published_posts.log")
+```
+All other `VAULT_PATH` references (lines 30, 33, 67, 205) → `ASSESSMENTS_PATH`.
+`PUBLISHED_LOG` loses its standalone env-var override — always derived.
+
+### `src/fetch_analysts.py`
+```python
+# before
+import argparse
+...
+def main():
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument(
+        "--vault",
+        default=os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar")),
+    )
+    args = arg_parser.parse_args()
+    vault_path = args.vault
+    analysts_path = os.path.join(vault_path, "04_Analysts")
+
+# after
+# (import argparse removed entirely — no other use in the file)
+...
+def main():
+    vault_root = os.environ.get("VAULT_ROOT", os.path.expanduser("~/radar/radar"))
+    analysts_path = os.path.join(vault_root, "04_Analysts")
+```
+`print(f"[fetch_analysts] vault: {vault_path}")` → `{vault_root}`.
+
+### `src/check_model_updates.py`
+```python
+# before
+VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar"))
+FEEDBACK_DIR = os.path.join(VAULT_PATH, "98_Feedback", "Infrastructure")
+
+# after
+VAULT_ROOT = os.environ.get("VAULT_ROOT", os.path.expanduser("~/radar/radar"))
+FEEDBACK_DIR = os.path.join(VAULT_ROOT, "98_Feedback", "Infrastructure")
+```
+
+### `src/patterns.py`
+```python
+# before
+VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar"))
+ASSESSMENTS_PATH = os.path.join(VAULT_PATH, "01_Assessments")
+PATTERNS_PATH = os.path.join(VAULT_PATH, "02_Patterns")
+ARCHIVE_PATH = os.path.join(VAULT_PATH, "03_Archive")
+ANALYSTS_PATH = os.path.join(VAULT_PATH, "04_Analysts")
+
+# after
+VAULT_ROOT = os.environ.get("VAULT_ROOT", os.path.expanduser("~/radar/radar"))
+ASSESSMENTS_PATH = os.path.join(VAULT_ROOT, "01_Assessments")
+PATTERNS_PATH = os.path.join(VAULT_ROOT, "02_Patterns")
+ARCHIVE_PATH = os.path.join(VAULT_ROOT, "03_Archive")
+ANALYSTS_PATH = os.path.join(VAULT_ROOT, "04_Analysts")
+```
+Line 800 (`print(f"[patterns] vault: {VAULT_PATH}")`) → `{VAULT_ROOT}`.
+`ASSESSMENTS_PATH`/`PATTERNS_PATH` attribute names are unchanged from
+today — only their internal source variable changes — so no test
+changes needed for the lines that already monkeypatch these names.
+
+### `src/backfill_frontmatter.py`
+```python
+# before
+VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar/01_Assessments"))
+
+# after
+VAULT_ROOT = os.environ.get("VAULT_ROOT", os.path.expanduser("~/radar/radar"))
+ASSESSMENTS_PATH = os.path.join(VAULT_ROOT, "01_Assessments")
+```
+All other `VAULT_PATH` references (lines 193, 194, 198, 205, 211, plus
+the `vault_path` parameter of `verify_local_checkout_matches_origin()`
+at line 145/150, called with `VAULT_PATH` at line 211) →
+`ASSESSMENTS_PATH`. Not invoked by any CI job — this is a manual-only
+script; the change only prevents a silent stale-`VAULT_PATH` divergence
+if anyone runs it locally alongside the other 9 now-renamed scripts.
+
+### `src/check_frontmatter.py` — **not touched.**
+
+### `.gitlab-ci.yml`
+- Line 17: `VAULT_PATH="$(pwd)/vault_repo/01_Assessments" PATTERNS_PATH="$(pwd)/vault_repo/02_Patterns"` → `VAULT_ROOT="$(pwd)/vault_repo"`
+- Line 18: `VAULT_PATH="$(pwd)/vault_repo/01_Assessments"` → `VAULT_ROOT="$(pwd)/vault_repo"`
+- Line 44: same substitution
+- Line 62: same substitution
+- Line 86: same substitution
+- Line 111: `VAULT_PATH="$(pwd)/vault_repo/01_Assessments" PUBLISHED_LOG="$(pwd)/vault_repo/99_System/published_posts.log"` → `VAULT_ROOT="$(pwd)/vault_repo"`
+- Line 135: `python3 src/fetch_analysts.py --vault vault_repo` → `VAULT_ROOT="$(pwd)/vault_repo" python3 src/fetch_analysts.py`
+- Line 166: `VAULT_PATH="$(pwd)/vault_repo"` → `VAULT_ROOT="$(pwd)/vault_repo"`
+- Line 181: `VAULT_PATH="$(pwd)/vault_repo"` → `VAULT_ROOT="$(pwd)/vault_repo"`
+- All `check_frontmatter.py` invocations (every job that calls it) and
+  the `pages` job — unchanged.
+
+### Test files
+- `tests/test_confirm_candidate.py:19` — `monkeypatch.setattr(confirm_candidate, "VAULT_PATH", vault_path)` → `"ASSESSMENTS_PATH"`
+- `tests/test_promote_candidates.py:89` — `monkeypatch.setattr(promote_candidates, "VAULT_PATH", tmpdir)` → `"ASSESSMENTS_PATH"`
+- `tests/test_recheck_lifecycle.py:287` — `monkeypatch.setattr(recheck_lifecycle, "VAULT_PATH", tmpdir)` → `"ASSESSMENTS_PATH"`
+- `tests/test_patterns.py:132` — `monkeypatch.setattr(update_assessments, "VAULT_PATH", str(tmp_path))` → `"ASSESSMENTS_PATH"`
+- `tests/test_patterns.py:170/184/244/262/279/293/303/314` — already target `ASSESSMENTS_PATH`/`PATTERNS_PATH` on `patterns`, unchanged.
+- `tests/test_analyze_candidate.py` — verified not touching `VAULT_PATH`, unchanged.
+- No `conftest.py` and no `monkeypatch.setenv`/`os.environ[...]` usage of `VAULT_PATH` found anywhere in `tests/` — confirmed by grep, not assumed.
+
+## Process correction: MR ceremony dropped (2026-08-07, mid-session)
+
+**Owner decision, new general principle going forward**: no MR for
+SPEC A.5 — merges to `master` happen via direct `git merge` after a
+green Rule 31 acceptance run, without opening a GitLab MR first.
+Reason: solo development, no reviewers to route an MR through — the MR
+step was ceremony inherited from SPEC A's process without re-examining
+whether it earns its cost here. **Going forward**: MR only for
+architecture-level changes on the scale of SPEC A (multi-file layout
+reorganization, changes touching all 10 CI jobs at once); all smaller
+tasks (including the rest of this queue: A.5 itself, A.6, E, C, B, D)
+use direct merge after acceptance, no MR. This session had already
+pushed `spec-a5-vault-path-unification` and obtained a GitLab
+"create MR" link before this correction landed — that link is not
+used; the branch is merged directly instead once acceptance is green.
+
+## Test Plan
+
+1. `python3 -m py_compile` on all 10 changed `.py` files after editing
+   (9 CI-invoked + `backfill_frontmatter.py`).
+2. `python3 -m pytest tests/` locally — must pass with the 4 updated
+   test files before pushing.
+3. Full diff review + explicit owner confirmation before commit/push
+   (Rule: mandatory before every commit in this project).
+4. Push to a new branch (`spec-a5-vault-path-unification`). No MR (see
+   "Process correction" above) — direct merge after acceptance.
+5. Real acceptance run via GitLab web trigger, on the branch, for all 8
+   primary jobs: `radar`, `promote_candidates`, `recheck_lifecycle`,
+   `publish`, `analysts`, `check_models`, `patterns` triggered for real;
+   `confirm_candidate` dry-run only (see Decisions above) unless a real
+   `CANDIDATE` file exists in the vault at merge time.
+   `backfill_frontmatter.py` is not CI-invoked — verified by local
+   `py_compile` + code read only, no acceptance-run entry.
+6. All triggered jobs green before merge.
+7. Direct `git merge` branch → `master` (no MR, see "Process correction"
+   above) only after step 6 passes, with explicit owner confirmation.
+
+### Acceptance Run Result (2026-08-07, branch `spec-a5-vault-path-unification`)
+
+5 web-triggered pipelines covering all 7 live primary jobs, all green,
+plus `confirm_candidate` dry-run (code read + local `pytest`, no live
+trigger — 15 real `CANDIDATE_LOW_CONFIDENCE` files existed in the vault
+at run time, but the owner explicitly reconfirmed dry-run-only mid-session,
+overriding the original conditional wording in "Acceptance scope" above):
+
+- `#2739373293` — `recheck_lifecycle` + `lint_vault` — Passed.
+- `#2739374559` — `publish` + `lint_vault` — Passed.
+- `#2739375863` — `analysts` + `check_models` + `patterns` + `lint_vault` — Passed.
+- `#2739369504` — `promote_candidates` + `lint_vault` Passed on first run;
+  `radar` failed on first run (`git pull --rebase` conflict, see
+  "Related but out-of-scope finding" below), retried in the same
+  pipeline and **Passed** on retry, with no other job running
+  concurrently by that point (verified via GitLab API before retry —
+  all other acceptance pipelines were already in a terminal state).
+  Final state: `lint_vault` + `promote_candidates` + `radar`, all Passed.
+
+All 7 live jobs (`radar`, `promote_candidates`, `recheck_lifecycle`,
+`publish`, `analysts`, `check_models`, `patterns`) confirmed green,
+`confirm_candidate` dry-run confirmed via code read + local `pytest`.
+`backfill_frontmatter.py` (10th changed file, not CI-invoked) verified
+via local `py_compile` + code read only, per Test Plan step 5.
+
+### Related but out-of-scope finding: `radar`/`recheck_lifecycle` write race (2026-08-07)
+
+The first `radar` attempt in pipeline `#2739369504` failed on
+`git pull --rebase origin vault` with a conflict in
+`01_Assessments/Верификация_доверия_для_сетей_агентов 2026-07-02.md`.
+Root cause confirmed via the public GitLab API before deciding on a
+retry: `update_assessments.py` (called by `radar`, reprocesses
+assessments >30 days old) and `recheck_lifecycle.py` (appends
+`evidence_log` entries to `VALIDATED_SHIFT` files) both target this
+same file, and `recheck_lifecycle`'s pipeline (`#2739373293`) pushed
+its own change to `origin/vault` in the window between `radar`'s local
+commit and its rebase attempt.
+
+**Not a SPEC A.5 bug.** `VAULT_ROOT`/`ASSESSMENTS_PATH` played no role —
+this is a pre-existing pipeline-design gap: no job's commit/rebase/push
+sequence retries on a rebase conflict, it just fails the job. In normal
+production operation this essentially never fires, since these jobs run
+on separate cron schedules (`radar` frequently, `recheck_lifecycle`
+monthly) rather than back-to-back — it surfaced here only because
+acceptance testing deliberately fired 5 pipelines in quick succession
+against the same `vault` branch, creating a race that scheduled
+operation doesn't normally produce. Same class of finding as SPEC A's
+`filter.py` `AttributeError` (production bug surfaced by real execution
+during acceptance, unrelated to the migration's own change scope) —
+verified via the GitLab API that the failed job's local commit
+(`fc8b05e`) never reached `origin/vault` (404 on lookup by SHA) and
+that the conflicted file itself was left clean on the remote (no
+conflict markers, valid YAML frontmatter) before retrying. No data was
+lost or corrupted; the retry re-ran cleanly once no other job was
+writing concurrently. Left as a candidate for a future session (e.g. a
+retry-on-rebase-conflict loop, or serializing vault-writing jobs) — not
+fixed in this session, same "verify, don't silently expand scope"
+principle SPEC A applied to `filter.py`.
+
+## Milestones
+
+1. [x] Edit all 10 `.py` files per the per-file plan above (9 CI-invoked
+   + `backfill_frontmatter.py`).
+2. [x] Edit `.gitlab-ci.yml` per the substitutions above.
+3. [x] Edit the 4 test files.
+4. [x] `py_compile` + local `pytest` green (99 passed).
+5. [x] Full diff review, owner confirmation — found and fixed 2 bugs
+   not caught by the line-by-line SPEC check: `patterns.py:800` still
+   referenced undefined `VAULT_PATH` (`NameError` at runtime), and a
+   stale `VAULT_PATH` mention in a `backfill_frontmatter.py` docstring.
+6. [x] Push to `spec-a5-vault-path-unification` (commit `4818962`). No
+   MR opened — see "Process correction" above.
+7. [x] Real CI acceptance run (8 jobs, 7 live + 1 dry), all green — see
+   "Acceptance Run Result" above. One unrelated pipeline-race finding
+   surfaced and diagnosed (see "Related but out-of-scope finding").
+8. [ ] Direct merge to `master` (no MR), owner-confirmed.
+9. [ ] Update this SPEC.md section with the closure note (mirroring how
+   SPEC A was closed) and update the "Full queue order" pointer to
+   SPEC A.6 as next.
+
+## Open Questions / Decisions Needed
+
+None remaining — all forks resolved during interview (2026-08-07), plus
+the `backfill_frontmatter.py` gap found and resolved during this
+session's Rule 28 verification (owner: include as 10th file, see
+"Verified Inventory" correction above).

@@ -13,8 +13,9 @@ import vault_write
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 GITHUB_TOKEN = os.environ.get("GITHUB_READ_TOKEN")
 GITHUB_TIMEOUT = 10
-VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar/01_Assessments"))
-PATTERNS_PATH = os.environ.get("PATTERNS_PATH", os.path.expanduser("~/radar/radar/02_Patterns"))
+VAULT_ROOT = os.environ.get("VAULT_ROOT", os.path.expanduser("~/radar/radar"))
+ASSESSMENTS_PATH = os.path.join(VAULT_ROOT, "01_Assessments")
+PATTERNS_PATH = os.path.join(VAULT_ROOT, "02_Patterns")
 MODEL_CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "99_System", "model_config.json")
 PROMPT_VERSION = "v2.0"
 
@@ -242,18 +243,18 @@ def get_existing_patterns():
 
 
 def get_existing_assessments():
-    if not os.path.exists(VAULT_PATH):
+    if not os.path.exists(ASSESSMENTS_PATH):
         return []
-    files = glob.glob(os.path.join(VAULT_PATH, "*.md"))
+    files = glob.glob(os.path.join(ASSESSMENTS_PATH, "*.md"))
     return [os.path.splitext(os.path.basename(f))[0] for f in files]
 
 
 def get_assessed_urls():
     """Возвращает множество URL из уже существующих файлов оценок."""
     assessed = set()
-    if not os.path.exists(VAULT_PATH):
+    if not os.path.exists(ASSESSMENTS_PATH):
         return assessed
-    for f in glob.glob(os.path.join(VAULT_PATH, "*.md")):
+    for f in glob.glob(os.path.join(ASSESSMENTS_PATH, "*.md")):
         try:
             with open(f, encoding="utf-8") as fh:
                 for line in fh:
@@ -466,7 +467,7 @@ def analyze_and_save(projects):
     patterns_list = "\n".join(f"- {p}" for p in patterns) if patterns else "- паттернов пока нет"
     assessments_list = "\n".join(f"- {a}" for a in assessments[-20:]) if assessments else "- оценок пока нет"
 
-    os.makedirs(VAULT_PATH, exist_ok=True)
+    os.makedirs(ASSESSMENTS_PATH, exist_ok=True)
     assessed_urls = get_assessed_urls()
 
     for p in projects[:10]:
@@ -506,7 +507,7 @@ def analyze_and_save(projects):
         name_en = result.get("name_en", title[:50])
         safe_name = name_en.replace(" ", "_").replace("/", "-")[:50]
         filename = f"{safe_name} {today}.md"
-        filepath = os.path.join(VAULT_PATH, filename)
+        filepath = os.path.join(ASSESSMENTS_PATH, filename)
 
         if os.path.exists(filepath):
             print(f"   Пропускаем (файл существует): {filename}")

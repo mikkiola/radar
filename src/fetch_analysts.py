@@ -12,7 +12,6 @@ fetch_analysts.py - загрузка и структурирование дан�
 import os
 import re
 import json
-import argparse
 import requests
 import anthropic
 from datetime import datetime, timedelta
@@ -286,18 +285,11 @@ def build_analyst_file(analyst, issue_date, issue_url, claims):
 
 
 def main():
-    arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument(
-        "--vault",
-        default=os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar")),
-    )
-    args = arg_parser.parse_args()
-
-    vault_path = args.vault
-    analysts_path = os.path.join(vault_path, "04_Analysts")
+    vault_root = os.environ.get("VAULT_ROOT", os.path.expanduser("~/radar/radar"))
+    analysts_path = os.path.join(vault_root, "04_Analysts")
     os.makedirs(analysts_path, exist_ok=True)
 
-    print(f"[fetch_analysts] vault: {vault_path}")
+    print(f"[fetch_analysts] vault: {vault_root}")
 
     parsers = {
         "parse_buttondown": parse_buttondown,

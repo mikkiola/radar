@@ -284,7 +284,7 @@ def test_unparseable_url_skipped(monkeypatch):
 
 def test_find_validated_shift_files_filters_by_status(monkeypatch):
     tmpdir = tempfile.mkdtemp()
-    monkeypatch.setattr(recheck_lifecycle, "VAULT_PATH", tmpdir)
+    monkeypatch.setattr(recheck_lifecycle, "ASSESSMENTS_PATH", tmpdir)
 
     validated_path = os.path.join(tmpdir, "a-validated.md")
     other_path = os.path.join(tmpdir, "b-candidate.md")

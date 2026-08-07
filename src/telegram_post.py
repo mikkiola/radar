@@ -18,8 +18,9 @@ def load_model_config():
 MODEL_CONFIG = load_model_config()
 
 
-VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar/01_Assessments"))
-PUBLISHED_LOG = os.environ.get("PUBLISHED_LOG", os.path.expanduser("~/radar/radar/99_System/published_posts.log"))
+VAULT_ROOT = os.environ.get("VAULT_ROOT", os.path.expanduser("~/radar/radar"))
+ASSESSMENTS_PATH = os.path.join(VAULT_ROOT, "01_Assessments")
+PUBLISHED_LOG = os.path.join(VAULT_ROOT, "99_System", "published_posts.log")
 GRAPH_URL = "https://opensource-radar-42558a.gitlab.io/"
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
@@ -27,10 +28,10 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHANNEL_ID = os.environ.get("TELEGRAM_CHANNEL_ID")
 
 def check_vault_path():
-    if not os.path.exists(VAULT_PATH):
-        print(f"ОШИБКА: vault не найден: {VAULT_PATH}")
+    if not os.path.exists(ASSESSMENTS_PATH):
+        print(f"ОШИБКА: vault не найден: {ASSESSMENTS_PATH}")
         sys.exit(1)
-    print(f"Vault найден: {VAULT_PATH}")
+    print(f"Vault найден: {ASSESSMENTS_PATH}")
 
 def load_assessment(filepath):
     with open(filepath, "r", encoding="utf-8") as f:
@@ -64,7 +65,7 @@ def get_human_correction(content):
 def find_latest_shift(exclude_published=True):
     check_vault_path()
     published = load_published_log() if exclude_published else set()
-    pattern = os.path.join(VAULT_PATH, "*.md")
+    pattern = os.path.join(ASSESSMENTS_PATH, "*.md")
     files = sorted(glob.glob(pattern), reverse=True)
     for filepath in files:
         filename = os.path.basename(filepath)
@@ -202,7 +203,7 @@ def main():
 
     if args.file:
         check_vault_path()
-        filepath = os.path.join(VAULT_PATH, args.file)
+        filepath = os.path.join(ASSESSMENTS_PATH, args.file)
         if not os.path.exists(filepath):
             print(f"ОШИБКА: файл не найден: {filepath}")
             sys.exit(1)

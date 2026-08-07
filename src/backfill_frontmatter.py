@@ -7,7 +7,8 @@ import subprocess
 
 import yaml
 
-VAULT_PATH = os.environ.get("VAULT_PATH", os.path.expanduser("~/radar/radar/01_Assessments"))
+VAULT_ROOT = os.environ.get("VAULT_ROOT", os.path.expanduser("~/radar/radar"))
+ASSESSMENTS_PATH = os.path.join(VAULT_ROOT, "01_Assessments")
 
 VERDICT_TO_STATUS = {
     "СДВИГ": "VALIDATED_SHIFT",
@@ -143,7 +144,7 @@ def print_diff(report):
 
 
 def verify_local_checkout_matches_origin(vault_path):
-    """Перед --apply сверить список файлов локального чекаута VAULT_PATH с
+    """Перед --apply сверить список файлов локального чекаута ASSESSMENTS_PATH с
     origin/vault - тот же класс риска, что и в инциденте с production cron
     (Правило 24 CONSTITUTION): локальный чекаут может отставать от origin.
     Возвращает текст ошибки при расхождении, иначе None."""
@@ -190,25 +191,25 @@ def main():
     parser.add_argument("--diff", action="store_true", help="Показать полный unified diff для каждого файла")
     args = parser.parse_args()
 
-    if not os.path.exists(VAULT_PATH):
-        print(f"[backfill] ОШИБКА: vault не найден: {VAULT_PATH}")
+    if not os.path.exists(ASSESSMENTS_PATH):
+        print(f"[backfill] ОШИБКА: vault не найден: {ASSESSMENTS_PATH}")
         return
 
     only = set(args.only.split(",")) if args.only else None
-    files = sorted(glob.glob(os.path.join(VAULT_PATH, "*.md")))
+    files = sorted(glob.glob(os.path.join(ASSESSMENTS_PATH, "*.md")))
     if only:
         files = [f for f in files if os.path.basename(f) in only]
         missing = only - {os.path.basename(f) for f in files}
         if missing:
             print(f"[backfill] ВНИМАНИЕ: не найдены файлы из --only: {missing}")
 
-    print(f"[backfill] vault: {VAULT_PATH}")
+    print(f"[backfill] vault: {ASSESSMENTS_PATH}")
     print(f"[backfill] режим: {'APPLY (реальная запись)' if args.apply else 'DRY-RUN (без записи)'}")
     print(f"[backfill] файлов к обработке: {len(files)}")
     print()
 
     if args.apply:
-        mismatch = verify_local_checkout_matches_origin(VAULT_PATH)
+        mismatch = verify_local_checkout_matches_origin(ASSESSMENTS_PATH)
         if mismatch:
             print(f"[backfill] ОШИБКА: {mismatch}")
             return

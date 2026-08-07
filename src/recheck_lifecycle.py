@@ -4,19 +4,20 @@ from datetime import date, datetime
 import vault_write
 from analyze import parse_github_owner_repo, fetch_repo_lifecycle_signal, gh_api
 
-VAULT_PATH = os.environ.get("VAULT_PATH", "01_Assessments")
+VAULT_ROOT = os.environ.get("VAULT_ROOT", os.path.expanduser("~/radar/radar"))
+ASSESSMENTS_PATH = os.path.join(VAULT_ROOT, "01_Assessments")
 FROZEN_MONTHS = 6
 RELEASES_STOPPED_MONTHS = 12
 
 
 def find_validated_shift_files():
     files = []
-    if not os.path.exists(VAULT_PATH):
+    if not os.path.exists(ASSESSMENTS_PATH):
         return files
-    for name in sorted(os.listdir(VAULT_PATH)):
+    for name in sorted(os.listdir(ASSESSMENTS_PATH)):
         if not name.endswith(".md"):
             continue
-        filepath = os.path.join(VAULT_PATH, name)
+        filepath = os.path.join(ASSESSMENTS_PATH, name)
         frontmatter, _ = vault_write.read_frontmatter(filepath)
         if frontmatter and frontmatter.get("status") == "VALIDATED_SHIFT":
             files.append(filepath)

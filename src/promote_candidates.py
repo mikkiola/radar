@@ -4,18 +4,19 @@ from datetime import date
 import vault_write
 from analyze import parse_github_owner_repo, check_repo_alive
 
-VAULT_PATH = os.environ.get("VAULT_PATH", "01_Assessments")
+VAULT_ROOT = os.environ.get("VAULT_ROOT", os.path.expanduser("~/radar/radar"))
+ASSESSMENTS_PATH = os.path.join(VAULT_ROOT, "01_Assessments")
 QUARANTINE_DAYS = 14
 
 
 def find_candidate_files():
     files = []
-    if not os.path.exists(VAULT_PATH):
+    if not os.path.exists(ASSESSMENTS_PATH):
         return files
-    for name in sorted(os.listdir(VAULT_PATH)):
+    for name in sorted(os.listdir(ASSESSMENTS_PATH)):
         if not name.endswith(".md"):
             continue
-        filepath = os.path.join(VAULT_PATH, name)
+        filepath = os.path.join(ASSESSMENTS_PATH, name)
         frontmatter, _ = vault_write.read_frontmatter(filepath)
         if frontmatter and frontmatter.get("status") == "CANDIDATE":
             files.append(filepath)
