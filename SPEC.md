@@ -906,6 +906,22 @@ if anyone runs it locally alongside the other 9 now-renamed scripts.
 - `tests/test_analyze_candidate.py` — verified not touching `VAULT_PATH`, unchanged.
 - No `conftest.py` and no `monkeypatch.setenv`/`os.environ[...]` usage of `VAULT_PATH` found anywhere in `tests/` — confirmed by grep, not assumed.
 
+## Process correction: MR ceremony dropped (2026-08-07, mid-session)
+
+**Owner decision, new general principle going forward**: no MR for
+SPEC A.5 — merges to `master` happen via direct `git merge` after a
+green Rule 31 acceptance run, without opening a GitLab MR first.
+Reason: solo development, no reviewers to route an MR through — the MR
+step was ceremony inherited from SPEC A's process without re-examining
+whether it earns its cost here. **Going forward**: MR only for
+architecture-level changes on the scale of SPEC A (multi-file layout
+reorganization, changes touching all 10 CI jobs at once); all smaller
+tasks (including the rest of this queue: A.5 itself, A.6, E, C, B, D)
+use direct merge after acceptance, no MR. This session had already
+pushed `spec-a5-vault-path-unification` and obtained a GitLab
+"create MR" link before this correction landed — that link is not
+used; the branch is merged directly instead once acceptance is green.
+
 ## Test Plan
 
 1. `python3 -m py_compile` on all 10 changed `.py` files after editing
@@ -914,8 +930,8 @@ if anyone runs it locally alongside the other 9 now-renamed scripts.
    test files before pushing.
 3. Full diff review + explicit owner confirmation before commit/push
    (Rule: mandatory before every commit in this project).
-4. Push to a new branch (`spec-a5-vault-path-unification`), open an MR
-   to `master`.
+4. Push to a new branch (`spec-a5-vault-path-unification`). No MR (see
+   "Process correction" above) — direct merge after acceptance.
 5. Real acceptance run via GitLab web trigger, on the branch, for all 8
    primary jobs: `radar`, `promote_candidates`, `recheck_lifecycle`,
    `publish`, `analysts`, `check_models`, `patterns` triggered for real;
@@ -924,19 +940,85 @@ if anyone runs it locally alongside the other 9 now-renamed scripts.
    `backfill_frontmatter.py` is not CI-invoked — verified by local
    `py_compile` + code read only, no acceptance-run entry.
 6. All triggered jobs green before merge.
-7. Merge branch → `master` via MR only after step 6 passes.
+7. Direct `git merge` branch → `master` (no MR, see "Process correction"
+   above) only after step 6 passes, with explicit owner confirmation.
+
+### Acceptance Run Result (2026-08-07, branch `spec-a5-vault-path-unification`)
+
+5 web-triggered pipelines covering all 7 live primary jobs, all green,
+plus `confirm_candidate` dry-run (code read + local `pytest`, no live
+trigger — 15 real `CANDIDATE_LOW_CONFIDENCE` files existed in the vault
+at run time, but the owner explicitly reconfirmed dry-run-only mid-session,
+overriding the original conditional wording in "Acceptance scope" above):
+
+- `#2739373293` — `recheck_lifecycle` + `lint_vault` — Passed.
+- `#2739374559` — `publish` + `lint_vault` — Passed.
+- `#2739375863` — `analysts` + `check_models` + `patterns` + `lint_vault` — Passed.
+- `#2739369504` — `promote_candidates` + `lint_vault` Passed on first run;
+  `radar` failed on first run (`git pull --rebase` conflict, see
+  "Related but out-of-scope finding" below), retried in the same
+  pipeline and **Passed** on retry, with no other job running
+  concurrently by that point (verified via GitLab API before retry —
+  all other acceptance pipelines were already in a terminal state).
+  Final state: `lint_vault` + `promote_candidates` + `radar`, all Passed.
+
+All 7 live jobs (`radar`, `promote_candidates`, `recheck_lifecycle`,
+`publish`, `analysts`, `check_models`, `patterns`) confirmed green,
+`confirm_candidate` dry-run confirmed via code read + local `pytest`.
+`backfill_frontmatter.py` (10th changed file, not CI-invoked) verified
+via local `py_compile` + code read only, per Test Plan step 5.
+
+### Related but out-of-scope finding: `radar`/`recheck_lifecycle` write race (2026-08-07)
+
+The first `radar` attempt in pipeline `#2739369504` failed on
+`git pull --rebase origin vault` with a conflict in
+`01_Assessments/Верификация_доверия_для_сетей_агентов 2026-07-02.md`.
+Root cause confirmed via the public GitLab API before deciding on a
+retry: `update_assessments.py` (called by `radar`, reprocesses
+assessments >30 days old) and `recheck_lifecycle.py` (appends
+`evidence_log` entries to `VALIDATED_SHIFT` files) both target this
+same file, and `recheck_lifecycle`'s pipeline (`#2739373293`) pushed
+its own change to `origin/vault` in the window between `radar`'s local
+commit and its rebase attempt.
+
+**Not a SPEC A.5 bug.** `VAULT_ROOT`/`ASSESSMENTS_PATH` played no role —
+this is a pre-existing pipeline-design gap: no job's commit/rebase/push
+sequence retries on a rebase conflict, it just fails the job. In normal
+production operation this essentially never fires, since these jobs run
+on separate cron schedules (`radar` frequently, `recheck_lifecycle`
+monthly) rather than back-to-back — it surfaced here only because
+acceptance testing deliberately fired 5 pipelines in quick succession
+against the same `vault` branch, creating a race that scheduled
+operation doesn't normally produce. Same class of finding as SPEC A's
+`filter.py` `AttributeError` (production bug surfaced by real execution
+during acceptance, unrelated to the migration's own change scope) —
+verified via the GitLab API that the failed job's local commit
+(`fc8b05e`) never reached `origin/vault` (404 on lookup by SHA) and
+that the conflicted file itself was left clean on the remote (no
+conflict markers, valid YAML frontmatter) before retrying. No data was
+lost or corrupted; the retry re-ran cleanly once no other job was
+writing concurrently. Left as a candidate for a future session (e.g. a
+retry-on-rebase-conflict loop, or serializing vault-writing jobs) — not
+fixed in this session, same "verify, don't silently expand scope"
+principle SPEC A applied to `filter.py`.
 
 ## Milestones
 
-1. [ ] Edit all 10 `.py` files per the per-file plan above (9 CI-invoked
+1. [x] Edit all 10 `.py` files per the per-file plan above (9 CI-invoked
    + `backfill_frontmatter.py`).
-2. [ ] Edit `.gitlab-ci.yml` per the substitutions above.
-3. [ ] Edit the 4 test files.
-4. [ ] `py_compile` + local `pytest` green.
-5. [ ] Full diff review, owner confirmation.
-6. [ ] Push to `spec-a5-vault-path-unification`, open MR.
-7. [ ] Real CI acceptance run (8 jobs, 7 live + 1 dry), all green.
-8. [ ] Merge to `master`.
+2. [x] Edit `.gitlab-ci.yml` per the substitutions above.
+3. [x] Edit the 4 test files.
+4. [x] `py_compile` + local `pytest` green (99 passed).
+5. [x] Full diff review, owner confirmation — found and fixed 2 bugs
+   not caught by the line-by-line SPEC check: `patterns.py:800` still
+   referenced undefined `VAULT_PATH` (`NameError` at runtime), and a
+   stale `VAULT_PATH` mention in a `backfill_frontmatter.py` docstring.
+6. [x] Push to `spec-a5-vault-path-unification` (commit `4818962`). No
+   MR opened — see "Process correction" above.
+7. [x] Real CI acceptance run (8 jobs, 7 live + 1 dry), all green — see
+   "Acceptance Run Result" above. One unrelated pipeline-race finding
+   surfaced and diagnosed (see "Related but out-of-scope finding").
+8. [ ] Direct merge to `master` (no MR), owner-confirmed.
 9. [ ] Update this SPEC.md section with the closure note (mirroring how
    SPEC A was closed) and update the "Full queue order" pointer to
    SPEC A.6 as next.
