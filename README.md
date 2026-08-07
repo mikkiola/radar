@@ -7,6 +7,10 @@ This is a personal research instrument built for the author's own analysis — n
 Live example: [@radar_public](https://t.me/radar_public)  
 Interactive graph: [opensource-radar-42558a.gitlab.io](https://opensource-radar-42558a.gitlab.io/)
 
+> This GitHub repository is a read-only push mirror of `master`. The
+> source of truth is [GitLab](https://gitlab.com/lyolich777ka/radar) —
+> please open issues and merge requests there, not here.
+
 ---
 
 ## How it works
