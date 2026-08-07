@@ -1,5 +1,8 @@
 # radar
 
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/)
+
 A measuring instrument for the agentic/AI market — not a news aggregator, not a GitHub scraper. It's a research platform for accumulating, validating, and evolving structured knowledge about shifts in the AI/MCP/LLM ecosystem: collecting signals from GitHub, HN, Reddit and AwesomeLists, filtering noise, clustering patterns against external analyst opinions, publishing to Telegram, and rendering an interactive knowledge graph.
 
 This is a personal research instrument built for the author's own analysis — not a growth or audience product.
@@ -10,6 +13,27 @@ Interactive graph: [opensource-radar-42558a.gitlab.io](https://opensource-radar-
 > This GitHub repository is a read-only push mirror of `master`. The
 > source of truth is [GitLab](https://gitlab.com/lyolich777ka/radar) —
 > please open issues and merge requests there, not here.
+
+---
+
+## Repository structure
+
+```
+radar/
+├── src/                        pipeline scripts (see Scripts below)
+├── tests/                      pytest suite (pythonpath = src, see pyproject.toml)
+├── docs/                       mkdocs source, built by the pages job
+├── .gitlab-ci.yml              CI/CD pipeline (see CI/CD below)
+├── mkdocs.yml                  Pages build config
+├── pyproject.toml              pytest config
+├── requirements-dev.txt        pytest, for the test job
+├── requirements-security.txt   consolidated runtime+dev deps, for pip-audit
+├── requirements_pages.txt      mkdocs + mkdocs-material, for the pages job
+└── LICENSE                     MIT
+```
+
+The `vault` branch (data, separate git history) has its own structure
+— see Vault structure below.
 
 ---
 
@@ -79,33 +103,50 @@ Layer 4 adds external analysts as a separate input to pattern clustering. `patte
 
 ## Scripts
 
-| Script | What it does | Model | Schedule |
+| Script | What it does | Model | Runs via |
 |---|---|---|---|
-| `radar_step0.py` | Collect: HN + Reddit + GitHub (new + hot) + AwesomeLists | — | Daily |
-| `filter.py` | Topic filter (AI / MCP / LLM / automation) | — | Daily |
-| `analyze.py` | SHIFT/NOISE evaluation, URL dedup | Haiku | Daily |
-| `update_assessments.py` | Re-evaluate assessments older than 30 days | Haiku | Daily |
-| `fetch_analysts.py` | Parse external analysts, extract claims, save to 04_Analysts/ | Haiku | Every Friday |
-| `patterns.py` | Clustering + archiving + falsification + external analyst input | Sonnet | Every Friday |
-| `telegram_post.py` | Generate post and publish to channel | Sonnet | Twice daily |
-| `generate_graph.py` | Build graph.json from wikilinks | — | On Pages build |
-| `generate_indexes.py` | Generate index.md for vault sections | — | On Pages build |
+| `src/analyze.py` | SHIFT/NOISE evaluation, URL dedup | Haiku | `radar` job, daily |
+| `src/update_assessments.py` | Re-evaluate assessments older than 30 days | Haiku | `radar` job, daily |
+| `src/radar_step0.py` | Collect: HN + Reddit + GitHub (new + hot) + AwesomeLists | — | helper module, imported by `analyze.py` |
+| `src/filter.py` | Topic filter (AI / MCP / LLM / automation) + traction check | — | helper module, imported by `analyze.py` |
+| `src/scorecard.py` | OpenSSF Scorecard lookup, feeds the traction filter | — | helper module, imported by `filter.py` |
+| `src/vault_write.py` | Frontmatter/vault-file write helpers | — | helper module, imported by most scripts below |
+| `src/vault_language.py` | Detect assessment/pattern body language | — | helper module, imported by `patterns.py`, `update_assessments.py` |
+| `src/check_frontmatter.py` | Validate frontmatter status/state values before push | — | pre-push guard in `radar`, `confirm_candidate`, `promote_candidates`, `recheck_lifecycle`, `analysts`, `check_models`, `patterns` |
+| `src/confirm_candidate.py` | Human-in-the-loop confirm/reject of a `CANDIDATE` repo | — | `confirm_candidate` job, on demand (`$CONFIRM_REPO`) |
+| `src/promote_candidates.py` | Promote quarantined candidates after 14 days | — | `promote_candidates` job, daily |
+| `src/recheck_lifecycle.py` | Re-check `VALIDATED_SHIFT` lifecycle (frozen 6mo / releases stopped 12mo) | — | `recheck_lifecycle` job, daily |
+| `src/fetch_analysts.py` | Parse external analysts, extract claims, save to `04_Analysts/` | Haiku | `analysts` job, every Friday |
+| `src/check_model_updates.py` | Check for new Claude model releases vs `model_config.json` | — | `check_models` job, every Friday |
+| `src/patterns.py` | Clustering + archiving + falsification + external analyst input | Sonnet | `patterns` job, every Friday |
+| `src/telegram_post.py` | Generate post and publish to channel | Sonnet | `publish` job, twice daily |
+| `src/generate_graph.py` | Build `graph.json` from wikilinks | — | `pages` job, on Pages build |
+| `src/generate_indexes.py` | Generate `index.md` for vault sections | — | `pages` job, on Pages build |
+| `src/backfill_frontmatter.py` | One-off frontmatter migration | — | manual only, not CI-invoked |
 
 ---
 
 ## CI/CD
 
-Repository: `gitlab.com/lyolich777ka/radar`, branches `master` (scripts) and `vault` (data).
+Repository: `gitlab.com/lyolich777ka/radar`, branches `master` (scripts) and `vault` (data). Stages: `security → test → run → publish → collect → patterns → pages`.
 
-| Job | Cadence | Trigger |
-|---|---|---|
-| radar | daily | schedule |
-| publish | twice daily | `PUBLISH_ONLY=true` |
-| analysts | weekly | `PATTERN_MODE=weekly` |
-| patterns | weekly | `PATTERN_MODE=weekly` |
-| pages | on push to master | `$CI_COMMIT_BRANCH == "master"` |
+| Job | Stage | Cadence | Trigger |
+|---|---|---|---|
+| `security_secrets` | security | on demand | schedule or web |
+| `security_deps` | security | on demand | schedule or web |
+| `test` | test | on push | `$CI_PIPELINE_SOURCE == "push"` |
+| `radar` | run | daily | schedule or web (default mode) |
+| `confirm_candidate` | run | on demand | web, `$CONFIRM_REPO` set |
+| `promote_candidates` | run | daily | schedule (`$LIFECYCLE_ONLY != "true"`) or web (`$PROMOTE_ONLY=true`) |
+| `recheck_lifecycle` | run | daily | schedule or web, `$LIFECYCLE_ONLY=true` |
+| `lint_vault` | run | on demand | schedule or web |
+| `publish` | publish | twice daily | schedule or web, `$PUBLISH_ONLY=true` |
+| `analysts` | collect | weekly | `$PATTERN_MODE=weekly` |
+| `check_models` | collect | weekly | `$PATTERN_MODE=weekly` |
+| `patterns` | patterns | weekly | `$PATTERN_MODE=weekly` |
+| `pages` | pages | on push to master/vault | `$CI_COMMIT_BRANCH` push, or web `$GRAPH_ONLY=true` |
 
-`analysts` runs before `patterns` in the same weekly pipeline (stage `collect` → stage `patterns`).
+`analysts` and `check_models` run before `patterns` in the same weekly pipeline (stage `collect` → stage `patterns`).
 
 ---
 
@@ -116,6 +157,7 @@ All Masked, NOT Protected.
 | Variable | What |
 |---|---|
 | `ANTHROPIC_API_KEY` | Anthropic API key |
+| `GITHUB_READ_TOKEN` | GitHub API token for signal collection (read-only) |
 | `GITLAB_PUSH_TOKEN` | Token for pushing to vault branch |
 | `TELEGRAM_BOT_TOKEN` | Telegram bot token |
 | `TELEGRAM_CHANNEL_ID` | Channel ID or username (`@radar_public`) |
