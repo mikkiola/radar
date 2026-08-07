@@ -615,8 +615,8 @@ lost between sessions.
   documentation changes. Last in the queue.
 
 **Full queue order**: SPEC A → SPEC A.5 → SPEC A.6 → SPEC E → SPEC C
-→ SPEC B → SPEC D. **SPEC A.5 closed 2026-08-07 (see below) — SPEC A.6
-is next.**
+→ SPEC B → SPEC D. **SPEC A.5 and SPEC A.6 both closed 2026-08-07 (see
+below) — SPEC E is next.**
 
 ## Open Questions / Decisions Needed
 
@@ -1057,7 +1057,9 @@ GitLab "create MR" link was obtained but never used, merged directly
 into `master` instead (commit `10523e4`) after owner confirmation.
 
 Everything under "Out of Scope for SPEC A" above remains genuinely out
-of scope for A.5 as well — **SPEC A.6 (pytest wired into CI) is next.**
+of scope for A.5 as well — SPEC A.6 (pytest wired into CI) was next
+and is now also closed (see "SPEC A.6: CLOSED" below) — **SPEC E is
+next.**
 
 ## Open Questions / Decisions Needed
 
@@ -1290,26 +1292,81 @@ data. It runs entirely against the `master`/branch checkout's own
 
 ## Milestones
 
-1. [ ] Create branch `spec-a6-ci-pytest`.
-2. [ ] Edit `.gitlab-ci.yml`: add `test` stage to `stages:`, add the
+1. [x] Create branch `spec-a6-ci-pytest`.
+2. [x] Edit `.gitlab-ci.yml`: add `test` stage to `stages:`, add the
    `test:` job block.
-3. [ ] `python3 -m pytest tests/ -q` locally — confirm still 99/99
+3. [x] `python3 -m pytest tests/ -q` locally — confirmed still 99/99
    (sanity check only, no test content changed).
-4. [ ] Full diff review, explicit owner confirmation before commit.
-5. [ ] Push to `spec-a6-ci-pytest`.
-6. [ ] Rule 31 acceptance: real push-triggered pipeline on the branch,
+4. [x] Full diff review, explicit owner confirmation before commit.
+5. [x] Push to `spec-a6-ci-pytest` (commit `aa611b3`).
+6. [x] Rule 31 acceptance: real push-triggered pipeline on the branch,
    confirm `test` job runs and passes, confirm no other job fires
    alongside it.
-7. [ ] Direct merge to `master` (no MR), owner-confirmed.
-8. [ ] Post-merge acceptance: real push-triggered pipeline on
+7. [x] Direct merge to `master` (no MR), owner-confirmed — fast-forward
+   merge, commit `aa611b3` on `master`.
+8. [x] Post-merge acceptance: real push-triggered pipeline on
    `master`, confirm `test` and `pages` both appear and both pass in
    the same pipeline.
-9. [ ] Update this SPEC.md section with acceptance run results and
-   close SPEC A.6; update "Full queue order" pointer to SPEC E as
-   next.
+9. [x] This SPEC.md section updated with acceptance run results below;
+   "Full queue order" pointer updated to SPEC E as next.
+
+### Acceptance Run Result (2026-08-07)
+
+**Branch run** — pipeline `#2739535090` on `spec-a6-ci-pytest`
+(`push` source, sha `aa611b3`): only the `test` job fired
+(`status: "success"`, not merely "allowed failure" — the job's own
+`status` field, independent of `allow_failure` pipeline aggregation,
+confirmed a genuine pass), 41s duration. No other job appeared in the
+same pipeline, confirming the isolation predicted at interview:
+`pages` is restricted to `master`/`vault`, the 8 vault-writing jobs
+are restricted to `schedule`/`web` — none of them share a `push`-on-
+feature-branch pipeline with `test`.
+
+**Post-merge run** — pipeline `#2739538824` on `master` (`push`
+source, sha `aa611b3`, triggered automatically by the merge push):
+`status: "success"` overall. Both `test` and `pages` fired in the same
+pipeline and both reached `status: "success"` — the specific
+coexistence scenario `allow_failure: true` was added to protect. This
+confirms the mid-interview stage-blocking finding was correctly
+resolved: a `test`-stage job ahead of `pages` in the stage order did
+not prevent `pages` from running.
+
+Verification method: GitLab public read-only API (project ID
+`82780086`, no token — project confirmed `visibility: "public"`),
+polling `/pipelines/:id` and `/pipelines/:id/jobs`. The
+`/jobs/:id/trace` endpoint returned `401 Unauthorized` even on this
+public project (raw job log not fetchable without a token) — job-level
+`status` field from the jobs-list endpoint was used as the source of
+truth instead, which is sufficient to distinguish a real pass from an
+allowed failure (the two are different `status` values, `success` vs
+`failed`, independent of the `allow_failure` flag).
+
+Both `git merge` (fast-forward, no conflicts) and both pipeline runs
+completed with explicit owner confirmation before each shared-state
+action (branch push, merge, master push), per the project's
+[ЗАПРОС]-before-action process.
+
+## SPEC A.6: CLOSED (2026-08-07)
+
+`test` job added to `.gitlab-ci.yml`: new `test` stage (first in the
+pipeline), `push`-triggered on any branch, `allow_failure: true`,
+installs `requirements-dev.txt` + `requests anthropic ghapi pyyaml`
+inline, runs `python3 -m pytest tests/ -q`. No vault clone, no `.py`
+file changes, `requirements-dev.txt` unchanged (stays pytest-only).
+All 10 pre-existing jobs unmodified — confirmed by diff.
+
+Verified both on a feature branch (isolated run, only `test` fired)
+and post-merge on `master` (coexistence with `pages` in the same
+pipeline, both green) — see "Acceptance Run Result" above. Real CI
+runs, not YAML inference, per Rule 31's stricter bar for genuinely new
+executable behavior.
+
+Everything under SPEC A's "Out of Scope" list remains genuinely out of
+scope — **SPEC E (security scanning) is next.**
 
 ## Open Questions / Decisions Needed
 
 None remaining — all forks resolved during interview (2026-08-07),
 including the mid-interview stage-blocking/`allow_failure` correction
-(see "Verified Against Current Code" and Decisions above).
+(see "Verified Against Current Code" and Decisions above). SPEC A.6 is
+closed; see "SPEC A.6: CLOSED" above.
