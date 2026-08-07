@@ -2283,3 +2283,260 @@ Social preview and GitHub Releases remain deferred (Resolutions 7-8),
 not blockers.
 
 **Full queue order**: SPEC A → SPEC A.5 → SPEC A.6 → SPEC E → SPEC C → SPEC B.
+
+# SPEC D: Architecture Documentation — Specification
+
+## Overview
+
+A new `ARCHITECTURE.md` explaining *why* Radar's five-layer pattern
+functions as a measuring instrument (falsifiable, self-verifying,
+quarantine-gated) rather than a plausible-text generator — for an
+audience doing technical due diligence (investment/licensing/
+partnership evaluation), distinct from README's "understood in 30
+seconds" external-developer audience (SPEC B). Every architectural
+claim must be verifiable against real code, same discipline SPEC B
+applied to README's Scripts/CI tables. Explicitly **not** a rewrite of
+the implementation into a configurable, domain-agnostic system — code
+stays domain-specific to AI/agentic-market signal detection; only the
+documentation states the pattern generalizes.
+
+## Audit findings (real, grepped against the repo — 2026-08-07)
+
+1. **Real and verified in code** (grounds the "why it works" narrative):
+   - `compute_status()` (`src/analyze.py:211`) — final status is
+     decided by code, not the model's self-report. Code comment cites
+     the actual reason: "CoVe существует именно затем, чтобы reasoning
+     и итоговый вердикт не могли молча разойтись (инцидент
+     qyvaria-hardlogic-kernel-engine)" — a real documented incident,
+     not an abstraction.
+   - `novelty_score < 4` → NOISE, **no file is created at all** —
+     structural filtering, not model discretion.
+   - `apply_quarantine_gate()` (`src/analyze.py:222`) — a `VALIDATED_SHIFT`
+     verdict is never published directly; it's held as `CANDIDATE`
+     first. Code comment: "вердикт и готовность к публикации — разные
+     понятия, поэтому это отдельная проверка".
+   - `confidence_label()` (`src/analyze.py:231`) distinguishes
+     `CANDIDATE` (time-based quarantine of an already-confirmed
+     verdict) from `CANDIDATE_LOW_CONFIDENCE` (epistemic uncertainty of
+     the LLM itself) — different reasons for low trust, different
+     resolution paths (see state machine below).
+   - `should_falsify()` / `falsify_pattern()` / `run_falsification()`
+     in `src/patterns.py` — pattern-level falsification is real, not
+     just claimed in README's "Emergent properties" section.
+   - `src/recheck_lifecycle.py` (`FROZEN_MONTHS=6`,
+     `RELEASES_STOPPED_MONTHS=12`) — published `VALIDATED_SHIFT`
+     assessments are periodically re-checked, not accumulated
+     write-once.
+2. **Existing inaccuracy found in README** (predates this SPEC, missed
+   by SPEC B's audit which focused on Scripts/CI/env tables, not
+   architecture-diagram content): the "Five-layer architecture" section
+   lists `Layer 4 → Meta: our patterns + ExternalAnalyst[] + Forecasts`
+   — `Forecasts` has zero matches anywhere in `src/*.py`. Not
+   implemented, stated as if it were.
+3. **`Decisions`, `Outcomes`, `Observability`, `Trust & Security`,
+   `Optimization`** — zero matches anywhere in the repo (code, README,
+   SPEC.md). These are the owner's own forward vision from this
+   session's brief, not previously documented anywhere in-repo.
+4. **Verified state machine** (from `src/analyze.py`,
+   `src/confirm_candidate.py`, `src/promote_candidates.py` — used to
+   build the trust-gate diagram in Resolution 5 below):
+   - `compute_status()`: `novelty_score < 4` → NOISE (no file) |
+     `cross_validation_confirmed AND novelty_checklist_passes` →
+     `VALIDATED_SHIFT` | else → `CANDIDATE_LOW_CONFIDENCE`.
+   - `apply_quarantine_gate()`: `VALIDATED_SHIFT` → `CANDIDATE`
+     (time-based quarantine, `QUARANTINE_DAYS=14` in
+     `promote_candidates.py`). `CANDIDATE_LOW_CONFIDENCE` does **not**
+     pass through this gate — it's a separate, epistemic gate.
+   - `promote_candidates.py` (daily, automatic): after 14 days as
+     `CANDIDATE`, checks `check_repo_alive()` → alive → `VALIDATED_SHIFT`;
+     archived/dead → `REJECTED_NOISE`; check fails → stays `CANDIDATE`,
+     retried next run.
+   - `confirm_candidate.py` (manual, HITL, triggered via
+     `$CONFIRM_REPO`/`$CONFIRM_DECISION`): only accepts input when
+     current status is exactly `CANDIDATE_LOW_CONFIDENCE` → `approve`
+     → `VALIDATED_SHIFT` | `reject` → `REJECTED_NOISE`.
+
+## Resolutions from interview
+
+1. **README's `Forecasts` line: fixed in this SPEC**, marked
+   `(planned, not implemented)` rather than removed — the roadmap
+   direction is real information if honestly labeled. Rationale: the
+   cost of leaving a single inaccurate line is disproportionate for
+   this SPEC's specific audience (an investor doing technical due
+   diligence who will check the code and, on finding one false claim,
+   discounts everything else in the document) versus the trivial cost
+   of fixing it — same precision discipline SPEC B already applied,
+   just found in a different part of the file.
+2. **Destination: a new, separate `ARCHITECTURE.md`.** README stays
+   "understood in 30 seconds" (SPEC B's external-developer audience);
+   `ARCHITECTURE.md` is "why this works and why it's a generic pattern"
+   for a slower, technical-due-diligence read. Different audiences with
+   opposite needs — merging them into one file would compromise both
+   (README loses speed, or the architecture material gets compressed
+   below useful depth). One linking line from README is sufficient
+   connective tissue.
+3. **Roadmap section: short, at the end of `ARCHITECTURE.md`, one line
+   per item, no elaboration.** `Forecasts`, `Decisions`, `Outcomes`,
+   `Observability`, `Trust & Security`, `Optimization` — name + one
+   sentence of intent each, no data requirements or integration
+   specifics (those aren't designed yet — writing them out would read
+   as more settled than they are, which is exactly the kind of
+   overclaim this SPEC's precision discipline exists to avoid).
+4. **Text stays mandatory and primary** — every architectural claim
+   backed by direct references to real functions (`compute_status()`,
+   `apply_quarantine_gate()`, `confirm_candidate.py`, etc.), each
+   independently verifiable by a reader in one click/grep. Not replaced
+   by diagrams.
+5. **Add one mermaid diagram, of the trust-gate state machine
+   specifically** (`VALIDATED_SHIFT`/`CANDIDATE`/
+   `CANDIDATE_LOW_CONFIDENCE`/`REJECTED_NOISE` transitions, per the
+   verified state machine above) — **not** a second copy of README's
+   existing pipeline-data-flow ASCII diagram. Rationale: this is the
+   one place in the documentation that shows the actual mechanism for
+   "why the output verdict can be trusted" — the core differentiator
+   from a naive "LLM reads repos and writes verdicts" system. The
+   conditional-transition text is verbally correct but asks the reader
+   to hold a state sequence in their head; the diagram makes the
+   mechanism checkable at a glance, directly serving a due-diligence
+   reader. Paired with the function-reference text (Resolution 4), so
+   the risk of drawing a mechanism that doesn't match the code is
+   caught the same way the `Forecasts` inaccuracy was caught in this
+   same interview.
+6. **Generalization claim is architectural, not a code claim** — stated
+   explicitly in `ARCHITECTURE.md` per the owner's standing decision
+   (not reopened): the pattern
+   ("detecting-and-verifying-signals-from-noise") generalizes; the
+   *implementation* is domain-specific to the AI/agentic market and
+   would need manual rework (filter keywords, prompts) to point at a
+   different domain — it is not a configurable system today. README's
+   existing "Emergent properties" section already lists concrete
+   examples (biotech, legal, VC deals, competitive intelligence) —
+   `ARCHITECTURE.md` references rather than duplicates them.
+
+## `ARCHITECTURE.md` outline
+
+1. **Framing paragraph** — what this document answers ("why", for a
+   due-diligence reader) vs what README already answers ("what/how",
+   for an external developer, per SPEC B).
+2. **The five layers** (0-4) — each with what's real and how it's
+   verifiable, building on README's existing pipeline diagram rather
+   than re-deriving it.
+3. **Why this is a measuring instrument, not a plausible-text
+   generator** — the falsifiability-first design: code-decided verdicts
+   (`compute_status()`), the two-gate quarantine mechanism (mermaid
+   diagram, Resolution 5), and the falsification loop
+   (`patterns.py` + `recheck_lifecycle.py`).
+4. **What's implemented vs planned** — explicit split, no blending.
+5. **Why the pattern generalizes** (architectural claim, not a code
+   claim — Resolution 6), linking to README's "Emergent properties"
+   rather than repeating it.
+6. **Roadmap** (Resolution 3) — one line per item, at the end.
+
+## Implementation Steps
+
+1. **[ЗАПРОС] Claude Code creates `ARCHITECTURE.md`** at repo root,
+   per the outline above, with all code references re-verified at
+   write time (not copied from this SPEC's audit snapshot, which could
+   drift). Shown to the owner before commit.
+2. **[ЗАПРОС] Claude Code edits `README.md`**: mark the `Forecasts`
+   line `(planned, not implemented)`, add one linking line to
+   `ARCHITECTURE.md` (placement: near the top, alongside the existing
+   Live example / Interactive graph links). Shown to the owner before
+   commit.
+3. Both changes committed directly to `master` — this SPEC is
+   documentation-only, not the structural/multi-file scale that
+   triggers SPEC A's MR threshold (process principle 1). No feature
+   branch, no MR.
+
+## Test Plan (Acceptance Run)
+
+1. Re-verify every function reference in `ARCHITECTURE.md`
+   (`compute_status()`, `apply_quarantine_gate()`,
+   `confirm_candidate.py`, `promote_candidates.py`,
+   `should_falsify()`/`falsify_pattern()`, `recheck_lifecycle.py`)
+   against the actual file/line at commit time, not just at
+   interview time.
+2. Confirm the mermaid trust-gate diagram's transitions match
+   Resolution/finding 4's verified state machine exactly — no
+   transition drawn that isn't backed by a specific code path.
+3. After push, verify via the public GitHub API that the push-mirror
+   (SPEC C) carried the commit — GitHub `master` commit SHA matches
+   GitLab `master`.
+4. Manual read-through of `ARCHITECTURE.md` end to end, checking that
+   implemented and planned material are never blended in the same
+   sentence without an explicit marker.
+
+## Security Considerations
+
+None — docs-only, no secrets, no CI, no auth changes. Note: this
+content becomes public via the existing GitHub mirror (SPEC C,
+`master`-only) — consistent with the repo's existing public,
+discoverability-oriented design (SPEC B), not a new exposure.
+
+## Milestones
+
+1. [ ] `ARCHITECTURE.md` created and committed to `master`
+2. [ ] README `Forecasts` line corrected + link added, committed to
+       `master`
+3. [ ] Acceptance run green (reference re-verification + diagram
+       accuracy + mirror sync + read-through)
+
+## Open Questions / Decisions Needed
+
+None — all resolved during this interview (see "Resolutions from
+interview" above).
+
+## SPEC D: CLOSED (2026-08-07)
+
+Owner confirmed Y, with one pre-commit clarification: verified the
+"Emergent properties" section `ARCHITECTURE.md` links to (Resolution 6)
+actually exists in README (line 87, predates this SPEC) rather than
+being a broken forward-reference — confirmed via grep before proceeding,
+not assumed.
+
+Implementation, committed directly to `master`, no feature branch
+(documentation-only, below the SPEC-A-scale MR threshold):
+`9406aac` / full SHA `9406aacba4d932209c6fa3e688e3bf42b77a3cbb`.
+
+- **`ARCHITECTURE.md` created** (176 lines): five-layer overview, the
+  three structural defenses against "plausible-text-generator" failure
+  (code-decided verdicts via `compute_status()`, two-gate quarantine via
+  `apply_quarantine_gate()` + `confirm_candidate.py`, falsification loop
+  via `patterns.py` + `recheck_lifecycle.py`), a mermaid diagram of the
+  trust-gate state machine specifically (not a duplicate of README's
+  pipeline-flow ASCII diagram), an implemented-vs-planned table, the
+  generalization claim linked to README's existing "Emergent
+  properties" section rather than restated, and a one-line-per-item
+  roadmap (`Forecasts`, `Decisions`, `Outcomes`, `Observability`,
+  `Trust & Security`, `Optimization`).
+- **README fixed**: the `Forecasts` line in the five-layer diagram now
+  reads `(planned, not implemented)` instead of implying it ships; one
+  linking line to `ARCHITECTURE.md` added near the top.
+
+**Acceptance Run Result** — real checks against live state, not
+inference, per the project's standing verification rule:
+
+- Every code reference in `ARCHITECTURE.md` re-verified against the
+  actual committed files (not the interview-time snapshot):
+  `compute_status()`:211, `apply_quarantine_gate()`:222,
+  `confidence_label()`:231 in `src/analyze.py`; `should_falsify()`:667,
+  `falsify_pattern()`:690, `run_falsification()`:777 in
+  `src/patterns.py`; `FROZEN_MONTHS=6`/`RELEASES_STOPPED_MONTHS=12` in
+  `src/recheck_lifecycle.py`; `QUARANTINE_DAYS=14` in
+  `src/promote_candidates.py` — all line numbers and values match
+  exactly.
+- Mermaid trust-gate diagram transitions cross-checked against the
+  verified state machine (finding 4 in the interview) — no transition
+  drawn without a matching code path.
+- `curl https://api.github.com/repos/mikkiola/radar/commits/master` →
+  `sha: 9406aacba4d932209c6fa3e688e3bf42b77a3cbb` — **exact match**
+  with the commit pushed to `gitlab.com/lyolich777ka/radar` `master`.
+  Push-mirror (SPEC C) confirmed still working.
+- Manual read-through: implemented and planned material stay clearly
+  separated throughout (explicit `(planned, not implemented)` /
+  "What's implemented vs planned" table / roadmap section kept apart
+  from the "real" material), no blending found.
+
+All checks green. SPEC D closed, no further action needed.
+
+**Full queue order**: SPEC A → SPEC A.5 → SPEC A.6 → SPEC E → SPEC C → SPEC B → SPEC D.
