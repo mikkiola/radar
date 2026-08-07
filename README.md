@@ -8,7 +8,8 @@ A measuring instrument for the agentic/AI market — not a news aggregator, not 
 This is a personal research instrument built for the author's own analysis — not a growth or audience product.
 
 Live example: [@radar_public](https://t.me/radar_public)  
-Interactive graph: [opensource-radar-42558a.gitlab.io](https://opensource-radar-42558a.gitlab.io/)
+Interactive graph: [opensource-radar-42558a.gitlab.io](https://opensource-radar-42558a.gitlab.io/)  
+Architecture: [ARCHITECTURE.md](ARCHITECTURE.md) — why this pattern works as a measuring instrument
 
 > This GitHub repository is a read-only push mirror of `master`. The
 > source of truth is [GitLab](https://gitlab.com/lyolich777ka/radar) —
@@ -73,7 +74,7 @@ Layer 0 → Sources       GitHub / HN / Reddit / AwesomeLists
 Layer 1 → Signals       repositories, articles, posts
 Layer 2 → Assessment    SHIFT / NOISE  (analyze.py via Haiku)
 Layer 3 → Patterns      signal clusters (patterns.py via Sonnet)
-Layer 4 → Meta          our patterns + ExternalAnalyst[] + Forecasts
+Layer 4 → Meta          our patterns + ExternalAnalyst[] + Forecasts (planned, not implemented)
 ```
 
 Layer 4 adds external analysts as a separate input to pattern clustering. `patterns.py` receives both our assessments and structured claims from external sources, then looks for:
