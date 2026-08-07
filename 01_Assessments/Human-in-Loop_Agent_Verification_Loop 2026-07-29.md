@@ -22,6 +22,7 @@ verdict_history:
 **Модель:** claude-haiku-4-5-20251001
 **Промпт версия:** v1.0
 **Часть паттерна:** [[Human Verification Embedded in Agent Loops 2026-08-04]] (не новый сигнал - 1-е подтверждение, 2026-08-06)
+**Часть паттерна:** [[Cryptographic Trust as Native Agent Architecture 2026-08-04]] (не новый сигнал - 5-е подтверждение, 2026-08-07)
 **Источник:**
   файл: GitHub project description
   локация: не указана
