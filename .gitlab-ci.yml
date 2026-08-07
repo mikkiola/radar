@@ -1,11 +1,21 @@
 image: python:3.12
 
 stages:
+  - test
   - run
   - publish
   - collect
   - patterns
   - pages
+
+test:
+  stage: test
+  allow_failure: true
+  script:
+    - pip install -r requirements-dev.txt requests anthropic ghapi pyyaml --quiet
+    - python3 -m pytest tests/ -q
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
 
 radar:
   stage: run
