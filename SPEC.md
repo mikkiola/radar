@@ -1066,3 +1066,250 @@ the `backfill_frontmatter.py` gap found and resolved during this
 session's Rule 28 verification (owner: include as 10th file, see
 "Verified Inventory" correction above). SPEC A.5 is closed; see
 "SPEC A.5: CLOSED" above.
+
+---
+
+# SPEC A.6: pytest Execution Wired Into CI — Specification
+
+## Overview
+
+Tests exist (`tests/`, 99 tests across 8 `test_*.py` files) and pass
+locally, but no CI job runs them today — `grep -n "test\|pytest"
+.gitlab-ci.yml` returns nothing (confirmed both at SPEC A time and
+again in this session). This spec adds a dedicated `test` job that
+runs the real suite in CI. Unlike SPEC A and SPEC A.5 (pure reorg /
+pure path-mechanism change), this is **genuinely new executable
+behavior** — CI starts doing something it never did before — so Rule
+31 applies at the stricter bar: a real push-triggered pipeline run,
+not a reading of the YAML.
+
+## Verified Against Current Code (2026-08-07)
+
+- **Test file count corrected**: original task brief said 11
+  `test_*.py` files; actual count is **8**
+  (`test_analyze_candidate.py`, `test_check_frontmatter.py`,
+  `test_confirm_candidate.py`, `test_patterns.py`,
+  `test_promote_candidates.py`, `test_recheck_lifecycle.py`,
+  `test_update_assessments.py`, `test_vault_write.py`). 99 tests
+  collected (`pytest --collect-only -q`), matching the brief's "99
+  tests" figure.
+- **No test performs a real network/API call.** Verified by grepping
+  all 8 files for `requests.|anthropic|urlopen|mock|monkeypatch|patch\(`
+  — every external dependency (`gh_api`, `check_repo_alive`, etc.) is
+  replaced via `monkeypatch.setattr` with fake objects
+  (`_FakeGhApi`, `_FakeRepos`, `_FakeActions`) or exercised against
+  `tmp_path`/`tmpdir`. No `responses`/`httpretty`/live HTTP anywhere.
+- **But import-time still requires 4 runtime packages.** Test files
+  import `src/` modules directly (`import analyze`, `import
+  vault_write`, etc.), and those modules import `requests`, `ghapi`,
+  `anthropic`, `pyyaml` at module scope — even though the tests never
+  actually call out over the network. `requirements-dev.txt` currently
+  pins only `pytest>=7`; running `pytest tests/` in a bare
+  `pip install -r requirements-dev.txt` environment would fail on
+  `ModuleNotFoundError` before a single test executes.
+- **`lint_vault`'s existing `pip install pyyaml requests --quiet` is
+  insufficient** for the full suite (missing `ghapi`, `anthropic`) —
+  relevant because bolting pytest onto `lint_vault` was one candidate
+  considered and rejected at interview.
+- **`vault` branch has no `.gitlab-ci.yml`** (confirmed via `git
+  ls-tree -r origin/vault --name-only`). Bot pushes to `vault` by
+  `radar`/`confirm_candidate`/`promote_candidates`/`recheck_lifecycle`/
+  `publish`/`analysts`/`check_models`/`patterns` do not trigger any
+  pipeline there — "block push to vault" (a framing carried over from
+  the task brief) is not a mechanism that exists to gate.
+- **`pages` already triggers on `push` to `master`/`vault`**, in the
+  same stage-sequential pipeline a new push-triggered job would join.
+  This is the one real coexistence point for a gating decision — not
+  the vault-push framing above.
+- **GitLab CI default stage-blocking**: a job that fails in an earlier
+  stage (without `allow_failure: true`) prevents jobs in later stages
+  of the same pipeline from starting. Combined with the decision to
+  place `test` in a new stage before `run` (and therefore before
+  `pages`), this means an unqualified job failure would silently block
+  `pages` — found and flagged mid-interview, resolved via
+  `allow_failure: true` (see Decisions below).
+
+## Decisions (from interview, 2026-08-07)
+
+- **New dedicated job `test`**, not a step bolted onto `lint_vault`.
+  Keeps `lint_vault`'s existing meaning (frontmatter lint) separate
+  from "run the test suite," and avoids expanding `lint_vault`'s
+  install line for a second, unrelated purpose.
+- **New stage `test`, first in the pipeline** (before `run`):
+  `test -> run -> publish -> collect -> patterns -> pages`. Semantically
+  clean (tests gate nothing in practice today, see next point, but the
+  ordering reads correctly), zero effect on any of the other 10 jobs'
+  existing `rules:` blocks.
+- **Trigger: `push`, unrestricted by branch** — fires on any push to
+  any ref that carries this `.gitlab-ci.yml` (in practice: `master`
+  and feature branches; `vault` has no CI file, see above, so it's
+  structurally excluded, not excluded by a branch filter). Chosen over
+  `master`-only so tests run on feature-branch pushes too, before
+  merge — matches the project's branch-then-direct-merge flow already
+  used for SPEC A and SPEC A.5. Chosen over `web`/`web`-inclusive
+  because a manual trigger adds owner effort for something that should
+  just happen on every push, with no `CONFIRM_REPO`-style reason to
+  gate it behind a manual variable.
+- **On failure: `allow_failure: true`, no gating of any other job.**
+  The task brief's framing ("block push to vault... or just notify")
+  doesn't map onto how this system actually works: there is no vault
+  push to block (see Verified section), and the 8 vault-writing jobs
+  don't share a pipeline with `test` at all (they trigger on
+  `schedule`/`web`, `test` triggers on `push` — mutually exclusive
+  pipeline-source rules). The only real interaction is `pages`, which
+  *does* share a push-triggered pipeline with `test`. Without
+  `allow_failure: true`, GitLab's default stage-blocking would silently
+  stop `pages` from running whenever `test` fails — an unintended
+  side effect the interview surfaced and explicitly rejected.
+  `allow_failure: true` makes the job's pass/fail state visible in the
+  UI (shown as a warning triangle on failure) without stopping
+  anything downstream. No Telegram notification added — unlike
+  `lint_vault`, a failing local-code test isn't an owner-facing
+  incident requiring a push alert; it's visible in the pipeline UI on
+  the next visit.
+- **Dependencies: `requirements-dev.txt` stays pytest-only.** The
+  `.gitlab-ci.yml` `test` job's install line adds the 4 runtime
+  packages inline instead: `pip install -r requirements-dev.txt
+  requests anthropic ghapi pyyaml --quiet` — mirrors the `radar`
+  job's existing install line exactly (same 4 packages), keeps
+  `requirements-dev.txt`'s scope as "test tooling only" (unchanged
+  from its SPEC A definition), and avoids a second, competing
+  definition of "what packages does `src/` need" living in a file
+  most of the other 9 jobs never read.
+- **No vault clone in the `test` job.** Unlike every other job, `test`
+  never does `git clone --branch vault ...` — confirmed unnecessary
+  because no test touches a real vault path; all vault interaction in
+  tests goes through `tmp_path`/`monkeypatch`-redirected paths. This
+  makes `test` the simplest job in the file: no `git config`, no
+  `GITLAB_PUSH_TOKEN`, no commit/push dance.
+- **Command: `python3 -m pytest tests/ -q`** — matches the convention
+  already documented in SPEC A's Test Plan for local runs, and relies
+  on the default checkout already placing `pyproject.toml`
+  (`pythonpath = ["src"]`) at the repo root, same as a local run.
+- **Image: default `python:3.12`** (top-level `image:` in
+  `.gitlab-ci.yml`), no per-job override — same image every other job
+  uses; no need to match the local machine's `pytest 9.1.1` / Python
+  3.14, since CI has never run tests before and this is establishing
+  its own baseline, not preserving one.
+- **`allow_failure: true` verified against GitLab's documented
+  behavior, not by a dedicated throwaway/dummy-job pipeline run.**
+  Considered and rejected: adding a temporary dummy job in a later
+  stage on the feature branch purely to prove non-blocking, then
+  reverting before merge. Rejected because `allow_failure` is a
+  stable, core GitLab CI primitive (not project-specific logic), and
+  the added risk/steps (temporary `.gitlab-ci.yml` churn, remembering
+  to revert before merge) outweigh re-deriving a platform guarantee
+  that's already well-established. Rule 31's real-run requirement is
+  still satisfied for everything the project actually wrote: the
+  `test` job itself, triggered for real, running the real suite.
+
+## Detailed Requirements
+
+### 1. `.gitlab-ci.yml` — new stage + new job
+
+`stages:` block:
+```yaml
+stages:
+  - test
+  - run
+  - publish
+  - collect
+  - patterns
+  - pages
+```
+
+New job (placed before the existing `radar:` job):
+```yaml
+test:
+  stage: test
+  allow_failure: true
+  script:
+    - pip install -r requirements-dev.txt requests anthropic ghapi pyyaml --quiet
+    - python3 -m pytest tests/ -q
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+```
+
+No changes to any of the other 10 jobs — their `script:`, `rules:`,
+and stage assignments are untouched. `requirements-dev.txt` content is
+untouched (`pytest>=7`, unchanged from SPEC A).
+
+### 2. Files NOT changed
+
+- No `.py` file changes — this spec is CI-config-only.
+- `requirements-dev.txt` — unchanged.
+- `pyproject.toml` — unchanged (`pythonpath = ["src"]` already covers
+  this job's needs).
+- No test file changes.
+
+## Non-Functional Requirements
+
+1. Zero behavior change to the existing 10 jobs — same triggers, same
+   scripts, same stage membership, verified by diffing
+   `.gitlab-ci.yml` before/after outside the `test`-job addition and
+   the `stages:` list insertion.
+2. `test` job failure must never prevent `pages` (or any other job)
+   from running in the same pipeline (`allow_failure: true`).
+3. No new files added to the repo — this spec only edits
+   `.gitlab-ci.yml`.
+
+## Security Considerations
+
+None — the `test` job never clones the `vault` branch, never uses
+`GITLAB_PUSH_TOKEN`/`CI_JOB_TOKEN`, never touches real assessment
+data. It runs entirely against the `master`/branch checkout's own
+`tests/` and `src/` trees.
+
+## Test Plan
+
+1. `python3 -m py_compile` — not applicable (no `.py` files change in
+   this spec).
+2. Local: `python3 -m pytest tests/ -q` already green (99/99),
+   unaffected by this spec (no test content changes).
+3. Push to a new branch (naming convention matches SPEC
+   A/A.5: `spec-a6-ci-pytest`). No MR (project process, confirmed
+   2026-08-07) — direct merge after acceptance.
+4. **Rule 31 acceptance run (real, push-triggered, not inferred from
+   YAML)**: the push to the feature branch itself triggers the `test`
+   job automatically (its `rules:` match any push). Confirm via the
+   GitLab API or UI:
+   - `test` job appears in the resulting pipeline, stage `test`.
+   - `test` job passes, 99/99, matching the local run.
+   - No other job fires in that same pipeline (`pages` is
+     master/vault-restricted, all 8 vault-writing jobs are
+     schedule/web-restricted) — confirms `test`'s isolation on a
+     feature-branch push, consistent with the Decisions above.
+5. After merge to `master`: confirm a real push-triggered pipeline on
+   `master` runs **both** `test` and `pages` in the same pipeline
+   (the actual coexistence this spec's `allow_failure` decision is
+   about), both green under normal (non-broken) conditions.
+6. Full diff review of `.gitlab-ci.yml` + explicit owner confirmation
+   before commit/push (mandatory before every commit in this project).
+7. Direct `git merge` branch → `master` (no MR) only after steps 4-6
+   pass, with explicit owner confirmation.
+
+## Milestones
+
+1. [ ] Create branch `spec-a6-ci-pytest`.
+2. [ ] Edit `.gitlab-ci.yml`: add `test` stage to `stages:`, add the
+   `test:` job block.
+3. [ ] `python3 -m pytest tests/ -q` locally — confirm still 99/99
+   (sanity check only, no test content changed).
+4. [ ] Full diff review, explicit owner confirmation before commit.
+5. [ ] Push to `spec-a6-ci-pytest`.
+6. [ ] Rule 31 acceptance: real push-triggered pipeline on the branch,
+   confirm `test` job runs and passes, confirm no other job fires
+   alongside it.
+7. [ ] Direct merge to `master` (no MR), owner-confirmed.
+8. [ ] Post-merge acceptance: real push-triggered pipeline on
+   `master`, confirm `test` and `pages` both appear and both pass in
+   the same pipeline.
+9. [ ] Update this SPEC.md section with acceptance run results and
+   close SPEC A.6; update "Full queue order" pointer to SPEC E as
+   next.
+
+## Open Questions / Decisions Needed
+
+None remaining — all forks resolved during interview (2026-08-07),
+including the mid-interview stage-blocking/`allow_failure` correction
+(see "Verified Against Current Code" and Decisions above).
