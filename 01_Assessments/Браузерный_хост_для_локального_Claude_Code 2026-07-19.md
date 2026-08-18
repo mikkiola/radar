@@ -2,13 +2,21 @@
 status: VALIDATED_SHIFT
 maturity_score: null
 novelty_score: null
+state_value: Growing
+state_confidence: low
 assertion_vector: null
-evidence_log: []
+evidence_log:
+- date: '2026-08-18'
+  event_type: state_transition
+  state_value: Growing
+  state_confidence: low
 root_commit_sha: null
 license_spdx_id: MIT
 license_baseline_origin: migration
 verdict_history:
 - date: '2026-07-19'
+  verdict: VALIDATED_SHIFT
+- date: '2026-08-18'
   verdict: VALIDATED_SHIFT
 ---
 # Браузерный хост для локального Claude Code
@@ -40,6 +48,7 @@ verdict_history:
 Не потому что это браузерный интерфейс, а потому что проект подтверждает переход рынка к **локальным self-hosted agent runtime**, где пользователь владеет средой исполнения, а модель становится сменным компонентом.
 
 ## История оценок
+- 2026-08-18 - СДВИГ (подтверждается) [с учётом мнения Ольги]: За 30 дней гипотеза получила дополнительное подтверждение — экосистема self-hosted агентных runtime активно развивается, крупные игроки (включая Anthropic) выпускают локальные версии моделей, а стандартизация протоколов ускоряется. Мнение Ольги точно фиксирует суть сдвига: речь не о браузерном UI, а о принципиальной переиндексации власти над агентной инфраструктурой от провайдеров к пользователям, что подтверждается растущим количеством fork-проектов и конкурирующих реализаций локальных хостов.
 - 2026-07-19 - СДВИГ: первая оценка
 
 ## Связи
