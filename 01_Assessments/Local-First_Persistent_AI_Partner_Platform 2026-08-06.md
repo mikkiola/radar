@@ -1,5 +1,5 @@
 ---
-status: CANDIDATE
+status: VALIDATED_SHIFT
 maturity_score: 2
 novelty_score: 4
 state_value: Growing
@@ -19,6 +19,8 @@ license_baseline_origin: initial
 verdict_history:
 - date: '2026-08-06'
   verdict: CANDIDATE
+- date: '2026-08-20'
+  verdict: VALIDATED_SHIFT
 ---
 # Local-First Persistent AI Partner Platform
 
@@ -62,6 +64,7 @@ Troth introduces a structurally novel architecture—substrate-as-cognitive-subj
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-08-20 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-08-06 - CANDIDATE: первая оценка
 
 ## Связи
