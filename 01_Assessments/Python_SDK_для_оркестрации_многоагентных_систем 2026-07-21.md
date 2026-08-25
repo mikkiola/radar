@@ -1,19 +1,27 @@
 ---
-status: VALIDATED_SHIFT
+status: CANDIDATE_LOW_CONFIDENCE
 maturity_score: null
 novelty_score: null
+state_value: Prototype
+state_confidence: high
 assertion_vector: null
 evidence_log:
 - date: '2026-08-05'
   event_type: ci_broken
 - date: '2026-08-06'
   event_type: ci_restored
+- date: '2026-08-25'
+  event_type: state_transition
+  state_value: Prototype
+  state_confidence: high
 root_commit_sha: null
 license_spdx_id: Apache-2.0
 license_baseline_origin: migration
 verdict_history:
 - date: '2026-07-21'
   verdict: VALIDATED_SHIFT
+- date: '2026-08-25'
+  verdict: CANDIDATE_LOW_CONFIDENCE
 ---
 # Python SDK для оркестрации многоагентных систем
 
@@ -44,6 +52,7 @@ h5i-python позиционируется как инструмент "прог�
 исходная оценка называет это "SDK для оркестрации" и оценивает по критерию "станет ли стандартом кросс-агентной коммуникации" — но по факту это в первую очередь **git-native audit/sandboxing слой** для координации нескольких coding-агентов (изолированные worktrees, запись всех промптов/действий как git-объекты, review перед merge) — оркестрация через Python/Rust SDK — вторичная фича поверх основной ценности (аудируемость и безопасность), а не наоборот.
 
 ## История оценок
+- 2026-08-25 - ШУМ (опровергается) [с учётом мнения Ольги]: Мнение владельца радара переквалифицирует проект с "SDK для оркестрации кросс-агентной коммуникации" на "git-native audit/sandboxing слой для coding-агентов", что существенно сужает область применения и целевой рынок. Исходная гипотеза о становлении стандартом де-факто теряет силу: проект нацелен на специфический use-case (safety/auditability многоагентной разработки кода), а не на универсальную оркестрацию, что делает критерий "3+ интеграции в популярные платформы" менее релевантным и маловероятным за установленный срок.
 - 2026-07-21 - СДВИГ: первая оценка
 
 ## Связи
