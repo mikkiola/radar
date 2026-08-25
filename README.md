@@ -141,7 +141,7 @@ Repository: `github.com/mikkiola/radar`, branches `main` (scripts) and `vault` (
 
 Schedules were converted from the old GitLab pipeline's Asia/Bangkok cadence to UTC; exact GitHub Actions run times may vary by a few minutes under platform load (documented GitHub behavior, not a defect).
 
-`analysts` and `check_models` run before `patterns` in the same weekly pipeline (stage `collect` → stage `patterns`).
+`patterns` waits on `analysts` and `check_models` (`needs:` in `weekly-patterns.yml`), so both finish before it runs.
 
 ---
 
