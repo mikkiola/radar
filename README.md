@@ -127,21 +127,19 @@ Layer 4 adds external analysts as a separate input to pattern clustering. `patte
 
 Repository: `github.com/mikkiola/radar`, branches `main` (scripts) and `vault` (data). CI runs via GitHub Actions workflows in `.github/workflows/`: `security`, `test`, `daily-run`, `monthly-lifecycle`, `weekly-patterns`, `publish`, `lint-vault`, `confirm-candidate`, `pages`.
 
-| Job | Stage | Cadence | Trigger |
+| Workflow file | Job(s) | Schedule (UTC) | Manual trigger |
 |---|---|---|---|
-| `security_secrets` | security | on demand | schedule or web |
-| `security_deps` | security | on demand | schedule or web |
-| `test` | test | on push | `$CI_PIPELINE_SOURCE == "push"` |
-| `radar` | run | daily | schedule or web (default mode) |
-| `confirm_candidate` | run | on demand | web, `$CONFIRM_REPO` set |
-| `promote_candidates` | run | daily | schedule (`$LIFECYCLE_ONLY != "true"`) or web (`$PROMOTE_ONLY=true`) |
-| `recheck_lifecycle` | run | daily | schedule or web, `$LIFECYCLE_ONLY=true` |
-| `lint_vault` | run | on demand | schedule or web |
-| `publish` | publish | twice daily | schedule or web, `$PUBLISH_ONLY=true` |
-| `analysts` | collect | weekly | `$PATTERN_MODE=weekly` |
-| `check_models` | collect | weekly | `$PATTERN_MODE=weekly` |
-| `patterns` | patterns | weekly | `$PATTERN_MODE=weekly` |
-| `pages` | pages | on push to main/vault | `$CI_COMMIT_BRANCH` push, or web `$GRAPH_ONLY=true` |
+| `security.yml` | `security_secrets`, `security_deps` | daily 22:00 | yes |
+| `test.yml` | `test` | — (push to `main`) | no |
+| `daily-run.yml` | `radar`, `promote_candidates`, `recheck_lifecycle` | daily 22:00 | yes (with `lifecycle_only`/`promote_only` inputs) |
+| `monthly-lifecycle.yml` | `recheck_lifecycle` | 1st of month, 17:00 | yes |
+| `weekly-patterns.yml` | `analysts`, `check_models`, `patterns` | Thursdays 22:00 | yes |
+| `publish.yml` | `publish` | daily 02:00 and 14:00 | yes |
+| `lint-vault.yml` | `lint_vault` | daily 22:00 | yes |
+| `confirm-candidate.yml` | `confirm_candidate` | — | yes (requires `confirm_repo`/`confirm_decision` inputs) |
+| `pages.yml` | `build`, `deploy` | — (push to `main` or `vault`) | yes |
+
+Schedules were converted from the old GitLab pipeline's Asia/Bangkok cadence to UTC; exact GitHub Actions run times may vary by a few minutes under platform load (documented GitHub behavior, not a defect).
 
 `analysts` and `check_models` run before `patterns` in the same weekly pipeline (stage `collect` → stage `patterns`).
 
