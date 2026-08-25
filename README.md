@@ -11,7 +11,7 @@ Live example: [@radar_public](https://t.me/radar_public)
 Interactive graph: [opensource-radar-42558a.gitlab.io](https://opensource-radar-42558a.gitlab.io/)  
 Architecture: [ARCHITECTURE.md](ARCHITECTURE.md) — why this pattern works as a measuring instrument
 
-> This GitHub repository is a read-only push mirror of `master`. The
+> This GitHub repository is a read-only push mirror of `main`. The
 > source of truth is [GitLab](https://gitlab.com/lyolich777ka/radar) —
 > please open issues and merge requests there, not here.
 
@@ -129,7 +129,7 @@ Layer 4 adds external analysts as a separate input to pattern clustering. `patte
 
 ## CI/CD
 
-Repository: `gitlab.com/lyolich777ka/radar`, branches `master` (scripts) and `vault` (data). Stages: `security → test → run → publish → collect → patterns → pages`.
+Repository: `gitlab.com/lyolich777ka/radar`, branches `main` (scripts) and `vault` (data). Stages: `security → test → run → publish → collect → patterns → pages`.
 
 | Job | Stage | Cadence | Trigger |
 |---|---|---|---|
@@ -145,7 +145,7 @@ Repository: `gitlab.com/lyolich777ka/radar`, branches `master` (scripts) and `va
 | `analysts` | collect | weekly | `$PATTERN_MODE=weekly` |
 | `check_models` | collect | weekly | `$PATTERN_MODE=weekly` |
 | `patterns` | patterns | weekly | `$PATTERN_MODE=weekly` |
-| `pages` | pages | on push to master/vault | `$CI_COMMIT_BRANCH` push, or web `$GRAPH_ONLY=true` |
+| `pages` | pages | on push to main/vault | `$CI_COMMIT_BRANCH` push, or web `$GRAPH_ONLY=true` |
 
 `analysts` and `check_models` run before `patterns` in the same weekly pipeline (stage `collect` → stage `patterns`).
 
