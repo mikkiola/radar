@@ -1,0 +1,114 @@
+name: daily-run
+
+on:
+  schedule:
+    - cron: '0 22 * * *'
+  workflow_dispatch:
+    inputs:
+      lifecycle_only:
+        description: 'Run recheck_lifecycle instead of radar/promote_candidates'
+        type: boolean
+        default: false
+      promote_only:
+        description: 'Run promote_candidates only'
+        type: boolean
+        default: false
+
+jobs:
+  radar:
+    if: >
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' &&
+       inputs.lifecycle_only != true && inputs.promote_only != true)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/checkout@v4
+        with:
+          ref: vault
+          path: vault_repo
+          token: ${{ secrets.GH_VAULT_PUSH_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install requests anthropic ghapi pyyaml --quiet
+
+      - env:
+          VAULT_ROOT: ${{ github.workspace }}/vault_repo
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GH_READ_TOKEN: ${{ secrets.GH_READ_TOKEN }}
+        run: |
+          python3 src/analyze.py
+          python3 src/update_assessments.py
+
+      - uses: ./.github/actions/vault-write
+        with:
+          commit-message: "Радар $(date '+%Y-%m-%d') — новые оценки"
+          no-op-message: "Новых оценок нет — нечего пушить"
+
+  promote_candidates:
+    if: >
+      (github.event_name == 'schedule') ||
+      (github.event_name == 'workflow_dispatch' && inputs.promote_only == true)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/checkout@v4
+        with:
+          ref: vault
+          path: vault_repo
+          token: ${{ secrets.GH_VAULT_PUSH_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install requests pyyaml ghapi --quiet
+
+      - env:
+          VAULT_ROOT: ${{ github.workspace }}/vault_repo
+          GH_READ_TOKEN: ${{ secrets.GH_READ_TOKEN }}
+        run: python3 src/promote_candidates.py
+
+      - uses: ./.github/actions/vault-write
+        with:
+          commit-message: "Карантин: promote_candidates $(date '+%Y-%m-%d')"
+          no-op-message: "Нет CANDIDATE-файлов для обработки"
+
+  recheck_lifecycle:
+    if: github.event_name == 'workflow_dispatch' && inputs.lifecycle_only == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/checkout@v4
+        with:
+          ref: vault
+          path: vault_repo
+          token: ${{ secrets.GH_VAULT_PUSH_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install requests pyyaml ghapi --quiet
+
+      - env:
+          VAULT_ROOT: ${{ github.workspace }}/vault_repo
+          GH_READ_TOKEN: ${{ secrets.GH_READ_TOKEN }}
+        run: python3 src/recheck_lifecycle.py
+
+      - uses: ./.github/actions/vault-write
+        with:
+          commit-message: "Переоценка lifecycle: recheck_lifecycle $(date '+%Y-%m-%d')"
+          no-op-message: "Нет изменений lifecycle-сигналов"

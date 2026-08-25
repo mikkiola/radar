@@ -21,7 +21,7 @@ MODEL_CONFIG = load_model_config()
 VAULT_ROOT = os.environ.get("VAULT_ROOT", os.path.expanduser("~/radar/radar"))
 ASSESSMENTS_PATH = os.path.join(VAULT_ROOT, "01_Assessments")
 PUBLISHED_LOG = os.path.join(VAULT_ROOT, "99_System", "published_posts.log")
-GRAPH_URL = "https://opensource-radar-42558a.gitlab.io/"
+GRAPH_URL = "https://mikkiola.github.io/radar/"
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")

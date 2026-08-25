@@ -1,0 +1,94 @@
+name: weekly-patterns
+
+on:
+  schedule:
+    - cron: '0 22 * * 4'
+  workflow_dispatch: {}
+
+jobs:
+  analysts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/checkout@v4
+        with:
+          ref: vault
+          path: vault_repo
+          token: ${{ secrets.GH_VAULT_PUSH_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install requests anthropic pyyaml --quiet
+
+      - env:
+          VAULT_ROOT: ${{ github.workspace }}/vault_repo
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python3 src/fetch_analysts.py
+
+      - uses: ./.github/actions/vault-write
+        with:
+          commit-message: "Аналитик Builder Radar $(date '+%Y-%m-%d')"
+          no-op-message: "Нет новых claims от аналитиков"
+
+  check_models:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/checkout@v4
+        with:
+          ref: vault
+          path: vault_repo
+          token: ${{ secrets.GH_VAULT_PUSH_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install requests anthropic pyyaml --quiet
+
+      - env:
+          VAULT_ROOT: ${{ github.workspace }}/vault_repo
+        run: python3 src/check_model_updates.py
+
+      - uses: ./.github/actions/vault-write
+        with:
+          commit-message: "Проверка модели $(date '+%Y-%m-%d')"
+          no-op-message: "Нет обновлений моделей"
+
+  patterns:
+    needs: [analysts, check_models]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/checkout@v4
+        with:
+          ref: vault
+          path: vault_repo
+          token: ${{ secrets.GH_VAULT_PUSH_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install requests anthropic pyyaml --quiet
+
+      - env:
+          VAULT_ROOT: ${{ github.workspace }}/vault_repo
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python3 src/patterns.py
+
+      - uses: ./.github/actions/vault-write
+        with:
+          commit-message: "Паттерны $(date '+%Y-%m-%d') — обновление"
+          no-op-message: "Паттерны не изменились"

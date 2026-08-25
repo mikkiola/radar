@@ -1,0 +1,42 @@
+name: 'vault-commit-push'
+description: >
+  Commits staged changes in vault_repo/ and pushes to the vault branch,
+  gated by check_frontmatter.py. Mirrors the GitLab pattern: add -A,
+  skip if no diff, commit, pull --rebase, re-validate, push.
+  No-op (with a message) if there is nothing staged.
+
+inputs:
+  commit-message:
+    description: 'Commit message for the vault change'
+    required: true
+  no-op-message:
+    description: 'Message to print if there is nothing to commit'
+    required: false
+    default: 'Нет изменений — нечего пушить'
+  frontmatter-check-path:
+    description: 'Path (relative to vault_repo) checked by check_frontmatter.py'
+    required: false
+    default: '01_Assessments'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Configure git identity
+      shell: bash
+      run: |
+        git config --global user.email "radar@github.com"
+        git config --global user.name "Radar Bot"
+
+    - name: Stage and conditionally commit+push
+      shell: bash
+      working-directory: vault_repo
+      run: |
+        git add -A
+        if git diff --staged --quiet; then
+          echo "${{ inputs.no-op-message }}"
+          exit 0
+        fi
+        git commit -m "${{ inputs.commit-message }}"
+        git pull --rebase origin vault
+        python3 ../src/check_frontmatter.py "${{ inputs.frontmatter-check-path }}"
+        git push origin vault

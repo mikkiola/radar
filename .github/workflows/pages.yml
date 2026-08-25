@@ -1,0 +1,58 @@
+name: pages
+
+on:
+  push:
+    branches: [main, vault]
+  workflow_dispatch: {}
+
+permissions:
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-mkdocs
+
+      - run: pip install -r requirements_pages.txt --quiet
+
+      - uses: actions/checkout@v4
+        with:
+          ref: vault
+          path: vault_content
+
+      - run: |
+          mkdir -p docs/01_Assessments docs/02_Patterns docs/assets/javascripts docs/assets/stylesheets
+          cp -r vault_content/01_Assessments/. docs/01_Assessments/
+          cp -r vault_content/02_Patterns/. docs/02_Patterns/
+          python3 src/generate_indexes.py
+          python3 src/generate_graph.py
+          mkdocs build --site-dir public
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

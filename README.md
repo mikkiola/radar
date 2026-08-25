@@ -8,12 +8,8 @@ A measuring instrument for the agentic/AI market — not a news aggregator, not 
 This is a personal research instrument built for the author's own analysis — not a growth or audience product.
 
 Live example: [@radar_public](https://t.me/radar_public)  
-Interactive graph: [opensource-radar-42558a.gitlab.io](https://opensource-radar-42558a.gitlab.io/)  
+Interactive graph: [mikkiola.github.io/radar](https://mikkiola.github.io/radar/)  
 Architecture: [ARCHITECTURE.md](ARCHITECTURE.md) — why this pattern works as a measuring instrument
-
-> This GitHub repository is a read-only push mirror of `main`. The
-> source of truth is [GitLab](https://gitlab.com/lyolich777ka/radar) —
-> please open issues and merge requests there, not here.
 
 ---
 
@@ -24,7 +20,7 @@ radar/
 ├── src/                        pipeline scripts (see Scripts below)
 ├── tests/                      pytest suite (pythonpath = src, see pyproject.toml)
 ├── docs/                       mkdocs source, built by the pages job
-├── .gitlab-ci.yml              CI/CD pipeline (see CI/CD below)
+├── .github/workflows/          CI/CD pipeline (see CI/CD below)
 ├── mkdocs.yml                  Pages build config
 ├── pyproject.toml              pytest config
 ├── requirements-dev.txt        pytest, for the test job
@@ -60,7 +56,7 @@ patterns.py         Claude clusters assessments into patterns
         ↓
 telegram_post.py    post to channel twice a day
         ↓
-GitLab Pages        interactive graph of connections
+GitHub Pages        interactive graph of connections
 ```
 
 Vault lives in the `vault` branch of the same repository. Obsidian reads it as a local vault. The graph is built from `[[wikilinks]]` in MD files and published automatically on every push.
@@ -96,7 +92,7 @@ Layer 4 adds external analysts as a separate input to pattern clustering. `patte
 
 **Multi-analyst intelligence layer** — external analysts plug in via config. Builder Radar today, Simon Willison or Latent Space tomorrow. Each analyst carries a trust weight that affects pattern confirmation scoring when multiple analysts are active.
 
-**Public site from a private vault** — vault branch → GitLab Pages → public interactive graph. Built with a 60-line custom script, no external graph dependencies.
+**Public site from a private vault** — vault branch → GitHub Pages → public interactive graph. Built with a 60-line custom script, no external graph dependencies.
 
 **AI-powered newsletter template** — `telegram_post.py` generates a post from vault assessments via Claude. Change the data source and prompt — get an automated digest for any topic, any channel.
 
@@ -129,7 +125,7 @@ Layer 4 adds external analysts as a separate input to pattern clustering. `patte
 
 ## CI/CD
 
-Repository: `gitlab.com/lyolich777ka/radar`, branches `main` (scripts) and `vault` (data). Stages: `security → test → run → publish → collect → patterns → pages`.
+Repository: `github.com/mikkiola/radar`, branches `main` (scripts) and `vault` (data). CI runs via GitHub Actions workflows in `.github/workflows/`: `security`, `test`, `daily-run`, `monthly-lifecycle`, `weekly-patterns`, `publish`, `lint-vault`, `confirm-candidate`, `pages`.
 
 | Job | Stage | Cadence | Trigger |
 |---|---|---|---|
@@ -153,13 +149,13 @@ Repository: `gitlab.com/lyolich777ka/radar`, branches `main` (scripts) and `vaul
 
 ## Environment variables
 
-All Masked, NOT Protected.
+Stored as GitHub Actions repository secrets (Settings → Secrets and variables → Actions).
 
 | Variable | What |
 |---|---|
 | `ANTHROPIC_API_KEY` | Anthropic API key |
-| `GITHUB_READ_TOKEN` | GitHub API token for signal collection (read-only) |
-| `GITLAB_PUSH_TOKEN` | Token for pushing to vault branch |
+| `GH_READ_TOKEN` | GitHub API token for signal collection (read-only) |
+| `GH_VAULT_PUSH_TOKEN` | GitHub token for pushing to the `vault` branch |
 | `TELEGRAM_BOT_TOKEN` | Telegram bot token |
 | `TELEGRAM_CHANNEL_ID` | Channel ID or username (`@radar_public`) |
 | `TELEGRAM_OWNER_ID` | Owner Telegram ID for notifications |

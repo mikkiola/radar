@@ -1,0 +1,36 @@
+name: monthly-lifecycle
+
+on:
+  schedule:
+    - cron: '0 17 1 * *'
+  workflow_dispatch: {}
+
+jobs:
+  recheck_lifecycle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/checkout@v4
+        with:
+          ref: vault
+          path: vault_repo
+          token: ${{ secrets.GH_VAULT_PUSH_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install requests pyyaml ghapi --quiet
+
+      - env:
+          VAULT_ROOT: ${{ github.workspace }}/vault_repo
+          GH_READ_TOKEN: ${{ secrets.GH_READ_TOKEN }}
+        run: python3 src/recheck_lifecycle.py
+
+      - uses: ./.github/actions/vault-write
+        with:
+          commit-message: "Переоценка lifecycle: recheck_lifecycle $(date '+%Y-%m-%d')"
+          no-op-message: "Нет изменений lifecycle-сигналов"

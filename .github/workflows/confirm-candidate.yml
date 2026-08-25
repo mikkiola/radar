@@ -1,0 +1,46 @@
+name: confirm-candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_repo:
+        description: 'Repo identifier to confirm/reject (matches $CONFIRM_REPO)'
+        required: true
+        type: string
+      confirm_decision:
+        description: 'Decision'
+        required: true
+        type: choice
+        options:
+          - approve
+          - reject
+
+jobs:
+  confirm_candidate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/checkout@v4
+        with:
+          ref: vault
+          path: vault_repo
+          token: ${{ secrets.GH_VAULT_PUSH_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install requests pyyaml --quiet
+
+      - env:
+          VAULT_ROOT: ${{ github.workspace }}/vault_repo
+          CONFIRM_REPO: ${{ inputs.confirm_repo }}
+          CONFIRM_DECISION: ${{ inputs.confirm_decision }}
+        run: python3 src/confirm_candidate.py
+
+      - uses: ./.github/actions/vault-write
+        with:
+          commit-message: "HITL-подтверждение ${{ inputs.confirm_repo }}: ${{ inputs.confirm_decision }}"
