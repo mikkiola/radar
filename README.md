@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/)
 
-A measuring instrument for the agentic/AI market — not a news aggregator, not a GitHub scraper. It's a research platform for accumulating, validating, and evolving structured knowledge about shifts in the AI/MCP/LLM ecosystem: collecting signals from GitHub, HN, Reddit and AwesomeLists, filtering noise, clustering patterns against external analyst opinions, publishing to Telegram, and rendering an interactive knowledge graph.
+A measuring instrument for the agentic/AI market — not a news aggregator, not a GitHub scraper. It's a research platform for accumulating, validating, and evolving structured knowledge about shifts in the AI/MCP/LLM ecosystem: collecting signals from GitHub, HN, Reddit, and AwesomeLists, filtering noise, clustering patterns against external analyst opinions, publishing to Telegram, and rendering an interactive knowledge graph.
 
 This is a personal research instrument built for the author's own analysis — not a growth or audience product.
 
