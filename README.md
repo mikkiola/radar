@@ -19,8 +19,12 @@ Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — why this pattern 
 radar/
 ├── src/                        pipeline scripts (see Scripts below)
 ├── tests/                      pytest suite (pythonpath = src, see pyproject.toml)
-├── docs/                       mkdocs source, built by the pages job
+├── docs/                       mkdocs source + canonical docs (ARCHITECTURE/
+│                                 ROADMAP/BACKLOG/CONSTITUTION.md, adr/)
+├── scripts/                    verify.py, generate_adr_index.py
 ├── .github/workflows/          CI/CD pipeline (see CI/CD below)
+├── .tooltempest.lock           pinned ToolTempest commit
+├── SPEC.md                     active /spec target (idle unless a session is in progress)
 ├── mkdocs.yml                  Pages build config
 ├── pyproject.toml              pytest config
 ├── requirements-dev.txt        pytest, for the test job
