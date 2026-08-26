@@ -9,7 +9,7 @@ This is a personal research instrument built for the author's own analysis — n
 
 Live example: [@radar_public](https://t.me/radar_public)  
 Interactive graph: [mikkiola.github.io/radar](https://mikkiola.github.io/radar/)  
-Architecture: [ARCHITECTURE.md](ARCHITECTURE.md) — why this pattern works as a measuring instrument
+Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — why this pattern works as a measuring instrument
 
 ---
 
