@@ -196,13 +196,20 @@ original DocOps-merge task's own recommendation.
 ### P3
 
 - [ ] [B-003] Confirm each GitHub Actions cron schedule actually fires
-      as designed. Besides `pages.yml` and `test.yml` (both push-
-      triggered, already confirmed working), the other 7 workflow
-      files depend on cron schedules that had not fired even once as
-      of the 2026-08-25 session's end — first real confirmation only
-      arrives when each one's nearest scheduled time is reached (e.g.
-      `daily-run.yml` at 22:00 UTC). Passive — waits on calendar time,
-      not further work.
+      as designed. Updated 2026-08-27: of the 6 workflows with an
+      actual cron trigger, 4 are now confirmed firing on schedule —
+      `daily-run.yml`, `publish.yml`, `security.yml`, `lint-vault.yml`
+      (all `success` except one `daily-run.yml` failure, root-caused
+      and fixed the same day — see this session's `fix(auth)` commit).
+      `weekly-patterns.yml` (`Thu 22:00 UTC`) and `monthly-lifecycle.yml`
+      (1st of month, `17:00 UTC`) remain unconfirmed — neither has
+      reached its next scheduled occurrence yet. `confirm-candidate.yml`
+      was miscounted in this entry's original text: it is
+      `workflow_dispatch`-only, has no cron trigger, and will never
+      "confirm by firing on its own" — dropped from this item's scope.
+      `pages.yml`/`test.yml` remain push-triggered, already confirmed.
+      Remaining passive: waits on the next Thursday and next
+      month-start respectively, not further work.
 - [ ] [B-005] less-tokens / README-fetch+llm-tldr compression — blocked,
       the content this would compress doesn't exist in the pipeline
       yet.
@@ -251,7 +258,7 @@ open/rejected/closed content preserved as historical narrative above the
 ID-bearing sections. Source: this session's BACKLOG.md audit and
 extraction-plan confirmation, 2026-08-26.
 
-### [B-014] P3 — Contributor governance deferred until first real external PR
+#### [B-014] P3 — Contributor governance deferred until first real external PR
 Found: 2026-08-27, session recon + Taleb/O'Connor/Harari lens review.
 Radar has zero external contributors today. Designing a tooltempest-shared
 governance pattern (CODEOWNERS, pre-merge gate, mirroring article-pipeline's
@@ -266,7 +273,7 @@ an actual external PR shows up.
 **Source.** Session decision, 2026-08-27, cross-repo recon + explicit
 architectural-lens review (Taleb/O'Connor/Harari).
 
-### [B-015] P4 — Drift notification: resolved by existing pre-push mechanism
+#### [B-015] P4 — Drift notification: resolved by existing pre-push mechanism
 Found: 2026-08-27, same session.
 Considered a scheduled GitHub Actions workflow in tooltempest to detect
 consumer drift without waiting for a push. Decided against: the existing
