@@ -20,4 +20,14 @@ re-run after adding or editing an ADR in this session.
 | [ADR-0012](0012-architecture-md-for-due-diligence-audience.md) | ARCHITECTURE.md for a Due-Diligence Audience | Accepted | null | null |
 | [ADR-0013](0013-gitlab-to-github-full-migration.md) | Full Platform Migration: GitLab to GitHub | Accepted | ADR-0011 | null |
 | [ADR-0014](0014-vault-branch-published-publicly.md) | `vault` Branch Published Publicly | Accepted | null | null |
+| [ADR-0015](0015-falsifiability-first.md) | Falsifiability First | Accepted | null | null |
+| [ADR-0016](0016-knowledge-before-automation.md) | Knowledge Before Automation | Accepted | null | null |
+| [ADR-0017](0017-storage-cheap-context-expensive.md) | Storage Is Cheap, Context Is Expensive | Accepted | null | null |
+| [ADR-0018](0018-analysts-are-hypotheses.md) | Analysts Are Hypotheses | Accepted | null | null |
+| [ADR-0019](0019-agents-are-replaceable.md) | Agents Are Replaceable | Accepted | null | null |
+| [ADR-0020](0020-graceful-degradation.md) | Graceful Degradation | Accepted | null | null |
+| [ADR-0021](0021-feedback-driven-evolution.md) | Feedback-Driven Evolution | Accepted | null | null |
+| [ADR-0022](0022-knowledge-more-valuable-than-code.md) | Knowledge Is More Valuable Than Code | Accepted | null | null |
+| [ADR-0023](0023-shift-content-selection-criterion.md) | SHIFT: Content Selection Criterion for the Channel | Accepted | null | null |
+| [ADR-0024](0024-scope-boundaries-non-goals.md) | Scope Boundaries: Non-Goals | Accepted | null | null |
 

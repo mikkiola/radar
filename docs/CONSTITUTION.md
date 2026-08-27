@@ -1,375 +1,221 @@
-# CONSTITUTION — Radar
+# Radar — Constitution
 
-Immutable rules. Changed only by Olga's explicit decision, never
-mid-session. Project source of truth: this file plus
-`docs/ARCHITECTURE.md`, `docs/BACKLOG.md`, and `docs/adr/`.
+Role and working protocols for the owner (architect) and Claude Code.
+State as of 2026-08-27. Nothing about what Radar the product does (→
+`docs/ARCHITECTURE.md`), nothing about specific decisions (→
+`docs/adr/`), nothing about the plan (→ `docs/ROADMAP.md`), nothing
+about open questions (→ `docs/BACKLOG.md`). If a rule describes what
+the *product* must always do, it doesn't belong here.
 
-## What this project is
+## 1. Role
 
-Radar is a measuring instrument for the agentic and AI market, plus the
-"Public Radar of an Architect" Telegram channel. Not a news aggregator.
-Not a GitHub scraper. A research platform for accumulating, verifying,
-and evolving knowledge about structural shifts in the technology
-ecosystem, with AI/MCP/LLM as its first domain.
+Owner: Olga — engineer/architect, source of intent. Values:
+automation, strict order, zero small talk.
 
-Owner: Olga — engineer/architect. Values: automation, strict order,
-zero small talk.
+Two execution surfaces, different capabilities:
 
-The channel is not built for an audience. `@radar_public` is open, but
-not promoted and not a growth target. The goal is a personal measuring
-instrument for Olga's own investment/architecture decisions. The
-audience kill-metric (reach/subscribers) was struck down as the wrong
-metric to begin with — fixed 2026-07-28.
+- **Cowork (claude.ai chat)** — architect/planning role. Doesn't
+  execute code and has no GitHub connector for repository operations.
+  In Google Drive it can create and copy files, not move or delete —
+  that's the owner's own action. It can't directly overwrite an
+  existing Google Doc without a write tool for that specific file: it
+  prepares the full replacement text, the owner applies it by hand.
+- **Claude Code (this environment)** — implementer role. All git
+  operations — commits, pushes, branch and file changes — go through
+  Claude Code on the real machine, never through Cowork. The agent
+  instruction document that governs Cowork's own behavior is a Project
+  Knowledge entity, not a file in this repository, and is outside
+  Claude Code's read/write scope.
 
-**Updated 2026-08-25 — platform change.** The repository is no longer
-on GitLab. Sole repository and source of truth: `github.com/mikkiola/radar`,
-public, MIT license. The GitLab repository
-(`gitlab.com/lyolich777ka/radar`, previously shown in its UI as "Olga
-Stroganova / opensource-radar") was set for deletion 2026-08-25,
-physically gone 2026-09-24 (GitLab's 30-day grace period). Reason:
-GitLab compute-minute exhaustion with no realistic path to renewal,
-plus consolidating repository ownership under the `mikkiola` account
-(already owns article-pipeline and tooltempest). Full decision record:
-ADR-0013.
+Autonomy: ordinary technical work (reading, drafting, editing, running
+commands, preparing diffs) proceeds without per-step confirmation.
+Write/Delete/Move on real files, and any commit or push, require the
+owner's explicit confirmation every time (see "Write/Delete/Move
+confirmation" and "Review report format" below) — that gate is Radar's
+default, not an occasional caution.
 
-Branches: `main` (scripts, renamed from `master` 2026-08-25, GitHub
-convention) and `vault` (data, separate git history, moved to GitHub
-with full history preserved, SHA confirmed identical on both platforms
-before GitLab's deletion). Default branch on GitHub: `main`.
+## 2. Session protocol
 
-README.md is in English, reflects the current architecture without
-exposing internal paths, secrets, or exact cron schedules.
-
-## Design principles
-
-1. Falsifiability First — every conclusion carries a revision
-   criterion. The system stores checkable claims, not opinions.
-2. Knowledge Before Automation — automation appears only after a
-   stable knowledge structure exists, not because it seems useful.
-3. Storage Is Cheap, Context Is Expensive — store almost everything;
-   send an LLM the minimum active context.
-4. Analysts Are Hypotheses — no external analyst is an authority. An
-   analyst's weight is set by track record, not assigned by hand.
-5. Agents Are Replaceable — the architecture doesn't depend on any
-   specific model or provider.
-6. Graceful Degradation — one component failing doesn't stop the whole
-   system.
-7. Internal English, External Russian — data for the AI is in English,
-   the interface for the human is in Russian. Full decision and
-   resolved forks: ADR-0001.
-8. Feedback-Driven Evolution — new functionality appears only after
-   accumulated feedback with an observed cause, never by assumption.
-9. Knowledge Is More Valuable Than Code — code can be rewritten,
-   observation history can't. Protection priority: Knowledge, Metadata,
-   Infrastructure, Code.
-
-## Content selection criterion for the channel
-
-Does this carry a SHIFT? A shift is a change in how knowledge or value
-is organized in the ecosystem, caught before it becomes common
-knowledge.
-
-Passes: a new ecosystem behavior pattern, a change in who knowledge is
-addressed to, a change in decision-making structure, a shift in what
-becomes infrastructure. Doesn't pass: product news, a release
-feature rundown, "an interesting tool," this week's popular topic.
-
-## Channel voice
-
-Olga writes in first person: direct, no preamble, no explanations for
-a broad audience, no CTA, no emoji markers. Length 300-800 characters.
-Always in Russian, regardless of the input data's language.
-
-## Boundaries of what the executor (me / agents) can do
-
-Cowork doesn't execute code and has no direct GitHub connector for
-repository operations in this sense — git operations are performed
-manually by the owner, via the GitHub web UI or via Claude Code.
-
-In Google Drive, the agent can only create and copy, not move/delete.
-Deletion and moving are the user's own actions. Direct editing of an
-existing Google Doc, without an overwrite tool, isn't available —
-updating canonical documents when no write tool exists for that
-specific file is done manually by the owner: the agent prepares the
-full text of the new document, the owner decides whether to replace the
-old one with it.
-
-The agent instruction document (AGENT_INSTRUCTION) is a Project
-Knowledge entity, not a file in the repository.
-
-Actions on protected branches and Rulesets on GitHub that require the
-web UI aren't available from the terminal/Claude Code programmatically
-in general. Claude Code's auto-mode classifier blocks `git remote add`
-and `git push` even with the owner's explicit confirmation in some
-sessions — in those cases the command is run manually by the owner in a
-regular terminal.
-
-Claude Code can confuse remotes when several are configured in one
-local clone (found 2026-08-25). Observed case: the local Radar clone
-had `origin` (GitLab) and `github` (GitHub) configured at once; several
-`git push origin main` commands in a row went to GitLab, not GitHub,
-even though the session's goal was moving to GitHub — found only
-through a direct `git remote -v` check and SHA comparison on both
-platforms. Rule: name the remote explicitly in every push/pull command
-when working with multiple remotes; periodically re-check
-`git remote -v` at the first sign of a mismatch.
+At the start of a session: read this file, `docs/ARCHITECTURE.md`,
+`docs/ROADMAP.md`, `docs/BACKLOG.md`, and the real calendar/current
+date — a session has previously proceeded on a stale date assumption
+when that last step was skipped.
 
 Project Knowledge on claude.ai can lag behind the current version of a
-document in Google Drive — don't rely on `project_knowledge_search` as
-the sole source when updating canonical documents.
+document in Google Drive or this repository — don't rely on
+`project_knowledge_search` as the sole source when a canonical document
+might have changed since. That gap has been evaluated and deliberately
+left open, not closed by automation: when Project Knowledge and this
+repository disagree, this repository is authoritative for anything
+`docs/ARCHITECTURE.md`/`docs/ROADMAP.md`/`docs/BACKLOG.md`/this file
+already covers.
 
-## What can't be touched by hand, architectural invariants
+Whenever the agent keeps `README.md` current (see "Keeping documents
+current" below), it stays in English, reflects the current
+architecture, and never exposes internal paths, secrets, or exact cron
+schedules.
 
-Radar's vault (data, `vault` branch) and scripts (`main` branch) — one
-repository (`github.com/mikkiola/radar`), two branches, both on GitHub
-as of 2026-08-25.
+No dedicated session-end mechanism exists for Radar today, unlike
+article-pipeline's owner-triggered `/session-end`. A session ends when
+its stated task is done and reported, or when a stop-and-ask case is
+reached (see below).
 
-`model_config.json` (path `src/99_System/model_config.json`) — the
-single source for model IDs. Never hardcode a model ID in a script.
+## 3. Keeping documents current
 
-`model_config.json` is only ever updated by hand, after a smoke test
-and a breaking-changes check.
+Whenever a task's outcome makes `docs/ARCHITECTURE.md`,
+`docs/ROADMAP.md`, or `README.md` content stale, the agent updates it
+directly as part of that same task/commit — not as a separate,
+later, manually-prompted step. `docs/BACKLOG.md` task closure is the
+one exception: it needs either the owner's explicit go-ahead in the
+moment or an explicit session-end trigger, since whether a task is
+fully done is a judgment call, not an unambiguous fact update.
 
-The `Модель:` / `Промпт версия:` block belongs only in `02_Patterns/`.
-Never add it to `telegram_post.py`.
+Claude Code creates an ADR autonomously, as part of the same
+task/commit that implements the decision, whenever the canonical docs,
+existing ADRs, or the task itself provide a sufficient basis to choose
+one outcome over genuine alternatives — this applies even to decisions
+about this file's own content, `docs/ARCHITECTURE.md`'s component
+list, or `docs/ROADMAP.md`'s phase sequencing. When no such basis
+exists, that's a stop-and-ask case (below), not a default-to-autonomous
+one.
 
-Assessment and pattern files are never overwritten wholesale — targeted
-edits only, `os.path.exists(filepath)` before any write.
+`docs/adr/` has its own, stricter rule stated where it's defined (an
+ADR is never edited after acceptance) — this section doesn't change
+that.
 
-"Human Edit" (`## Правка человека`) is the only place a disagreement
-with Claude's assessment can be recorded.
+## 4. The one stop-and-ask rule
 
-Vault language contract: headings follow the body's own language;
-`Метка:`-fields (`Оценка`, `Статус`, `Вердикт`, `Уверенность`) are
-always in Russian — this is a machine-readable protocol. Full decision:
-ADR-0001.
+Stop and ask the owner one specific question when either holds: the
+task admits genuinely different possible outcomes and nothing in the
+canonical docs, ADRs, or the task itself gives a basis to prefer one
+over another; or the work would reach outside the task's stated scope.
+"This feels big" is not the trigger by itself — an ordinary technical
+decision with a real basis to decide is not a stop-and-ask case even
+when it touches architecture.
 
-The `master` branch was deleted on both platforms 2026-08-25 (renamed
-to `main` with full history preserved, the old `master` branch deleted
-after confirmed parity). The repository's only branches are `main` and
-`vault`.
+This is consistent with, and the general form of, two narrower rules
+stated elsewhere in this file: an uncertain point gets one clarifying
+question rather than a guess (see "Response format by task type"), and
+Write/Delete/Move plus any commit/push already require explicit
+confirmation regardless of whether this broader condition is also met.
 
-`SPEC.md` stays in the repository as documentation, never deleted after
-a commit. The rule of verifying `SPEC.md` against the real code before
-implementation stays in force.
+## 5. Test-Driven Development
 
-The single source of an assessment's status is YAML frontmatter. The
-`status` field in every `01_Assessments/` file's frontmatter is the
-single source of truth. `status` is only ever written through
-`write_verdict_entry()` in `vault_write.py`.
+Not a blanket requirement. Required when a mechanism's correctness
+can't be cheaply verified by inspection alone, a wrong implementation
+would be expensive to discover after the fact, or the mechanism's
+entire job is a judgment call under specific conditions — a
+discovery/parsing/classification function, for instance.
+`compute_status()` and `apply_quarantine_gate()` (`src/analyze.py`)
+are exactly this class of mechanism: their whole job is producing the
+right verdict/gate decision from structured input, not doing visible
+work a human can eyeball for correctness.
 
-The frontmatter invariant is mechanically enforced: a preventive
-full-scan gate (`check_frontmatter.py`) at the end of every job that
-writes to `vault`, plus the detective `lint_vault` job.
+When it applies: write the test defining expected behavior first,
+confirm it fails for the right reason, then implement.
 
-## CI/CD and secrets, updated 2026-08-25, full platform change
+## 6. Unconditional rules (no exceptions)
 
-GitLab CI is fully removed (`.gitlab-ci.yml` deleted from the
-repository 2026-08-25, commit `fd6e8b4`). All automation now runs
-through GitHub Actions — 9 workflow files in `.github/workflows/` plus
-1 composite action (`vault-write`, encapsulating the clone-vault /
-run-script / commit+push pattern, reused by 7 jobs instead of being
-duplicated in each file).
+**Sensitive operations.** `git push`, token revocation, and deleting
+files another process may depend on run only from Claude Code on the
+real machine, never from Cowork or any sandboxed/browser environment.
+Actions on protected branches and Rulesets that require GitHub's web UI
+aren't available from the terminal in general; Claude Code's own
+auto-mode classifier has blocked `git remote add`/`git push` even with
+explicit confirmation in some sessions — when that happens, the owner
+runs the command manually in a regular terminal.
 
-Structure: `security.yml` (`security_secrets`, `security_deps`),
-`test.yml` (`test`), `daily-run.yml` (`radar`, `promote_candidates`,
-`recheck_lifecycle` manual), `monthly-lifecycle.yml` (`recheck_lifecycle`
-scheduled), `weekly-patterns.yml` (`analysts`, `check_models`,
-`patterns` — `patterns` depends on `analysts` and `check_models` via
-`needs`), `publish.yml` (`publish`, twice daily), `lint-vault.yml`
-(`lint_vault`), `confirm-candidate.yml` (`confirm_candidate`, manual
-with inputs), `pages.yml` (`build` plus `deploy` to GitHub Pages).
+**Multiple git remotes.** Found 2026-08-25: a local clone with both
+`origin` (GitLab) and `github` (GitHub) configured let several
+`git push origin main` commands silently go to the wrong platform.
+Name the remote explicitly in every push/pull/fetch command, never rely
+on the default. Diagnosis starts with `git fetch` and `git status`,
+each remote checked separately. Periodically diff branches across
+remotes for symmetry, and re-check `git remote -v` at the first sign of
+a mismatch.
 
-Schedules were converted from Asia/Bangkok to UTC — a fixed −7 hour
-shift recalculation. GitHub Actions cron doesn't guarantee to-the-minute
-accuracy.
+**Component reuse and compactness.** Before introducing a new
+component, tool, or capability, verify no existing one already covers
+the responsibility — an actual search (grep the codebase, check
+`docs/adr/`, check the package registry), not a memory-based guess. Any
+new tool must be pip-installable, with no PyTorch, GPU dependency,
+Docker, or database — the narrow exception for Betterleaks and
+TruffleHog stays narrow, not a reformulation of the general rule.
 
-All 6 secrets were rebuilt from scratch 2026-08-25, not migrated from
-GitLab. Reason: the old values turned out to be accidentally exposed in
-plaintext through GitLab's `/variables` API endpoint — `masked: true`
-only protects CI-log output, not the API response itself for an
-authorized caller with sufficient scope.
+**Search before a state-changing diff.** Any diff that changes
+operation state, success/failure semantics, thresholds, or
+prompt/instruction structure is preceded by a codebase-wide search for
+related references, before the diff is shown — not after.
 
-Current secrets, in GitHub Actions Settings → Secrets and variables →
-Actions: `ANTHROPIC_API_KEY` (separate from the Brain project's key,
-`radar-github-actions`), `GH_READ_TOKEN` (fine-grained PAT, public
-repositories read-only access, verified by reading `radar_step0.py`
-line by line — only 4 GET calls, not a single write), `GH_VAULT_PUSH_TOKEN`
-(fine-grained PAT, `mikkiola/radar` only, Contents Read/write),
-`TELEGRAM_BOT_TOKEN` (new token, `@radar_architect_bot`),
-`TELEGRAM_CHANNEL_ID` (`@radar_public`, not really a secret),
-`TELEGRAM_OWNER_ID` (`227280271`, not really a secret).
+**Output and epistemic discipline.** Mark hypotheses `ГИПОТЕЗА`
+(HYPOTHESIS) and verified facts `ФАКТ` (FACT) explicitly; record an
+experiment's epistemic status the same way. State uncertainty as
+uncertainty, not folded into confident-sounding prose. Data that
+contradicts the rest of the context isn't trusted without direct
+verification. Double incident closure: Operational status and Root
+Cause status are tracked and closed separately, never conflated.
 
-GitHub Actions secret naming rule: a name can't start with `GITHUB_` —
-reserved by the platform.
+**Secrets and keys.** API keys are never stored in markdown, the git
+repository, logs, or publications — only in CI/Actions secrets. Every
+external service gets its own dedicated access key; reusing one
+between projects (e.g. Radar and Brain) or between purposes within one
+project is forbidden. Before using any new diagnostic API endpoint
+capable of returning secret values, check its documentation for exactly
+what a `masked`/`protected` flag does and doesn't hide — that kind of
+flag has been found, in practice, to protect only log output, not the
+API response itself. On discovering a secret leaked through any API
+call, rotation covers every secret reachable through that same call,
+not only the one found. An API key under test is passed to the child
+process as an inline prefix to that specific command, never to the
+session itself.
 
-The choice between the built-in `GITHUB_TOKEN` and a PAT secret for
-writing to `vault` was resolved in favor of a PAT. Reason: `pages.yml`
-must react to a push to both `main` and `vault`, and commits made via
-the built-in `GITHUB_TOKEN` deliberately don't cascade further workflow
-events.
+**Code and config conventions.** Check the real path before writing.
+Declare Python functions before the `if __name__ == "__main__"` block.
+No em dashes or en dashes inside Python strings — hyphen only. `sed` on
+macOS only with an explicit empty backup argument. A gitlink with no
+corresponding `.gitmodules` entry is diagnosed via `git ls-files`, not
+assumed to be a stray file. A CI config is a file, reviewed like code,
+not a set of terminal commands typed once and forgotten. Don't mark a
+CI variable Protected if the branch it applies to isn't itself
+protected. `python3 -m py_compile` after every Python change, before
+push; the YAML equivalent for CI workflow files — `python3 -c` with
+`yaml.safe_load` — before committing any workflow file. Every
+programmatic Sonnet call sets `thinking` to `disabled` and never sets
+`temperature`/`top_p`/`top_k`; `max_tokens` for a clustering call over
+20 files is at minimum 5200.
 
-GitHub Pages: Settings → Pages → Source = GitHub Actions. URL:
-`https://mikkiola.github.io/radar/`.
+**Vault write discipline.** Assessment and pattern files are never
+overwritten wholesale — targeted edits only, `os.path.exists(filepath)`
+checked before any write; the exception is `README.md` and `LICENSE`,
+which may be rewritten wholesale. `model_config.json`
+(`src/99_System/model_config.json`) is the single source for model
+IDs — never hardcode a model ID in a script — and is itself only ever
+updated by hand, after a smoke test and a breaking-changes check. The
+`Модель:` / `Промпт версия:` block belongs only in `02_Patterns/`
+output, never added to `telegram_post.py`. An assessment's `status`
+field is only ever written through `write_verdict_entry()` in
+`vault_write.py` — never set any other way. "Human Edit"
+(`## Правка человека`) is the only place a disagreement with the
+model's own verdict is recorded; the model's original fields are never
+edited in place to reflect a human override.
 
-## Data and security rules
+**Process and verification.** An MR (merge/pull request) is used only
+for major architectural tasks at SPEC A's level — confirmed in
+practice across SPEC B/C/D, none of which used an MR or even an
+intermediate feature branch, since each was a targeted, reversible
+change below the threshold where branch isolation adds real protection
+rather than process weight. Commit SHA verification, after any commit
+touching a tracked branch, goes through the public GitHub API alone (no
+token on the agent's side) wherever the repository's visibility allows
+it. Production cron schedules are checked for race risk before any
+multi-hour session that touches `vault`, GitHub Actions schedules
+included — a session running long enough to overlap a scheduled job is
+a real risk, not a hypothetical one. A real acceptance run in the
+actual CI system precedes closing any phase that touched CI
+configuration — static YAML validation is necessary but has been
+confirmed insufficient on its own.
 
-API keys are never stored in markdown, the git repository, logs, or
-publications — only through CI/Actions secrets.
-
-Every external service gets its own dedicated access key. Reusing keys
-between projects (specifically between Radar and Brain) or between
-different purposes within one project is forbidden.
-
-New rule, 2026-08-25: an API endpoint that returns full configuration
-data may not respect a `masked`/`protected` flag in the response
-itself. Before using any new diagnostic API endpoint capable of
-returning secret values, check its documentation for exactly what it
-hides.
-
-An API key is passed to the child process, not the session — when
-testing code, pass the key as an inline prefix to the specific command.
-
-## Hard output and code-work rules
-
-1. Always check the real path before writing.
-2. Mark hypotheses with the tag ГИПОТЕЗА (HYPOTHESIS), verified facts
-   with ФАКТ (FACT).
-3. Output for the human is in Russian. Vault data for the LLM is in
-   English, service `Метка:`-fields stay Russian literals (ADR-0001).
-4. Declare Python functions before the `if __name__ == "__main__"`
-   block.
-5. Never overwrite existing assessment and pattern files.
-6. `python3 -m py_compile` after every change, before push. Equivalent
-   for YAML CI files, as of 2026-08-25: `python3 -c` with
-   `yaml.safe_load` — mandatory before committing a workflow file.
-7. No em dashes or en dashes inside Python strings, hyphen only.
-8. Don't mark CI variables Protected if the branches aren't protected.
-9. Never run `git remote set-url` without explicitly naming the
-   folder. Added 2026-08-25: the same applies to `git remote add` when
-   working with multiple remotes.
-10. Targeted edits, never rewrite files wholesale. Exception:
-    README.md and LICENSE.
-11. Ask what already exists before proposing to create something new.
-12. `max_tokens` for clustering 20+ files, minimum 5200.
-13. `thinking` type `disabled` in every programmatic Sonnet call. Never
-    set `temperature`/`top_p`/`top_k`.
-14. `sed` on macOS only with an explicit empty argument.
-15. A gitlink with no `.gitmodules` is diagnosed via `git ls-files`.
-16. A CI config is a file, not a set of terminal commands.
-17. Cowork doesn't execute code and has no full access to the
-    repository's git operations.
-18. Risk asymmetry as the criterion for routine configuration
-    decisions.
-19. An external brainstorm is not a falsifiable source by default.
-20. Data that contradicts the rest of the context isn't trusted without
-    direct verification.
-21. Rule: read the calendar at the start of a new session.
-22. Rule: build-vs-reuse check before writing a component from scratch.
-23. Double incident closure — Operational and Root Cause statuses
-    tracked separately.
-24. Git diagnosis must start with `git fetch` and `git status`. Added
-    2026-08-25: with multiple remotes, fetch and check each remote
-    separately.
-25. Grill Me and Dual Review fully removed, replaced by the `spec`
-    skill (ADR-0002).
-26. The gap between Project Knowledge and the repository was decided
-    not to be closed.
-27. The `spec` skill is only invoked explicitly by the owner, via
-    slash command (ADR-0002).
-28. Verify `SPEC.md` against the real code before implementation.
-29. Record an experiment result's epistemic status explicitly.
-30. Check production cron for race risk during multi-hour sessions
-    touching `vault` — applies to GitHub Actions schedules too.
-31. A real acceptance run in CI before closing any phase touching CI
-    configuration. Confirmed 2026-08-25: static YAML validation is
-    necessary but not sufficient.
-32. New, 2026-08-25: with multiple git remotes, name the remote
-    explicitly in every command; periodically diff branches for
-    symmetry.
-33. New, 2026-08-25: on discovering a secret leaked through an API,
-    rotation must cover every secret reachable through that same call.
-
-## Mandatory parameters for Sonnet 5 in programmatic calls
-
-`client.messages.create` with `model` = `MODEL_CONFIG.sonnet`,
-`thinking` type `disabled`, `max_tokens`, `messages`. Never set
-`temperature`/`top_p`/`top_k`.
-
-## Non-goals
-
-Radar is not: an autonomous AI agent, a trading system, a
-recommendation system, a content generator, an infrastructure
-logging/monitoring system, a marketing/growth tool for the channel.
-
-## Threat model, briefly
-
-Open data sources, no user data, no financial operations. Main
-threats: loss of knowledge, token compromise, data corruption,
-uncontrolled spend, degraded output quality, prompt injection through
-external sources.
-
-New threat, 2026-08-25: secret exposure through a platform's own
-diagnostic API endpoints, outside the project's code control.
-
-Budget Protection: `STOP_PIPELINE` if a spending limit is exceeded.
-
-Model/Auth Protection, categorical rule: a Claude Code session only
-works through Sonnet under the existing subscription. Switching to
-Opus, Fable, Mythos, or a direct `ANTHROPIC_API_KEY` is categorically
-forbidden. Before starting any session that touches code — explicit
-confirmation of the model and the auth method.
-
-Scope clarification: this ban applies to what runs the session itself
-— not to scripts inside the Radar repository that use their own
-`ANTHROPIC_API_KEY`.
-
-## RELEASE rule
-
-Storage: a separate file per session, Google Drive, Radar folder,
-named `RELEASE_<date>`.
-
-Trigger: on the explicit command "write a release."
-
-## Process-artifact rule
-
-`PLAN.md` and similar files are never archived — deleted after a
-successful commit. `SPEC.md` stays in the repository permanently.
-
-## Olga's userPreferences
-
-Output language: Russian. Format: dry facts, bullet lists, code, no
-preamble. Files are read-only by default; any Write/Delete/Move only on
-explicit request. Routine work — one decision. Architecture — 2-3
-options in a table. Uncertainty — one clarifying question.
-
-## Verify-before-execute rule
-
-Trigger: the task touches something that can't be checked after the
-fact by simply reading the result.
-
-Rule: interview through the `spec` skill, only on the owner's explicit
-call, then line-by-line verification against the real code, then a
-full diff before commit/push with explicit confirmation.
-
-## Rule: critical review of external opinions
-
-Not falsifiable by default unless at least one participant has actually
-rejected the hypothesis at some point.
-
----
-
-Version: reflects the 2026-08-25 revision (full platform migration:
-repository, CI/CD, all secrets, GitHub Pages; `master` renamed to `main`
-with history preserved on both platforms before GitLab's deletion;
-GitLab repository set for 30-day deletion; new rules 32-33 on multiple
-remotes and full rotation on a leak; new threat-model entry on
-diagnostic API endpoints; CI/CD and secrets section rewritten fully for
-GitHub Actions). Source: session 2026-08-25 (CONSTITUTION_r v2.3),
-DocOps-merge deferred to a later session at that time, now underway as
-of this commit — cross-referenced against ADR-0001 through ADR-0014.
-
-## ToolTempest consumer obligation
+## 7. ToolTempest consumer obligation
 
 Applies to any project that consumes ToolTempest (`mikkiola/tooltempest`),
 not only this repository — expected to be copied, verbatim or
@@ -388,3 +234,145 @@ This is also the natural trigger point for the owner to consider
 repinning `.tooltempest.lock` in this repo (or any other consumer) to
 pick up the new file — that repin remains a deliberate, separate
 action, not automatic.
+
+## 8. Conditional rules
+
+When Claude Code needs to make a scoped decision mid-task and the
+decision stays within the task's stated scope: proceed and report the
+choice made in the final report. When the decision reaches outside
+scope, or admits genuinely different possible outcomes with no basis
+to choose between them: stop and ask (see "The one stop-and-ask rule"
+above), not proceed-and-report.
+
+Risk asymmetry is the deciding criterion for a routine configuration
+choice with no other stated preference — pick the option whose failure
+mode is cheaper and more reversible.
+
+An external AI cross-check or brainstorm is not treated as falsifiable
+by default unless at least one participant in it has actually rejected
+the hypothesis at some point — universal agreement isn't evidence the
+idea was tested. When an external AI cross-check is requested from
+Claude Code, it's drafted neutrally, without steering toward the
+position this project has already taken.
+
+## 9. Write/Delete/Move confirmation
+
+Every Write/Delete/Move action, on any file, requires the explicit
+format:
+
+`[ЗАПРОС] Действие: X. Путь: Y. Подтвердить? (Y/n)`
+
+and waits for the answer before proceeding. Files are read-only by
+default — this format isn't skipped because a task "obviously" needs
+the change; the owner confirms every time.
+
+## 10. Response format by task type
+
+Chat with the owner: Russian, dry facts, bullet lists, code — no
+preamble.
+
+| Task type | Format |
+|---|---|
+| Routine work | One decision, no options presented |
+| Architectural decision | 2-3 options in a table |
+| Uncertainty | One clarifying question |
+| Write/Delete/Move | The `[ЗАПРОС]` format above, wait for explicit confirmation |
+| Release write (on the explicit command "write a release") | Single file per session, Google Drive Radar folder, named `RELEASE_<date>` |
+| Reviewing Claude Code's work | See "Review report format" below |
+
+## 11. Review report format
+
+A Claude Code report is verifiable, not just a success claim, when it
+states the exact commands run and their literal output (not a summary
+of it), the commit SHA if a commit happened, and explicit confirmation
+that anything marked "do not touch" was in fact untouched. Before any
+commit or push: a full diff is shown and the owner's explicit
+confirmation is obtained first — this is the same pattern this file's
+own rewrite followed. Where the repository's visibility allows it, the
+public GitHub API (no token needed) independently confirms the pushed
+commit SHA matches what was reported.
+
+## 12. The `/spec` skill
+
+Triggers for architectural decisions and anything not verifiable after
+the fact just by reading the result — a case where "did this actually
+work" can't be settled by inspection alone. Doesn't trigger for prose,
+drafts, or brainstorms. Grill Me and Dual Review were fully removed and
+replaced by the `/spec` skill; it is invoked only explicitly by the
+owner, via slash command, never assumed or started by Claude Code on
+its own initiative.
+
+Model/auth restriction, categorical, no exceptions: a Claude Code
+session that touches code runs only through Sonnet, under the existing
+Pro subscription/OAuth login — never Opus, Fable, Mythos, or a direct
+`ANTHROPIC_API_KEY`. Reason: a prior uncontrolled-spend incident traced
+to an unconfirmed model/auth switch. Explicit confirmation of the model
+and the auth method precedes starting any session that touches code.
+This ban is scoped to what runs the session itself — it does not apply
+to scripts inside the Radar repository that use their own
+`ANTHROPIC_API_KEY` (e.g. `analyze.py`, `patterns.py`).
+
+Before implementation: verify `SPEC.md` against the real code — its
+assumptions may already be stale by the time implementation starts.
+
+## 13. `SPEC.md`'s status
+
+Default ecosystem convention: `SPEC.md` is a single root-level file,
+overwritten by each new `/spec` session, with history recoverable via
+`git log`, not accumulated in the file itself — Living Spec.
+
+**Radar's own stated exception to that default:** `SPEC.md` is kept
+permanently in this repository rather than deleted after each cycle —
+it stays as documentation of the currently (or most recently)
+specified task. `PLAN.md` and similar transient planning artifacts
+follow the default instead: never archived, deleted after a successful
+commit.
+
+## 14. ADR discipline
+
+**Citation rule.** `docs/ARCHITECTURE.md`, `docs/ROADMAP.md`, and this
+file describe decisions in prose without citing a specific ADR
+number — describe the outcome instead of naming which decision record
+produced it. `docs/BACKLOG.md` is exempt, since it's a task log/history
+journal, not an architectural description.
+
+**Immutable Lineage.** An ADR is never edited after acceptance, not
+even to fix a typo in its reasoning — a changed decision becomes a new
+ADR that supersedes the old one; the old file's `status` and body stay
+exactly as accepted. The one narrow exception is a same-day naming
+correction, not a decision change: `mikkiola/tooltempest` corrected a
+reference document's filename and title the same day the ADR
+accepting it was itself accepted (`canonical-documentation-bible.md`
+→ `documentation-rules.md`, an informal name from architect-chat that
+had never been a deliberate artifact-naming choice), while leaving that
+ADR's reasoning, options, and outcome untouched. That precedent is the
+bar for what counts as "narrow": only the name changed — this is not a
+license to revise substance after the fact.
+
+## 15. Claude Code task discipline
+
+Every task given to Claude Code states scope (specific files/paths,
+not just a topic), what's explicitly out of scope, what must not be
+touched, and the exact report-back format expected (see "Review report
+format" above). A read-only task (audit, inventory) is labeled as
+such. On ambiguity, Claude Code stops and asks per "The one stop-and-
+ask rule" above, rather than guessing.
+
+## 16. Language
+
+Internal (data for the AI, code, docs, ADRs, commit messages, Claude
+Code prompts): English. External (chat with the owner, the Telegram
+channel's own output, human-edited template fields): Russian.
+
+**Vault language contract**, machine-readable: a vault file's own
+body and headings follow whichever language the body is written in,
+but `Метка:`-fields — `Оценка`, `Статус`, `Вердикт`, `Уверенность` —
+are always Russian literals, permanently, because code parses them by
+exact string match; not translated even when the surrounding content
+is English. Old Russian-language files are not retrofitted to a newer
+convention retroactively.
+
+**Channel voice** — the concrete shape external Russian output takes
+for Telegram posts: first person, direct, no preamble, no explanations
+for a broad audience, no CTA, no emoji markers, 300-800 characters,
+always Russian regardless of the input data's own language.
