@@ -6,7 +6,7 @@ import time
 from datetime import datetime, timedelta
 
 GITHUB_TIMEOUT = 10
-GITHUB_TOKEN = os.environ.get("GITHUB_READ_TOKEN")
+GITHUB_TOKEN = os.environ.get("GH_READ_TOKEN")
 gh_api = GhApi(timeout=GITHUB_TIMEOUT, sync=True, token=GITHUB_TOKEN)
 
 def fetch_hacker_news():

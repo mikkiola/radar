@@ -11,7 +11,7 @@ from ghapi.core import GhApi
 import vault_write
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
-GITHUB_TOKEN = os.environ.get("GITHUB_READ_TOKEN")
+GITHUB_TOKEN = os.environ.get("GH_READ_TOKEN")
 GITHUB_TIMEOUT = 10
 VAULT_ROOT = os.environ.get("VAULT_ROOT", os.path.expanduser("~/radar/radar"))
 ASSESSMENTS_PATH = os.path.join(VAULT_ROOT, "01_Assessments")
