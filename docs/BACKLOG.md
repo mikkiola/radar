@@ -250,3 +250,33 @@ assumed). 13 entries assigned (`B-001` through `B-013`); prior prose-only
 open/rejected/closed content preserved as historical narrative above the
 ID-bearing sections. Source: this session's BACKLOG.md audit and
 extraction-plan confirmation, 2026-08-26.
+
+### [B-014] P3 — Contributor governance deferred until first real external PR
+Found: 2026-08-27, session recon + Taleb/O'Connor/Harari lens review.
+Radar has zero external contributors today. Designing a tooltempest-shared
+governance pattern (CODEOWNERS, pre-merge gate, mirroring article-pipeline's
+ADR-0033/0034/0035 chain) now would hardcode against a hypothetical, not a
+real need — the antifragile move is to build when the first real PR arrives,
+not before. This is a deliberate freeze, not an oversight: revisit only when
+an actual external PR shows up.
+- [ ] No action until triggering event occurs
+- [ ] When triggered: reference article-pipeline's docs/adr/0033-0035 chain
+      (final state per 0035, not the superseded 0033 prose) as the design
+      basis, generalized via tooltempest — not copied hardcoded per-project
+**Source.** Session decision, 2026-08-27, cross-repo recon + explicit
+architectural-lens review (Taleb/O'Connor/Harari).
+
+### [B-015] P4 — Drift notification: resolved by existing pre-push mechanism
+Found: 2026-08-27, same session.
+Considered a scheduled GitHub Actions workflow in tooltempest to detect
+consumer drift without waiting for a push. Decided against: the existing
+pre-push hook already caught real drift today (.tooltempest.lock pinned
+622e326 vs tooltempest HEAD a59d9aa) at zero additional infrastructure
+cost. A cross-repo Issue-opening mechanism would need a new PAT with
+write access to consumer repos' Issues — new attack surface and failure
+point for a scenario (solo maintainer not opening a repo for weeks) that
+doesn't match actual daily-cron usage. Closed as resolved-by-existing-
+mechanism, not deferred.
+- [x] No further action — existing pre-push hook is sufficient
+**Source.** Session decision, 2026-08-27, cross-repo recon + explicit
+architectural-lens review (Taleb/O'Connor/Harari).
