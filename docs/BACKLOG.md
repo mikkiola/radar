@@ -16,10 +16,14 @@ Every entry carries a stable `[B-NNN]` ID, assigned once in file order
 (top to bottom) and never reused or renumbered. One flat sequence
 covers both **Tasks** and **Owner decisions needed** — not two separate
 counters — since both live in this one file and a single namespace
-keeps cross-references unambiguous. Radar has no local ADR-citation
-pre-push gate (unlike article-pipeline's DocOps tooling) — there's no
-citation-format rule for this ID scheme to be exempt from; it works the
-same way regardless.
+keeps cross-references unambiguous. IDs are inline: on the heading line
+(`#### [B-NNN]`) for a titled entry, on the bullet itself for a plain
+list-item entry — see tooltempest's Documentation Rules
+(`docs/reference/documentation-rules.md`) for the full `Closes: B-NNN`
+closure convention this ID scheme supports. Radar has no local
+ADR-citation pre-push gate (unlike article-pipeline's DocOps tooling)
+— there's no citation-format rule for this ID scheme to be exempt
+from; it works the same way regardless.
 
 ## Closed this revision (2026-08-25 / 2026-08-26)
 
