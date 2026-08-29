@@ -1,5 +1,5 @@
 ---
-status: CANDIDATE
+status: VALIDATED_SHIFT
 maturity_score: 3
 novelty_score: 4
 state_value: Growing
@@ -19,6 +19,8 @@ license_baseline_origin: initial
 verdict_history:
 - date: '2026-08-15'
   verdict: CANDIDATE
+- date: '2026-08-29'
+  verdict: VALIDATED_SHIFT
 ---
 # AI Agent Authorization Middleware
 
@@ -62,6 +64,7 @@ Agent-Safe Pipeline introduces an architectural pattern that separates agent pro
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-08-29 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-08-15 - CANDIDATE: первая оценка
 
 ## Связи
