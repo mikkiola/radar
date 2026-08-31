@@ -1,5 +1,5 @@
 ---
-status: CANDIDATE
+status: VALIDATED_SHIFT
 maturity_score: 2
 novelty_score: 4
 state_value: Prototype
@@ -19,6 +19,8 @@ license_baseline_origin: initial
 verdict_history:
 - date: '2026-08-17'
   verdict: CANDIDATE
+- date: '2026-08-31'
+  verdict: VALIDATED_SHIFT
 ---
 # Self-hosted AI agent task board
 
@@ -62,6 +64,7 @@ OverClick introduces a structurally novel coordination primitive: contract-based
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-08-31 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-08-17 - CANDIDATE: первая оценка
 
 ## Связи
