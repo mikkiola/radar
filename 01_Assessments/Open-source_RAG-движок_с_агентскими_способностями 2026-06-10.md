@@ -14,6 +14,8 @@ evidence_log:
   event_type: state_transition
   state_value: Growing
   state_confidence: high
+- date: '2026-09-01'
+  event_type: ci_broken
 root_commit_sha: null
 license_spdx_id: Apache-2.0
 license_baseline_origin: migration

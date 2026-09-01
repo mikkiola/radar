@@ -44,6 +44,8 @@ evidence_log:
   event_type: state_transition
   state_value: Mature
   state_confidence: high
+- date: '2026-09-01'
+  event_type: ci_restored
 root_commit_sha: null
 license_spdx_id: MIT
 license_baseline_origin: migration

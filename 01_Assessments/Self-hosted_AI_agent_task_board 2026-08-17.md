@@ -13,6 +13,8 @@ evidence_log:
   event_type: state_transition
   state_value: Prototype
   state_confidence: low
+- date: '2026-09-01'
+  event_type: ci_broken
 root_commit_sha: ce28000c38a5ce9f495139dad8fd81eb03c74f73
 license_spdx_id: MIT
 license_baseline_origin: initial
