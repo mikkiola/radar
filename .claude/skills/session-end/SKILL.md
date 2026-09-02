@@ -61,6 +61,4 @@ under any circumstance.
 
 **Source.** Adapted 2026-08-27 from article-pipeline's
 `.claude/skills/session-end/SKILL.md`, generic `Closes:` half only.
-Duplicated rather than shared via tooltempest for now — see Radar's
-`docs/BACKLOG.md` for the owner decision on whether/when to
-consolidate into a shared tooltempest skill.
+Duplicated rather than shared via tooltempest for now.
