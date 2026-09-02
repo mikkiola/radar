@@ -2,13 +2,21 @@
 status: VALIDATED_SHIFT
 maturity_score: null
 novelty_score: null
+state_value: Growing
+state_confidence: low
 assertion_vector: null
-evidence_log: []
+evidence_log:
+- date: '2026-09-02'
+  event_type: state_transition
+  state_value: Growing
+  state_confidence: low
 root_commit_sha: null
 license_spdx_id: Apache-2.0
 license_baseline_origin: migration
 verdict_history:
 - date: '2026-07-21'
+  verdict: VALIDATED_SHIFT
+- date: '2026-09-02'
   verdict: VALIDATED_SHIFT
 ---
 # Governance-格式база знаний для агентов
@@ -40,6 +48,7 @@ Governance-grade формат с single-writer моделью и MCP интег�
 здоровый ранний проект, стоит держать в СДВИГ с пометкой на перепроверку трэкшна через 1-2 месяца — четвёртый или пятый сегодня пример из растущего кластера "governance/verification слой поверх агентной работы" (наряду с sync-buzz, toolport, umadev), что само по себе useful сигнал для кластеризации паттерна.
 
 ## История оценок
+- 2026-09-02 - СДВИГ (подтверждается) [с учётом мнения Ольги]: За 43 дня агентная экосистема усилила фокус на governance/verification слоях — тренд, который Ольга предсказала, продолжает подтверждаться появлением новых проектов в этом кластере. Стандартизация форматов обмена данными между агентами стала критичнее на фоне масштабирования многоагентных систем. Репозиторий демонстрирует здоровую траекторию раннего проекта с потенциалом стать инфраструктурным, что оправдывает ожидание перепроверки трэкшна — рекомендуется валидировать прогресс в принятии формата крупными проектами согласно фальсифицируемой гипотезе.
 - 2026-07-21 - СДВИГ: первая оценка
 
 ## Связи
