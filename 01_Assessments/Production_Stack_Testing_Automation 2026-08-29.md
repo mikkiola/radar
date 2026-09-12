@@ -1,5 +1,5 @@
 ---
-status: CANDIDATE
+status: VALIDATED_SHIFT
 maturity_score: 2
 novelty_score: 4
 state_value: Prototype
@@ -20,6 +20,8 @@ license_baseline_origin: initial
 verdict_history:
 - date: '2026-08-29'
   verdict: CANDIDATE
+- date: '2026-09-12'
+  verdict: VALIDATED_SHIFT
 ---
 # Production Stack Testing Automation
 
@@ -63,6 +65,7 @@ Antifailure combines four known technologies (data masking, network namespacing,
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-09-12 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-08-29 - CANDIDATE: первая оценка
 
 ## Связи
