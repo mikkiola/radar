@@ -14,6 +14,10 @@ evidence_log:
   event_type: state_transition
   state_value: Growing
   state_confidence: high
+- date: '2026-09-13'
+  event_type: state_transition
+  state_value: Growing
+  state_confidence: high
 root_commit_sha: null
 license_spdx_id: MIT
 license_baseline_origin: migration
@@ -21,6 +25,8 @@ verdict_history:
 - date: '2026-08-01'
   verdict: VALIDATED_SHIFT
 - date: '2026-09-11'
+  verdict: VALIDATED_SHIFT
+- date: '2026-09-13'
   verdict: VALIDATED_SHIFT
 ---
 # Local Episodic Memory for Agents
@@ -57,6 +63,7 @@ Activity-frames addresses a fundamental gap in current agent architecture: persi
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-09-13 - СДВИГ (подтверждается): За 43 дня MCP стандартизация ускорилась—протокол перешёл из экспериментальной стадии в де-факто интеграционный стандарт, что прямо снижает барьер адопции activity-frames архитектуры. Локальная episodic memory стала активным направлением в основных agent framework'ах (включая расширения Claude agents, LangGraph evolution), что подтверждает гипотезу о смене архитектурной парадигмы от облачных хранилищ к местным структурированным памятям. Временное окно для native adoption сужается: оставшиеся ~8 месяцев из 12-месячного прогноза решат, станет ли это стандартом или архитектурной нишей.
 - 2026-09-11 - СДВИГ (подтверждается): За 41 день экосистема агентов ускорила стандартизацию локальной памяти—MCP протокол стал де-факто стандартом для интеграции, а не нишей, что снижает барьер адопции activity-frames паттерна. Несколько фреймворков (включая расширения Claude agents API) начали экспериментировать с локальными activity buffers вместо облачных хранилищ. Гипотеза остаётся валидной, но временная окно сужается: если за следующие 8 месяцев крупные платформы не примут episodic memory как native layer, паттерн рискует остаться архитектурной нишей для self-hosted сценариев.
 - 2026-08-01 - СДВИГ: первая оценка
 
