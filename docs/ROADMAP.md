@@ -19,11 +19,14 @@ all four canonical docs (`docs/ARCHITECTURE.md`, `docs/ROADMAP.md`,
 `docs/BACKLOG.md`, `docs/CONSTITUTION.md`) rewritten to the
 Documentation Rules' structure.
 
-The next task is pulled from `docs/BACKLOG.md`'s P1/P2 queue or the
-owner's new priority, via a separate `/spec` session — nothing beyond
-this phase is pre-committed. `[B-001]` (graph rendering) and `[B-004]`
-(prompt injection) are the current P1 items and the most reasonable
-next pull. Most of the remaining P2/P3 queue (`[B-005]`, `[B-006]`,
+`[B-001]` and `[B-004]` are both pulled as the current P1 work pool.
+`[B-001]` (graph rendering) is directly actionable now — a
+verification task (trigger a fresh `pages.yml` run and a
+hard-cache-clear check), no decision required. `[B-004]` (prompt
+injection) is blocked on a dedicated `/spec` session to resolve the
+isolation-vs-risk-acceptance choice before any implementation
+starts — it is not pullable for direct work until that session
+happens. Most of the remaining P2/P3 queue (`[B-005]`, `[B-006]`,
 `[B-010]`–`[B-012]`) is event-triggered — waiting on accumulated data,
 a scheduled cron firing, or a checkpoint being reached — not pullable
 on demand regardless of priority.
