@@ -1,5 +1,5 @@
 ---
-status: CANDIDATE
+status: VALIDATED_SHIFT
 maturity_score: 2
 novelty_score: 4
 state_value: Prototype
@@ -19,6 +19,8 @@ license_baseline_origin: initial
 verdict_history:
 - date: '2026-09-03'
   verdict: CANDIDATE
+- date: '2026-09-17'
+  verdict: VALIDATED_SHIFT
 ---
 # Agent-native systems programming language
 
@@ -62,6 +64,7 @@ SEMAPRAX is a pre-alpha (v0.2.0) systems language introducing a novel semantic g
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-09-17 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-09-03 - CANDIDATE: первая оценка
 
 ## Связи
