@@ -75,6 +75,24 @@ installed (commit `467955a`), `SPEC.md` trimmed to idle state plus
 diagram corrected (commit `fb10dea`). Remaining piece tracked
 separately below: [B-013].
 
+## Closed this revision (2026-09-18)
+
+#### [B-001] Interactive graph doesn't render on GitHub Pages (404 on graph.json) — Resolved, misdiagnosed
+
+Found: 2026-08-25, end of the GitLab→GitHub migration session. Closed:
+2026-09-18.
+
+Resolved — misdiagnosed. The real fetch path
+(`/assets/javascripts/graph.json`, `docs/assets/javascripts/interactive_graph.js:2`)
+returns 200 with valid data; the literal path named in the original
+ticket (`/graph.json`) was never the one the code uses and its own 404
+is not a defect. The graph is functionally working today.
+
+**Source.** `docs/assets/javascripts/interactive_graph.js:2`; live
+`curl` check against
+`https://mikkiola.github.io/radar/assets/javascripts/graph.json`
+(200, `application/json`, valid node data); session 2026-09-18.
+
 ## Rejected
 
 **From the 2026-08-25 revision:** llm-tldr, Article Engine,
@@ -111,30 +129,6 @@ substantively rejected idea.
 ## Tasks
 
 ### P1
-
-#### [B-001] P1 — Interactive graph doesn't render on GitHub Pages (404 on graph.json)
-
-Found: 2026-08-25, end of the GitLab→GitHub migration session.
-
-Browser console shows a 404 on `assets/javascripts/graph.json`,
-followed by a JSON parse error (server returns the 404 HTML page
-instead). Line-by-line check found no path mismatch between
-`src/generate_graph.py`'s write path and
-`docs/assets/javascripts/interactive_graph.js`'s fetch path — both
-resolve to the same file in the built site. Full write-up and current
-best hypothesis (the 404 was observed before the one successful deploy
-finished, at a moment `.github/workflows/` didn't yet exist on GitHub
-due to a confused-remotes issue) in `docs/ARCHITECTURE.md`'s "GitHub
-Pages" section — that hypothesis was not confirmed by a repeat check
-within that session.
-
-- [ ] Trigger a fresh, unambiguous `pages.yml` run (push any trivial
-      change) and check the live graph with a hard browser cache clear
-      afterward, to settle whether this was a timing artifact or a
-      real, persisting problem.
-
-**Source.** `docs/ARCHITECTURE.md`'s GitHub Pages section, session
-2026-08-25.
 
 #### [B-004] P1 — Unmitigated prompt injection risk in analyze.py/patterns.py/fetch_analysts.py
 
@@ -291,3 +285,59 @@ mechanism, not deferred.
 - [x] No further action — existing pre-push hook is sufficient
 **Source.** Session decision, 2026-08-27, cross-repo recon + explicit
 architectural-lens review (Taleb/O'Connor/Harari).
+
+#### [B-016] P3 — Interactive graph works but visual presentation needs improvement
+Found: 2026-09-18, graph-functionality investigation session (see
+[B-001]'s closure above).
+Owner confirmed 2026-09-18 the graph renders and functions correctly,
+but the visual presentation itself is unsatisfying. No specific
+requirement defined yet — needs owner input on what "better" means
+(layout, styling, information density, or something else) before this
+can be scoped as a task.
+- [ ] Needs owner input before this is actionable — no task defined yet
+**Source.** Session decision, 2026-09-18, following [B-001]'s
+resolution (graph confirmed functionally working).
+
+#### [B-017] P2 — telegram_post.py selects the next post via lexicographic filename sort, not parsed date
+Found: 2026-09-18, publishing-gap investigation session.
+`find_latest_shift()` in `src/telegram_post.py` sorts
+`01_Assessments/*.md` via `sorted(glob.glob(pattern), reverse=True)` —
+a reverse lexicographic (string) sort on the full file path, not a
+parsed date comparison. This currently produces correct behavior
+because assessment filenames consistently end in a `YYYY-MM-DD` date
+suffix that happens to sort correctly as a string in this dataset.
+This is a latent risk, not a live bug: a filename that breaks this
+assumption (a different date format, a missing date, a name that
+sorts differently as a string than its actual date) could cause the
+wrong assessment to be selected as "latest" with no error raised.
+Owner decision (2026-09-18): log as a known risk, no fix scheduled
+now.
+- [ ] Known risk, logged only — no fix scheduled
+**Source.** `src/telegram_post.py` (`find_latest_shift()`), session
+2026-09-18, publishing-gap investigation.
+
+#### [B-018] P2 — patterns.py has not clustered any of the 8 VALIDATED_SHIFT files promoted 2026-09-12 through 2026-09-17 into 02_Patterns/
+Found: 2026-09-18, publishing-gap investigation session. Priority:
+P2, not P3 — this is a self-contained investigation with no external
+trigger blocking it (unlike this file's P3 criterion of "conditional
+on an external trigger"); it is simply not urgent, matching P2's own
+definition ("someday, not urgent").
+Verified 2026-09-18: the most recent `weekly-patterns.yml` run
+(2026-09-17 23:59:58 UTC) only archived 6 old pattern files into
+`03_Archive/` — it created zero new pattern files, and none of the 8
+files promoted to `VALIDATED_SHIFT` since 2026-09-12
+(`AI-driven_toy_design_automation_platform`,
+`LLM-maintained_knowledge_governance_standard`,
+`Production_Stack_Testing_Automation`,
+`Self-improving_agentic_orchestration_runtime`,
+`Enterprise_Agent_Learning_Platform`,
+`Persistent_Agent_Context_Workspace_Layer`,
+`Agent-native_systems_programming_language`,
+`Continual_Learning_Infrastructure_for_Agents`) appear in any
+`02_Patterns/` file. Not yet diagnosed whether this is expected (too
+few files sharing a common theme to cluster) or a gap in `patterns.py`'s
+clustering logic. Owner decision (2026-09-18): log now, investigate
+later — not a priority this session.
+- [ ] Investigate later — not a priority this session
+**Source.** Session decision, 2026-09-18, publishing-gap investigation
+(`daily-run.yml`/`publish.yml`/`weekly-patterns.yml` log review).
