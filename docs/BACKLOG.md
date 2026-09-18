@@ -341,3 +341,25 @@ later — not a priority this session.
 - [ ] Investigate later — not a priority this session
 **Source.** Session decision, 2026-09-18, publishing-gap investigation
 (`daily-run.yml`/`publish.yml`/`weekly-patterns.yml` log review).
+
+#### [B-019] P3 — Wire scripts/doc_sync.py into hooks, matching article-pipeline's DocOps setup
+`scripts/doc_sync.py` has sat vendored on disk, untracked by git,
+since commit `11e3305` (2026-09-11), which explicitly deferred
+hook-wiring as a separate decision. Owner confirmed 2026-09-18 this
+is a real, wanted piece of work — not dead weight to delete — tied to
+the owner's broader intent to bring Radar's DocOps tooling in line
+with article-pipeline's existing setup (shared ToolTempest hooks, not
+a Radar-only reimplementation). Scope not yet defined: what
+`doc_sync.py` actually does, which of its behaviors Radar should
+adopt verbatim vs. adapt, and which hook(s) should call it, all need
+research against article-pipeline's real, working configuration
+before this is actionable as a task. Priority P3: explicitly deferred
+("as soon as time appears" per the owner), no external trigger
+blocking it, no urgency stated.
+- [ ] Needs a research pass against article-pipeline's actual
+      doc_sync.py wiring before this can be scoped as an
+      implementation task — not yet actionable.
+**Source.** Session decision, 2026-09-18, following the
+`.tooltempest.lock` pin bump — connects to the owner's stated
+longer-term goal of matching article-pipeline's DocOps cycle for
+Radar.
