@@ -363,3 +363,44 @@ blocking it, no urgency stated.
 `.tooltempest.lock` pin bump — connects to the owner's stated
 longer-term goal of matching article-pipeline's DocOps cycle for
 Radar.
+
+#### [B-020] P3 — Evidence/interpretation separation in assessment presentation is a design constraint, not a Requirement, for O7 (Decision Support)
+Found: 2026-09-18, this session's Product & Business Roadmap
+reconciliation.
+Real assessment files already separate factual cross-validation
+(`## Self-Check (CoVe)`) from interpretive narrative structurally,
+via `build_body_template()` in `src/analyze.py` — confirmed
+2026-09-18. This satisfies O7's Outcome today; formalizing it further
+is a design choice, not something O7's text requires.
+- [ ] Logged as a design constraint already met in practice, not an
+      open task.
+**Source.** Session decision, 2026-09-18, Product & Business Roadmap
+reconciliation.
+
+#### [B-021] P3 — Formalized signal-selection rule for O11 (Article Pipeline distribution) is a measurement concern, not a Requirement
+Found: 2026-09-18, this session's Product & Business Roadmap
+reconciliation.
+O11's "strongest signals" requires that some selection happens, but
+not that the selection be a formalized, non-ad-hoc rule — an
+Owner-driven manual selection is logically consistent with O11's
+stated Outcome. Confirmed 2026-09-18 this is an acceptance/
+measurement concern (how to verify selection isn't arbitrary), not a
+Target-State property.
+- [ ] No action needed unless Owner later decides a formal rule is
+      wanted.
+**Source.** Session decision, 2026-09-18, Product & Business Roadmap
+reconciliation.
+
+#### [B-022] P3 — O8/O9 (paid product / first revenue) and O11 (Article Pipeline integration) have no derivable technical Requirement on Radar's side
+Found: 2026-09-18, this session's Product & Business Roadmap
+reconciliation.
+Confirmed 2026-09-18 — O8/O9 are product/business decisions outside
+this repository's technical scope; O11 is additionally blocked by
+article-pipeline's own `docs/ROADMAP.md`, which lists
+Radar-as-claim-source as "paused pending migration" — the blocker is
+on the other repository, not Radar's.
+- [ ] No Radar-side task exists to pull until either a product
+      decision is made (O8/O9) or article-pipeline's own pause lifts
+      (O11).
+**Source.** Session decision, 2026-09-18, Product & Business Roadmap
+reconciliation.
