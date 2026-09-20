@@ -1,5 +1,5 @@
 ---
-status: CANDIDATE
+status: VALIDATED_SHIFT
 maturity_score: 3
 novelty_score: 4
 state_value: Growing
@@ -20,6 +20,8 @@ license_baseline_origin: initial
 verdict_history:
 - date: '2026-09-06'
   verdict: CANDIDATE
+- date: '2026-09-20'
+  verdict: VALIDATED_SHIFT
 ---
 # Local-First Project Memory for AI Agents
 
@@ -63,6 +65,7 @@ The project introduces a deterministic project-state layer with bitemporal truth
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-09-20 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-09-06 - CANDIDATE: первая оценка
 
 ## Связи
