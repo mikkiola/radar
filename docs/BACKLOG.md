@@ -418,3 +418,63 @@ block's token cost grows unboundedly per call. Distinct mechanism from
       explicit decision that unbounded growth is acceptable and why.
 **Source.** Session 2026-09-23, prompt-caching implementation task
 (`src/analyze.py` review).
+
+#### [B-024] P1 — update_assessments.py: uncapped per-file API calls, growing daily
+Found: 2026-09-23, token-spend spike investigation session.
+`src/update_assessments.py` sends one Anthropic API call per assessment
+file older than 30 days (`DAYS_THRESHOLD`), on every single
+`daily-run.yml` execution, unconditionally. Confirmed via log recon
+(2026-09-23): 93-95 calls/run observed across 09-13 through 09-17,
+dominating total API call volume for the pipeline by roughly 20x over
+`analyze.py`'s 3-6 calls/run in the same window. The count grows over
+time as more assessment files cross the 30-day threshold — nothing in
+the current logic removes a file from eligibility once it qualifies.
+
+Each call embeds the full assessment file body verbatim in the prompt
+(see [B-026]) — response `max_tokens=400`, no retry/backoff logic
+present.
+
+Directly implicated in the 2026-09-15/09-16 token usage spike observed
+on the Anthropic console: a missed 09-14 cron cycle caused two
+`daily-run.yml` runs on 09-15 (00:05 and 23:50 UTC), producing ~188
+`update_assessments.py` calls that calendar date (~2x the 09-13
+baseline of 93) — consistent with the ~2x spike shown on the usage
+graph for that date. 09-16's spike (comparable or higher on the
+console despite only 95 calls, +5% vs baseline) is not explained by
+call count alone; likely per-file prompt-body size variance across the
+file set that day, not yet measured.
+- [ ] Not fixed, blocked on a `/spec` session to clarify what
+      `update_assessments.py`'s 30-day recheck is actually meant to
+      catch, and whether it can be made conditional (e.g., skip if
+      nothing relevant changed since the last check), batched, or
+      capped on prompt body size — any of which is an architectural
+      change to the pipeline's re-assessment logic, not a routine fix.
+**Source.** Session 2026-09-23, token-spend spike log recon
+(`daily-run.yml` run logs, 09-13 through 09-17).
+
+#### [B-025] P2 — No usage/token logging at any of the 6 Anthropic API call sites
+Found: 2026-09-23, same investigation session.
+None of the 6 files that call the Anthropic API (`analyze.py`,
+`update_assessments.py`, `patterns.py` x2, `fetch_analysts.py`,
+`check_model_updates.py`, `telegram_post.py`) read or log the `usage`
+field (`input_tokens`/`output_tokens`) from the API response. Per-call
+token cost is currently unobservable from any pipeline log — all cost
+analysis has to go through the Anthropic console instead.
+- [ ] Add usage logging (print or structured log) at each of the 6
+      call sites. Assessed as low-effort/routine by the architect
+      chat, not verified against actual implementation complexity —
+      flag if adding usage logging touches shared code paths across
+      all 6 call sites in a way that turns out non-trivial.
+**Source.** Session 2026-09-23, token-spend spike log recon.
+
+#### [B-026] P1 — update_assessments.py has no prompt truncation cap
+Found: 2026-09-23, same investigation session.
+Unlike `analyze.py` (`README_MAX_CHARS=8000`, `MANIFEST_MAX_CHARS=3000`),
+`update_assessments.py` embeds the full assessment file body verbatim
+with no length cap of any kind. Distinct problem from [B-024]'s
+uncapped call *count* — even if call count were fixed, individual call
+size is currently unbounded and scales with however long an assessment
+file's `evidence_log`/body has grown by the time it's 30+ days old.
+- [ ] Same `/spec` session as [B-024] — a prompt-size cap here is part
+      of the same re-assessment-logic redesign, not a separate fix.
+**Source.** Session 2026-09-23, token-spend spike log recon.
