@@ -404,3 +404,17 @@ on the other repository, not Radar's.
       (O11).
 **Source.** Session decision, 2026-09-18, Product & Business Roadmap
 reconciliation.
+
+#### [B-023] P2 — patterns_list included in every Haiku prompt with no truncation, will grow unboundedly
+Found: 2026-09-23, prompt-caching implementation session (`src/analyze.py`).
+`patterns_list` (`build_prompt()` call site, `src/analyze.py:467`) lists every
+existing pattern filename with no cap, embedded in full in every one of the
+up to 10 per-run Haiku calls. Unlike `assessments_list`'s `[-20:]` cap (line
+468), there is no equivalent limit here — as the pattern corpus grows, this
+block's token cost grows unboundedly per call. Distinct mechanism from
+`[B-005]` (README-fetch+LLM-tldr compression) — not merged into it.
+- [ ] Decide and implement a cap/truncation strategy for `patterns_list`
+      analogous to `assessments_list`'s existing `[-20:]` limit, or an
+      explicit decision that unbounded growth is acceptable and why.
+**Source.** Session 2026-09-23, prompt-caching implementation task
+(`src/analyze.py` review).

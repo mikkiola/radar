@@ -78,6 +78,7 @@ CLASSIFICATION_TOOL = {
             "source_file", "source_location", "source_quote",
         ],
     },
+    "cache_control": {"type": "ephemeral"},
 }
 
 
@@ -294,22 +295,7 @@ def read_owner_opinion(filepath):
         return None
 
 
-def build_prompt(title, desc, url, signal, patterns_list, assessments_list):
-    readme_block = signal["readme"] or "(README недоступен)"
-    manifest_block = (
-        f"{signal['manifest_name']}:\n{signal['manifest_content']}"
-        if signal["manifest_content"] else "(manifest не найден)"
-    )
-    root_files_block = ", ".join(signal["root_files"]) if signal["root_files"] else "(список файлов недоступен)"
-
-    detected_patterns = detect_architecture_patterns(
-        signal["readme"] + " " + (signal["manifest_content"] or "") + " " + " ".join(signal["root_files"])
-    )
-    detected_patterns_hint = (
-        f"\nDetected architectural patterns: {', '.join(detected_patterns)}\n" if detected_patterns else ""
-    )
-
-    return f"""You are a measurement instrument for the AI and agent market ecosystem.
+STATIC_PREAMBLE = """You are a measurement instrument for the AI and agent market ecosystem.
 Respond in English.
 
 Assess this opensource project on a 2D matrix - Maturity x Novelty (both 1-5) - and self-check your own claim before finalizing.
@@ -326,7 +312,25 @@ Maturity scale anchors:
 
 Additionally classify state_value - a THIRD, independent axis: lifecycle TREND (momentum), not a snapshot of code sophistication. Do not restate maturity_score in different words - answer "is this gaining or losing momentum", not "how sophisticated is this today". See the state_value field description in the tool schema for the exact category definitions.
 
-Проект: {title}
+"""
+
+
+def build_prompt(title, desc, url, signal, patterns_list, assessments_list):
+    readme_block = signal["readme"] or "(README недоступен)"
+    manifest_block = (
+        f"{signal['manifest_name']}:\n{signal['manifest_content']}"
+        if signal["manifest_content"] else "(manifest не найден)"
+    )
+    root_files_block = ", ".join(signal["root_files"]) if signal["root_files"] else "(список файлов недоступен)"
+
+    detected_patterns = detect_architecture_patterns(
+        signal["readme"] + " " + (signal["manifest_content"] or "") + " " + " ".join(signal["root_files"])
+    )
+    detected_patterns_hint = (
+        f"\nDetected architectural patterns: {', '.join(detected_patterns)}\n" if detected_patterns else ""
+    )
+
+    return STATIC_PREAMBLE + f"""Проект: {title}
 Описание: {desc}
 URL: {url}
 
@@ -360,6 +364,8 @@ Self-check 2 (novelty checklist): это новый протокол? новый
 
 
 def call_haiku_classification(prompt):
+    static_part = prompt[:len(STATIC_PREAMBLE)]
+    variable_part = prompt[len(STATIC_PREAMBLE):]
     response = requests.post(
         "https://api.anthropic.com/v1/messages",
         headers={
@@ -372,7 +378,13 @@ def call_haiku_classification(prompt):
             "max_tokens": 1500,
             "tools": [CLASSIFICATION_TOOL],
             "tool_choice": {"type": "tool", "name": "submit_classification"},
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": [{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": static_part, "cache_control": {"type": "ephemeral"}},
+                    {"type": "text", "text": variable_part},
+                ],
+            }],
         },
         timeout=30,
     )
