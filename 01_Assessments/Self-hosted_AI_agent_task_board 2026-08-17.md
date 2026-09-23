@@ -2,8 +2,8 @@
 status: VALIDATED_SHIFT
 maturity_score: 2
 novelty_score: 4
-state_value: Prototype
-state_confidence: low
+state_value: Growing
+state_confidence: high
 assertion_vector: OverClick introduces a contract-based, MCP-native task board where
   human-written verification scripts replace subjective review, and agents autonomously
   claim work while reporting measurable cost (tokens, duration, model) as a native
@@ -15,6 +15,10 @@ evidence_log:
   state_confidence: low
 - date: '2026-09-01'
   event_type: ci_broken
+- date: '2026-09-23'
+  event_type: state_transition
+  state_value: Growing
+  state_confidence: high
 root_commit_sha: ce28000c38a5ce9f495139dad8fd81eb03c74f73
 license_spdx_id: MIT
 license_baseline_origin: initial
@@ -22,6 +26,8 @@ verdict_history:
 - date: '2026-08-17'
   verdict: CANDIDATE
 - date: '2026-08-31'
+  verdict: VALIDATED_SHIFT
+- date: '2026-09-23'
   verdict: VALIDATED_SHIFT
 ---
 # Self-hosted AI agent task board
@@ -66,6 +72,7 @@ OverClick introduces a structurally novel coordination primitive: contract-based
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-09-23 - СДВИГ (подтверждается): За 36 дней MCP-стандарт укрепил позицию как де-факто протокол для агентной интеграции (Claude Code, новые агенты Anthropic расширили поддержку, конкуренты начали дублировать). OverClick остаётся одним из немногих self-hosted решений с contract-based моделью—это редкость на рынке. Гипотеза о third-party агенте, успешно интегрирующемся с OverClick, стала более вероятна из-за роста экосистемы MCP-агентов, но сам проект не показал явного скачка в adoption или коммерческого использования (остаётся в статусе Early). Матрица Maturity/Novelty остаётся валидна: 2/5 и 4/5, но вероятность прохождения гипотезы в течение 12 месяцев выросла с ~30% до ~45% благодаря экосистемному росту, а не внутренним улучшениям.
 - 2026-08-31 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-08-17 - CANDIDATE: первая оценка
 
