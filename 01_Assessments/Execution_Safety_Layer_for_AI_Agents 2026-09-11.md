@@ -1,5 +1,5 @@
 ---
-status: CANDIDATE
+status: VALIDATED_SHIFT
 maturity_score: 3
 novelty_score: 4
 state_value: Growing
@@ -19,6 +19,8 @@ license_baseline_origin: initial
 verdict_history:
 - date: '2026-09-11'
   verdict: CANDIDATE
+- date: '2026-09-25'
+  verdict: VALIDATED_SHIFT
 ---
 # Execution Safety Layer for AI Agents
 
@@ -62,6 +64,7 @@ CTRLRun is a working Python library (v0.7.0 on PyPI) with active maintenance, te
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-09-25 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-09-11 - CANDIDATE: первая оценка
 
 ## Связи
