@@ -1,5 +1,5 @@
 ---
-status: CANDIDATE
+status: VALIDATED_SHIFT
 maturity_score: 2
 novelty_score: 4
 state_value: Prototype
@@ -19,6 +19,8 @@ license_baseline_origin: initial
 verdict_history:
 - date: '2026-09-12'
   verdict: CANDIDATE
+- date: '2026-09-26'
+  verdict: VALIDATED_SHIFT
 ---
 # Non-linear Graph-First AI Agent Workbench
 
@@ -62,6 +64,7 @@ PiX implements a novel architectural abstraction—graph-first session organizat
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-09-26 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-09-12 - CANDIDATE: первая оценка
 
 ## Связи
