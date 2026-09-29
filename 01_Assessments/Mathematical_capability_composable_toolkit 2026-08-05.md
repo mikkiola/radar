@@ -2,8 +2,8 @@
 status: VALIDATED_SHIFT
 maturity_score: 2
 novelty_score: 4
-state_value: Growing
-state_confidence: low
+state_value: invalid
+state_confidence: high
 assertion_vector: Jacobian introduces separable verification-as-architecture for agent
   mathematics, decoupling solver discovery from checker-authorized trust via composable
   artifacts and role ownership, but remains early-stage (v0.8) with unproven adoption
@@ -15,6 +15,10 @@ evidence_log:
   state_confidence: low
 - date: '2026-09-01'
   event_type: ci_broken
+- date: '2026-09-29'
+  event_type: state_transition
+  state_value: invalid
+  state_confidence: high
 root_commit_sha: 528500bf8691982d36d583dc7daf5f68e765cd32
 license_spdx_id: MIT
 license_baseline_origin: initial
@@ -22,6 +26,8 @@ verdict_history:
 - date: '2026-08-05'
   verdict: CANDIDATE
 - date: '2026-08-19'
+  verdict: VALIDATED_SHIFT
+- date: '2026-09-29'
   verdict: VALIDATED_SHIFT
 ---
 # Mathematical capability composable toolkit
@@ -66,6 +72,7 @@ Jacobian achieves novelty by introducing verification-as-architecture and checke
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-09-29 - СДВИГ (подтверждается): 
 - 2026-08-19 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-08-05 - CANDIDATE: первая оценка
 
