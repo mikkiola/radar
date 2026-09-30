@@ -37,9 +37,10 @@ default, not an occasional caution.
 ## 2. Session protocol
 
 At the start of a session: read this file, `docs/ARCHITECTURE.md`,
-`docs/ROADMAP.md`, `docs/BACKLOG.md`, and the real calendar/current
-date — a session has previously proceeded on a stale date assumption
-when that last step was skipped.
+`docs/ROADMAP.md`, `docs/BACKLOG.md`, `CURRENT_MISSION.md` (the current
+operational mission — see §17), and the real calendar/current date — a
+session has previously proceeded on a stale date assumption when that
+last step was skipped.
 
 Project Knowledge on claude.ai can lag behind the current version of a
 document in Google Drive or this repository — don't rely on
@@ -376,3 +377,39 @@ convention retroactively.
 for Telegram posts: first person, direct, no preamble, no explanations
 for a broad audience, no CTA, no emoji markers, 300-800 characters,
 always Russian regardless of the input data's own language.
+
+## 17. The Mission Harness (`CURRENT_MISSION.md`)
+
+`CURRENT_MISSION.md` (repository root) holds the single, currently
+active operational workstream: `NOW`, `CURRENT STEP`, `DONE WHEN`, `IN
+SCOPE`, `OUT OF SCOPE`, `BLOCKERS`, `STATUS`. It is the operational
+source of truth for those fields only — it does not replace, and is not
+authoritative for, `docs/PROJECT.md` (why the project exists),
+`docs/ARCHITECTURE.md` (what currently exists), `docs/ROADMAP.md`
+(sequencing/direction — its own Current-pointer section may lag behind
+`CURRENT_MISSION.md`'s `NOW` without being rewritten to match),
+`docs/BACKLOG.md` (the task pool), `SPEC.md` (the bounded implementation
+contract for whichever task the mission currently selects), or
+`docs/adr/` (decision history).
+
+Its `GOAL` field cites a stable ID (e.g. `G041`) from the ecosystem's
+owner-controlled strategic registry, `../SYSTEM_GOALS.md` — a sibling
+document at the shared workspace root, written in Russian and
+maintained by the owner. Claude never rewrites that registry's goal
+wording, marks a goal `ACHIEVED`, or selects a successor goal on its own
+initiative — a possible achievement is written up as a question for the
+owner, never decided unilaterally.
+
+**Scope fence.** A newly discovered issue, idea, or opportunity enters
+the current mission only if `DONE WHEN` requires it or the owner
+explicitly adds it to `IN SCOPE` — otherwise it is recorded elsewhere
+(typically `docs/BACKLOG.md`) and the current mission continues
+unchanged. The owner may explicitly switch the active task at any time;
+that explicit switch is what reconciles `CURRENT_MISSION.md`, never a
+silent mid-session re-interpretation of scope.
+
+**Mission Done ≠ Goal Achieved.** Satisfying `DONE WHEN` sets this
+file's `STATUS` to `DONE` — it says nothing about whether the strategic
+goal(s) the mission served are themselves achieved. One mission can
+complete while its referenced goal remains active and open to further
+missions.
