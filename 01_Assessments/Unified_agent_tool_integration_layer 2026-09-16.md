@@ -1,5 +1,5 @@
 ---
-status: CANDIDATE
+status: VALIDATED_SHIFT
 maturity_score: 2
 novelty_score: 4
 state_value: Growing
@@ -19,6 +19,8 @@ license_baseline_origin: initial
 verdict_history:
 - date: '2026-09-17'
   verdict: CANDIDATE
+- date: '2026-10-01'
+  verdict: VALIDATED_SHIFT
 ---
 # Unified agent tool integration layer
 
@@ -62,6 +64,7 @@ Monid is a structured innovation in the agent-tool integration layer: it propose
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-10-01 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-09-16 - CANDIDATE: первая оценка
 
 ## Связи
