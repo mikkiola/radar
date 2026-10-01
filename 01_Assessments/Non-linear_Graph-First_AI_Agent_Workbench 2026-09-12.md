@@ -14,8 +14,8 @@ evidence_log:
   state_value: Prototype
   state_confidence: low
 root_commit_sha: 0d0a9f34ba50942099543145450b0c695e0369ce
-license_spdx_id: null
-license_baseline_origin: initial
+license_spdx_id: MPL-2.0
+license_baseline_origin: migration
 verdict_history:
 - date: '2026-09-12'
   verdict: CANDIDATE

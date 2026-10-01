@@ -14,8 +14,12 @@ evidence_log:
   event_type: state_transition
   state_value: Prototype
   state_confidence: low
+- date: '2026-10-01'
+  event_type: license_changed
+  old: NOASSERTION
+  new: MIT
 root_commit_sha: ca65f7ca7ddeb21dc3b4da24261399ea79b35b49
-license_spdx_id: NOASSERTION
+license_spdx_id: MIT
 license_baseline_origin: initial
 verdict_history:
 - date: '2026-08-29'

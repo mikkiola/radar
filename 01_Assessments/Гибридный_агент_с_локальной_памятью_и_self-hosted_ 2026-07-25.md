@@ -10,6 +10,8 @@ evidence_log:
   event_type: ci_restored
 - date: '2026-09-01'
   event_type: ci_broken
+- date: '2026-10-01'
+  event_type: ci_restored
 root_commit_sha: null
 license_spdx_id: Apache-2.0
 license_baseline_origin: migration

@@ -13,8 +13,12 @@ evidence_log:
   event_type: state_transition
   state_value: Growing
   state_confidence: low
+- date: '2026-10-01'
+  event_type: license_changed
+  old: Apache-2.0
+  new: MIT
 root_commit_sha: 0e75823cd7a3ef356e9988fd9ea24ea8c9932c62
-license_spdx_id: Apache-2.0
+license_spdx_id: MIT
 license_baseline_origin: initial
 verdict_history:
 - date: '2026-09-11'
