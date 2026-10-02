@@ -1,5 +1,5 @@
 ---
-status: CANDIDATE
+status: VALIDATED_SHIFT
 maturity_score: 3
 novelty_score: 4
 state_value: Growing
@@ -19,6 +19,8 @@ license_baseline_origin: initial
 verdict_history:
 - date: '2026-09-18'
   verdict: CANDIDATE
+- date: '2026-10-02'
+  verdict: VALIDATED_SHIFT
 ---
 # Rules-and-receipts layer for AI agents spending money
 
@@ -62,6 +64,7 @@ AskGrokWallet combines policy-as-contract-boundary (enforced reverts), threshold
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-10-02 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-09-18 - CANDIDATE: первая оценка
 
 ## Связи
