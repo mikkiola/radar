@@ -2,12 +2,18 @@
 status: VALIDATED_SHIFT
 maturity_score: null
 novelty_score: null
+state_value: Growing
+state_confidence: high
 assertion_vector: null
 evidence_log:
 - date: '2026-09-01'
   event_type: ci_broken
 - date: '2026-10-01'
   event_type: ci_restored
+- date: '2026-10-02'
+  event_type: state_transition
+  state_value: Growing
+  state_confidence: high
 root_commit_sha: null
 license_spdx_id: MIT
 license_baseline_origin: migration
@@ -17,6 +23,8 @@ verdict_history:
 - date: '2026-07-30'
   verdict: VALIDATED_SHIFT
 - date: '2026-06-07'
+  verdict: VALIDATED_SHIFT
+- date: '2026-10-02'
   verdict: VALIDATED_SHIFT
 ---
 # Оценка: github/github-mcp-server
@@ -41,6 +49,7 @@ GitHub переносит контроль над своим API в Model Contex
 ## Правка человека
 <!-- Не согласна с Claude? Добавь строку: - [дата] — [твоя оценка]: [почему] -->
 ## История оценок
+- 2026-10-02 - СДВИГ (подтверждается): За 117 дней с июня 2026 года MCP укрепил позицию стандарта агентного доступа — наблюдается интеграция в основные AI-фреймворки (Claude, OpenAI, Google) и массовое внедрение в enterprise среде. GitHub не только сохранил commitment к MCP-first архитектуре, но перевёл интеграцию в production-ready статус с расширенной документацией, что подтверждает необратимость смены парадигмы агентного доступа и делает откат к REST как основному интерфейсу маловероятным в обозначенном горизонте.
 - 2026-08-01 - СДВИГ (подтверждается): За 55 дней с момента первой оценки MCP интеграция GitHub продолжила укрепляться как де-факто стандарт агентного доступа — поддержка расширилась в ключевых AI-фреймворках (Anthropic Claude, OpenAI) и наблюдается активный рост adoption среди enterprise клиентов. GitHub не только сохранил commitment к MCP-first архитектуре, но расширил production-ready документацию и практические примеры, что существенно снижает вероятность отката к REST как основному интерфейсу в заявленном горизонте (через год от июня 2026).
 - 2026-07-31 - СДВИГ (подтверждается): За 54 дня MCP интеграция GitHub продолжила укрепляться как де-факто стандарт агентного доступа — наблюдается расширение поддержки в ключевых AI-фреймворках (Anthropic Claude, OpenAI) и активный рост adoption среди enterprise клиентов. GitHub не только сохранил commitment к MCP-first архитектуре, но расширил production-ready документацию и примеры, что снижает вероятность отката к REST как основному интерфейсу в горизонте года.
 - 2026-07-30 - СДВИГ (подтверждается): За 53 дня MCP интеграция GitHub укрепила позицию как стандарт агентного доступа — мы видим расширение поддержки в популярных AI-фреймворках (Anthropic, OpenAI) и рост adoption среди enterprise клиентов. GitHub не откатывал функционал в experimental, наоборот — добавил документацию и примеры для production use. Критерий пересмотра (REST как основной трафик через год) становится менее вероятным с каждым месяцем инвестиций платформы в MCP-first архитектуру.
