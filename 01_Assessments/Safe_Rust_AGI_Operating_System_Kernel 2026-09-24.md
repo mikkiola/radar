@@ -1,5 +1,5 @@
 ---
-status: CANDIDATE
+status: VALIDATED_SHIFT
 maturity_score: 2
 novelty_score: 4
 state_value: Growing
@@ -21,6 +21,8 @@ license_baseline_origin: initial
 verdict_history:
 - date: '2026-09-24'
   verdict: CANDIDATE
+- date: '2026-10-08'
+  verdict: VALIDATED_SHIFT
 ---
 # Safe Rust AGI Operating System Kernel
 
@@ -64,6 +66,7 @@ Apeireth is a structurally ambitious project introducing multiple novel architec
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-10-08 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-09-24 - CANDIDATE: первая оценка
 
 ## Связи
