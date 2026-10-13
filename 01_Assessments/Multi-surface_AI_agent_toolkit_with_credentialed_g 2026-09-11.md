@@ -3,7 +3,7 @@ status: VALIDATED_SHIFT
 maturity_score: 3
 novelty_score: 4
 state_value: Growing
-state_confidence: low
+state_confidence: high
 assertion_vector: A self-hosted agent framework that introduces a credentialed gateway
   architecture to separate model inference from tool execution and credentials, enabling
   multi-surface deployment (Slack, Nostr) with unified team memory, designed for organizational
@@ -17,6 +17,10 @@ evidence_log:
   event_type: license_changed
   old: Apache-2.0
   new: MIT
+- date: '2026-10-13'
+  event_type: state_transition
+  state_value: Growing
+  state_confidence: high
 root_commit_sha: 0e75823cd7a3ef356e9988fd9ea24ea8c9932c62
 license_spdx_id: MIT
 license_baseline_origin: initial
@@ -24,6 +28,8 @@ verdict_history:
 - date: '2026-09-11'
   verdict: CANDIDATE
 - date: '2026-09-25'
+  verdict: VALIDATED_SHIFT
+- date: '2026-10-13'
   verdict: VALIDATED_SHIFT
 ---
 # Multi-surface AI agent toolkit with credentialed gateway
@@ -68,6 +74,7 @@ The project implements a working multi-surface agent architecture with architect
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-10-13 - СДВИГ (подтверждается): 
 - 2026-09-25 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-09-11 - CANDIDATE: первая оценка
 
