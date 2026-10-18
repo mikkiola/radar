@@ -1,5 +1,5 @@
 ---
-status: CANDIDATE
+status: VALIDATED_SHIFT
 maturity_score: 2
 novelty_score: 4
 state_value: Growing
@@ -19,6 +19,8 @@ license_baseline_origin: initial
 verdict_history:
 - date: '2026-10-04'
   verdict: CANDIDATE
+- date: '2026-10-18'
+  verdict: VALIDATED_SHIFT
 ---
 # Hidden execution environment for AI agents
 
@@ -62,6 +64,7 @@ omabox is a novel architectural layer providing isolated virtual desktops for ag
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-10-18 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-10-04 - CANDIDATE: первая оценка
 
 ## Связи
