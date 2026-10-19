@@ -56,10 +56,11 @@ current" below), it stays in English, reflects the current
 architecture, and never exposes internal paths, secrets, or exact cron
 schedules.
 
-No dedicated session-end mechanism exists for Radar today, unlike
-article-pipeline's owner-triggered `/session-end`. A session ends when
-its stated task is done and reported, or when a stop-and-ask case is
-reached (see below).
+Radar has an explicit, owner-triggered `/session-end` skill at
+`.claude/skills/session-end/SKILL.md` for `docs/BACKLOG.md` closure only.
+It has no structural-fact-sync half and never detects session completion
+autonomously. A session ends when its stated task is done and reported,
+or when a stop-and-ask case is reached (see below).
 
 ## 3. Keeping documents current
 
