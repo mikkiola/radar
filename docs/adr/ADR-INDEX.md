@@ -30,4 +30,5 @@ re-run after adding or editing an ADR in this session.
 | [ADR-0022](0022-knowledge-more-valuable-than-code.md) | Knowledge Is More Valuable Than Code | Accepted | null | null |
 | [ADR-0023](0023-shift-content-selection-criterion.md) | SHIFT: Content Selection Criterion for the Channel | Accepted | null | null |
 | [ADR-0024](0024-scope-boundaries-non-goals.md) | Scope Boundaries: Non-Goals | Accepted | null | null |
+| [ADR-0025](0025-tooltempest-lock-integrity-guard.md) | Integrity Guard for the ToolTempest Lock and Its Materialized File | Proposed | null | null |
 

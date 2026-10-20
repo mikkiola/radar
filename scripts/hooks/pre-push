@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# ToolTempest-adjacent DocOps hooks (pinned version in .tooltempest.lock)
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+# Lock integrity guard (ADR-0025). For every pushed ref, verify the
+# .tooltempest.lock as it exists in the pushed tip (not the working-tree copy)
+# against the materialized vendored file. stdin lines from git:
+#   <local ref> <local sha> <remote ref> <remote sha>
+#
+# The checker is looked up in this worktree first, then in the main worktree
+# (hooks are shared by every worktree, and a data-only worktree such as the
+# vault one has no scripts/ of its own).
+resolve_lock_checker() {
+  local common candidate
+  common="$(cd "$(git rev-parse --git-common-dir)" && pwd)"
+  for candidate in "$REPO_ROOT/scripts/check_tooltempest_lock.py" "$(dirname "$common")/scripts/check_tooltempest_lock.py"; do
+    if [ -f "$candidate" ]; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+#
+# The checker may be missing in both places (for example when the main worktree
+# itself is checked out on a data-only branch). That alone must not block a ref
+# whose whole history provably never contained the lock; any other ref cannot
+# be verified without the checker and blocks the push (fail closed).
+lock_guard_failed=0
+LOCK_CHECKER=""
+if ! LOCK_CHECKER="$(resolve_lock_checker)"; then
+  LOCK_CHECKER=""
+fi
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$local_sha" in
+    *[!0]*) ;;
+    *)
+      echo "[lock-guard] pre-push: $remote_ref is a ref deletion; nothing to verify."
+      continue ;;
+  esac
+  if [ -n "$LOCK_CHECKER" ]; then
+    rc=0
+    python3 "$LOCK_CHECKER" --repo-root "$REPO_ROOT" --lock-source "rev:$local_sha" < /dev/null || rc=$?
+    case "$rc" in
+      0|3) ;;
+      *) lock_guard_failed=1 ;;
+    esac
+  else
+    history_rc=0
+    lock_history="$(git log -1 --format=%H --full-history "$local_sha" -- .tooltempest.lock < /dev/null)" || history_rc=$?
+    if [ "$history_rc" -eq 0 ] && [ -z "$lock_history" ]; then
+      echo "N/A: scripts/check_tooltempest_lock.py not found, but $remote_ref has no .tooltempest.lock anywhere in its history; nothing to verify."
+    else
+      echo "[pre-push] scripts/check_tooltempest_lock.py not found in this or the main worktree; cannot verify $remote_ref; push blocked."
+      lock_guard_failed=1
+    fi
+  fi
+done
+if [ "$lock_guard_failed" -ne 0 ]; then
+  echo "[pre-push] .tooltempest.lock integrity check failed; push blocked."
+  exit 1
+fi
+
+echo "[pre-push] Checking ToolTempest drift (.tooltempest.lock vs ToolTempest's main)..."
+if [ -f .tooltempest.lock ]; then
+  pinned_sha="$(grep '"commit"' .tooltempest.lock | sed -E 's/.*"commit"[[:space:]]*:[[:space:]]*"([0-9a-f]+)".*/\1/')"
+  repo_url="$(grep '"repository"' .tooltempest.lock | sed -E 's/.*"repository"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')"
+  if [ -n "$pinned_sha" ] && [ -n "$repo_url" ]; then
+    remote_sha="$(git ls-remote "$repo_url" main 2>/dev/null | cut -f1 || true)"
+    if [ -n "$remote_sha" ] && [ "$remote_sha" != "$pinned_sha" ]; then
+      echo "[pre-push] WARNING: Radar is behind ToolTempest."
+      echo "[pre-push] Pinned: ${pinned_sha:0:7}, latest: ${remote_sha:0:7}."
+      echo "[pre-push] After repinning, materialize the file first (see docs/adr/0025-tooltempest-lock-integrity-guard.md); do not edit the lock to match a stale file."
+    fi
+  fi
+fi
+
+echo "[pre-push] All checks passed."
+exit 0

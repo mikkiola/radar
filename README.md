@@ -21,7 +21,8 @@ radar/
 ├── tests/                      pytest suite (pythonpath = src, see pyproject.toml)
 ├── docs/                       mkdocs source + canonical docs (ARCHITECTURE/
 │                                 ROADMAP/BACKLOG/CONSTITUTION.md, adr/)
-├── scripts/                    verify.py, generate_adr_index.py
+├── scripts/                    verify.py, generate_adr_index.py,
+│                                 check_tooltempest_lock.py, install-hooks.sh, hooks/
 ├── .github/workflows/          CI/CD pipeline (see CI/CD below)
 ├── .tooltempest.lock           pinned ToolTempest commit
 ├── SPEC.md                     active /spec target (idle unless a session is in progress)

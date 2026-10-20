@@ -389,6 +389,27 @@ helper identity and untracked status were checked after alignment. Evidence:
 Hook wiring remains the separate open task above; it is not closed by this
 byte alignment.
 
+**Lock integrity guard, 2026-10-20 (Owner decisions D1-a and D4).** The
+mismatch behind the alignment above went unnoticed for 32 days: commit
+`d853a3f` (2026-09-18) repinned `.tooltempest.lock` to `0df1b05` and changed its
+`sha256` to `663f019d…`, while the local file kept the bytes of the earlier pin
+`d35ff68` (SHA-256 `c54d0b44…`). Nothing compared the file with the lock; the
+existing pre-push check compares the pin with ToolTempest's `main`, which is a
+different property. Upstream `scripts/doc_sync.py` hashes to `c54d0b44…` at
+`d35ff68` and to `663f019d…` at `0df1b05`, `a950f77` and `de4436a` (read-only
+check with the `verify-upstream` block of ADR-0025). ADR-0025 (Proposed) records
+the guard: `scripts/check_tooltempest_lock.py` compares the lock (working tree,
+index or a given revision) with the materialized file; the versioned hooks in
+`scripts/hooks/` run it in pre-commit (staged lock) and pre-push (lock of each
+pushed tip); `scripts/install-hooks.sh` activates them per clone and refuses to
+install unless the file is materialized and matches the lock. Limits, stated
+plainly: the file stays untracked, so only a clone that activated the guard is
+protected; `--no-verify` bypasses it; no CI layer can verify it; and the
+lock-versus-upstream hash is checked only by the manual block in the ADR (Owner
+decision D4: not automated). The guard never executes `doc_sync.py`, so wiring
+`doc_sync.py` into hooks remains the open task of this entry. Not decided here:
+whether `scripts/doc_sync.py` belongs in `.gitignore` (it shows as untracked).
+
 **Source.** Session decision, 2026-09-18, following the
 `.tooltempest.lock` pin bump — connects to the owner's stated
 longer-term goal of matching article-pipeline's DocOps cycle for

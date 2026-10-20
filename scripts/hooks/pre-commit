@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# ToolTempest-adjacent DocOps hooks (pinned version in .tooltempest.lock)
+# Radar does not consume ToolTempest's doc_sync.py — ADR-INDEX
+# regeneration is Radar's own local mechanism.
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+# Regenerate docs/adr/ADR-INDEX.md if any ADR file is staged, and
+# fail the commit if it's out of date (forgot to re-run the generator).
+if git diff --cached --name-only | grep -q '^docs/adr/.*\.md$'; then
+  python3 scripts/generate_adr_index.py > /tmp/adr-index-check.md
+  if ! diff -q /tmp/adr-index-check.md docs/adr/ADR-INDEX.md > /dev/null 2>&1; then
+    echo "[pre-commit] docs/adr/ADR-INDEX.md is out of date."
+    echo "[pre-commit] Run: python3 scripts/generate_adr_index.py > docs/adr/ADR-INDEX.md"
+    exit 1
+  fi
+fi
+
+# Lock integrity guard (ADR-0025). When .tooltempest.lock is part of this
+# commit, verify the STAGED version of the lock (what the commit will contain,
+# not the working-tree copy) against the materialized vendored file.
+#
+# The checker is looked up in this worktree first, then in the main worktree
+# (hooks are shared by every worktree, and a data-only worktree such as the
+# vault one has no scripts/ of its own).
+resolve_lock_checker() {
+  local common candidate
+  common="$(cd "$(git rev-parse --git-common-dir)" && pwd)"
+  for candidate in "$REPO_ROOT/scripts/check_tooltempest_lock.py" "$(dirname "$common")/scripts/check_tooltempest_lock.py"; do
+    if [ -f "$candidate" ]; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+if git diff --cached --name-only --no-renames | grep -xF '.tooltempest.lock' > /dev/null; then
+  if ! LOCK_CHECKER="$(resolve_lock_checker)"; then
+    echo "[pre-commit] scripts/check_tooltempest_lock.py not found in this or the main worktree; commit blocked."
+    exit 1
+  fi
+  if ! python3 "$LOCK_CHECKER" --repo-root "$REPO_ROOT" --lock-source index; then
+    echo "[pre-commit] .tooltempest.lock integrity check failed; commit blocked."
+    exit 1
+  fi
+  if ! git diff --quiet -- .tooltempest.lock; then
+    echo "[lock-guard] WARNING: the working-tree .tooltempest.lock differs from the staged one; the staged version was checked."
+  fi
+else
+  echo "[lock-guard] pre-commit: .tooltempest.lock not staged; nothing to verify."
+fi
+
+python3 -m py_compile $(git diff --cached --name-only --diff-filter=ACM -- '*.py') 2>/dev/null || true
