@@ -1,5 +1,5 @@
 ---
-status: CANDIDATE
+status: VALIDATED_SHIFT
 maturity_score: 2
 novelty_score: 4
 state_value: Growing
@@ -19,6 +19,8 @@ license_baseline_origin: initial
 verdict_history:
 - date: '2026-10-05'
   verdict: CANDIDATE
+- date: '2026-10-20'
+  verdict: VALIDATED_SHIFT
 ---
 # Agent control plane with guardrails
 
@@ -62,6 +64,7 @@ The project presents early-stage but functionally coherent architecture for agen
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-10-20 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-10-05 - CANDIDATE: первая оценка
 
 ## Связи
