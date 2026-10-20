@@ -2,8 +2,8 @@
 status: VALIDATED_SHIFT
 maturity_score: 3
 novelty_score: 4
-state_value: Growing
-state_confidence: low
+state_value: invalid
+state_confidence: high
 assertion_vector: Foremerge is a new coordination protocol that detects intent collisions
   between parallel AI agents before they write conflicting code, using declared semantic
   scopes and a shared SQLite store in Git, addressing a gap where Git's text-diff
@@ -13,6 +13,10 @@ evidence_log:
   event_type: state_transition
   state_value: Growing
   state_confidence: low
+- date: '2026-10-20'
+  event_type: state_transition
+  state_value: invalid
+  state_confidence: high
 root_commit_sha: ae2f9e151ad44bf93912e15440bafa1ff7a56ec0
 license_spdx_id: Apache-2.0
 license_baseline_origin: initial
@@ -20,6 +24,8 @@ verdict_history:
 - date: '2026-09-17'
   verdict: CANDIDATE
 - date: '2026-10-01'
+  verdict: VALIDATED_SHIFT
+- date: '2026-10-20'
   verdict: VALIDATED_SHIFT
 ---
 # Multi-agent Git conflict detection protocol
@@ -64,6 +70,7 @@ Foremerge introduces a new protocol layer for multi-agent coordination by declar
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-10-20 - СДВИГ (подтверждается): 
 - 2026-10-01 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-09-16 - CANDIDATE: первая оценка
 
