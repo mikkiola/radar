@@ -359,6 +359,36 @@ blocking it, no urgency stated.
 - [ ] Needs a research pass against article-pipeline's actual
       doc_sync.py wiring before this can be scoped as an
       implementation task — not yet actionable.
+**Verified local helper alignment, 2026-10-20 (Owner decision).** The old
+untracked copy was obsolete vendored tooling, not a Radar-specific fork.
+`11e3305` explicitly left it untracked and deferred hook wiring; the source pin
+later advanced while those local bytes remained unchanged. The current
+pre-commit hook does not invoke it and no dedicated helper tests exist under
+`tests/`. Radar's verifier explicitly deprecates CHECKPOINT discovery (its
+historical ADR-0037 reference); no supported CHECKPOINT consumer was found.
+The current Radar ADR directory has no numbered 0037 record, so that reference
+is verifier-source evidence, not a newly recovered Radar ADR.
+
+The Owner-approved local copy now equals canonical ToolTempest
+`de4436adc4540593fec52978b0e5ad5b7b949d9e:scripts/doc_sync.py`, SHA-256
+`663f019d987669bd9afb7a66e1fac2c5eb0f647835849faadfd8cd5cc4e25d7a`.
+The prior bytes (SHA-256
+`c54d0b441d10d526d64dc786ac4a09ba523be3d7e751e741a2ab2a90eb5f06c0`)
+were backed up before replacement. `scripts/doc_sync.py` remains untracked,
+matching `11e3305`; this documentation commit does not distribute or activate it.
+The lock selects a canonical source revision and hash; it is not an installer
+or evidence of global installation or hook registration.
+
+Controlled temporary-repository comparison used identical valid inline SPECs
+and a CHECKPOINT missing required fields: old and canonical helpers both
+returned 0, with zero `reconcile` calls. An initial comparison using the actual
+Radar SPEC staged returned 1 for both (UNKNOWN inline structure), also without
+reconciliation; that initial failure is retained, not reported as PASS. Local
+helper identity and untracked status were checked after alignment. Evidence:
+`/private/tmp/master-plan-closure-f98qgk3h/{radar-comparison.json,radar-comparison-valid-inline.json,preservation/radar/scripts/doc_sync.py}`.
+Hook wiring remains the separate open task above; it is not closed by this
+byte alignment.
+
 **Source.** Session decision, 2026-09-18, following the
 `.tooltempest.lock` pin bump — connects to the owner's stated
 longer-term goal of matching article-pipeline's DocOps cycle for
