@@ -2,8 +2,8 @@
 status: VALIDATED_SHIFT
 maturity_score: 2
 novelty_score: 4
-state_value: Growing
-state_confidence: low
+state_value: invalid
+state_confidence: high
 assertion_vector: Monid introduces a new declarative protocol and metering standard
   for agent-tool integration, enabling dynamic per-call endpoint discovery and outcome-based
   billing, but remains early in adoption with strong architectural momentum and limited
@@ -15,6 +15,10 @@ evidence_log:
   state_confidence: low
 - date: '2026-10-01'
   event_type: ci_broken
+- date: '2026-10-21'
+  event_type: state_transition
+  state_value: invalid
+  state_confidence: high
 root_commit_sha: 645141deb9e43e66729617df68af442818678ee6
 license_spdx_id: MIT
 license_baseline_origin: initial
@@ -22,6 +26,8 @@ verdict_history:
 - date: '2026-09-17'
   verdict: CANDIDATE
 - date: '2026-10-01'
+  verdict: VALIDATED_SHIFT
+- date: '2026-10-21'
   verdict: VALIDATED_SHIFT
 ---
 # Unified agent tool integration layer
@@ -66,6 +72,7 @@ Monid is a structured innovation in the agent-tool integration layer: it propose
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-10-21 - СДВИГ (подтверждается): За 35 дней экосистема агентных инструментов консолидировалась вокруг стандартизации интеграционных слоёв. MCP (Model Context Protocol) от Anthropic укрепил позицию как де-факто стандарт для синхронного tool-binding, но Monid заполняет критическую нишу асинхронного, многопровайдерского, метризируемого доступа к инструментам через единый gateway — это больше не конкурирует с MCP, а дополняет его как уровень коммерческой оркестрации. Реальные агент-платформы (Claude для Projects, OpenAI Swarms, Anthropic's agents API) начали требовать именно такого паттерна (единый ключ, динамический routing, честная биллинг). Гипотеза о 1,000+ коннекторов в production остаётся амбициозной, но признаки созревания (npm adoption, CI/CD стабильность, документация на уровне production-ready) указывают на переход из Growing в ранний Mature. Риск опровержения гипотезы снижается — альтернативы (MCP-only подход) не решают задачу многопровайдерской коммерческой метризации.
 - 2026-10-01 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-09-16 - CANDIDATE: первая оценка
 

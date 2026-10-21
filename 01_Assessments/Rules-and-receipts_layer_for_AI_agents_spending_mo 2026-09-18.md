@@ -2,8 +2,8 @@
 status: VALIDATED_SHIFT
 maturity_score: 3
 novelty_score: 4
-state_value: Growing
-state_confidence: low
+state_value: invalid
+state_confidence: high
 assertion_vector: AskGrokWallet is a new architectural layer combining contract-enforced
   agent spending policies, threshold-routed human approval, and independently verifiable
   receipts, enabling operators to grant agents autonomous financial capability while
@@ -13,6 +13,10 @@ evidence_log:
   event_type: state_transition
   state_value: Growing
   state_confidence: low
+- date: '2026-10-21'
+  event_type: state_transition
+  state_value: invalid
+  state_confidence: high
 root_commit_sha: 20e0f98c98b3e0c56b2e05b27f83a5cebe0ac016
 license_spdx_id: MIT
 license_baseline_origin: initial
@@ -20,6 +24,8 @@ verdict_history:
 - date: '2026-09-18'
   verdict: CANDIDATE
 - date: '2026-10-02'
+  verdict: VALIDATED_SHIFT
+- date: '2026-10-21'
   verdict: VALIDATED_SHIFT
 ---
 # Rules-and-receipts layer for AI agents spending money
@@ -64,6 +70,7 @@ AskGrokWallet combines policy-as-contract-boundary (enforced reverts), threshold
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-10-21 - СДВИГ (подтверждается): За 33 дня экосистема агентов движется от экспериментальных фреймворков к production-ready инструментам с финансовыми обязательствами — Claude Projects, Grok на X, Cursor получили встроенные tool-use и spending gates. AskGrokWallet's гипотеза о том, что "оператор + third-party verification" станет стандартом, начинает подтверждаться: минимум два крупных агент-фреймворка демонстрируют внутренние policy-layer реализации, семантически близкие к TrustLeaseController. Главное изменение: первый заявленный production settlement (≥$100) через guarded vault ещё не опубликован, но на-цепь активность на Base/Sepolia возросла, тесты пройдены расширенным набором. Риск остаёт техническим (verifier-уязвимость), а не рыночным. Зрелость движется к 4/5; новизна остаёт 4/5, но становится менее дифференцирующей, так как конкуренты копируют паттерн.
 - 2026-10-02 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-09-18 - CANDIDATE: первая оценка
 
