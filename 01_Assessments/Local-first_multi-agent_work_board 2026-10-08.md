@@ -1,5 +1,5 @@
 ---
-status: CANDIDATE
+status: VALIDATED_SHIFT
 maturity_score: 3
 novelty_score: 4
 state_value: Growing
@@ -21,6 +21,8 @@ license_baseline_origin: initial
 verdict_history:
 - date: '2026-10-08'
   verdict: CANDIDATE
+- date: '2026-10-22'
+  verdict: VALIDATED_SHIFT
 ---
 # Local-first multi-agent work board
 
@@ -64,6 +66,7 @@ Pullboard combines existing git and SQLite technologies into a novel multi-agent
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-10-22 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-10-08 - CANDIDATE: первая оценка
 
 ## Связи
