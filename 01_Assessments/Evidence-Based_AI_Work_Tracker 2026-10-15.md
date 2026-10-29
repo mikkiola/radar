@@ -1,5 +1,5 @@
 ---
-status: CANDIDATE
+status: VALIDATED_SHIFT
 maturity_score: 2
 novelty_score: 4
 state_value: Prototype
@@ -18,6 +18,8 @@ license_baseline_origin: initial
 verdict_history:
 - date: '2026-10-15'
   verdict: CANDIDATE
+- date: '2026-10-29'
+  verdict: VALIDATED_SHIFT
 ---
 # Evidence-Based AI Work Tracker
 
@@ -61,6 +63,7 @@ Vantage introduces a novel A2V (Asked-to-Verified) methodology as an architectur
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-10-29 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-10-15 - CANDIDATE: первая оценка
 
 ## Связи
