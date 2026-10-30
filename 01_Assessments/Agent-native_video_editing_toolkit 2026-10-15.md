@@ -1,5 +1,5 @@
 ---
-status: CANDIDATE
+status: VALIDATED_SHIFT
 maturity_score: 2
 novelty_score: 4
 state_value: Prototype
@@ -19,6 +19,8 @@ license_baseline_origin: initial
 verdict_history:
 - date: '2026-10-16'
   verdict: CANDIDATE
+- date: '2026-10-30'
+  verdict: VALIDATED_SHIFT
 ---
 # Agent-native video editing toolkit
 
@@ -62,6 +64,7 @@ Yap is a category-creating toolkit that positions video editing as an agent capa
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-10-30 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-10-15 - CANDIDATE: первая оценка
 
 ## Связи
