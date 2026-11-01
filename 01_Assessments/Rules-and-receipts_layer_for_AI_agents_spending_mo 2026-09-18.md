@@ -17,6 +17,8 @@ evidence_log:
   event_type: state_transition
   state_value: invalid
   state_confidence: high
+- date: '2026-11-01'
+  event_type: ci_broken
 root_commit_sha: 20e0f98c98b3e0c56b2e05b27f83a5cebe0ac016
 license_spdx_id: MIT
 license_baseline_origin: initial

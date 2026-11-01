@@ -15,7 +15,7 @@ evidence_log:
   state_confidence: low
 root_commit_sha: 63d1e2db6d8084782ded2d92c8d8b99de69bccbb
 license_spdx_id: null
-license_baseline_origin: initial
+license_baseline_origin: migration
 verdict_history:
 - date: '2026-10-16'
   verdict: CANDIDATE

@@ -13,6 +13,8 @@ evidence_log:
   event_type: state_transition
   state_value: Growing
   state_confidence: low
+- date: '2026-11-01'
+  event_type: ci_broken
 root_commit_sha: 62c9a1c1dd0988d20517e6d904bd81609c592f80
 license_spdx_id: MIT
 license_baseline_origin: initial

@@ -12,9 +12,11 @@ evidence_log:
   event_type: state_transition
   state_value: Prototype
   state_confidence: low
+- date: '2026-11-01'
+  event_type: ci_broken
 root_commit_sha: 52ce9143f40ef8b5b73af7a743f9b5686aece80e
 license_spdx_id: null
-license_baseline_origin: initial
+license_baseline_origin: migration
 verdict_history:
 - date: '2026-10-15'
   verdict: CANDIDATE
