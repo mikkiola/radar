@@ -1,5 +1,5 @@
 ---
-status: CANDIDATE
+status: VALIDATED_SHIFT
 maturity_score: 2
 novelty_score: 4
 state_value: Growing
@@ -19,6 +19,8 @@ license_baseline_origin: initial
 verdict_history:
 - date: '2026-10-20'
   verdict: CANDIDATE
+- date: '2026-11-03'
+  verdict: VALIDATED_SHIFT
 ---
 # AI coworker coordination and audit layer
 
@@ -62,6 +64,7 @@ Tedix is a beta-stage, actively developed platform that introduces a novel coord
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-11-03 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-10-20 - CANDIDATE: первая оценка
 
 ## Связи
