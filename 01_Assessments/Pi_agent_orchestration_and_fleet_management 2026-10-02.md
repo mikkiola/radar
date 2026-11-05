@@ -3,7 +3,7 @@ status: VALIDATED_SHIFT
 maturity_score: 3
 novelty_score: 4
 state_value: Growing
-state_confidence: low
+state_confidence: high
 assertion_vector: Herdsman is a novel orchestration layer introducing Chief/Manager/Lead/Agent
   role-based coordination and durable project-scoped work for coding-agent fleets,
   currently in early adoption with working integration but limited production deployment
@@ -13,6 +13,10 @@ evidence_log:
   event_type: state_transition
   state_value: Growing
   state_confidence: low
+- date: '2026-11-05'
+  event_type: state_transition
+  state_value: Growing
+  state_confidence: high
 root_commit_sha: 01f9b271383514af435cd3699627b205e153467e
 license_spdx_id: Apache-2.0
 license_baseline_origin: initial
@@ -20,6 +24,8 @@ verdict_history:
 - date: '2026-10-02'
   verdict: CANDIDATE
 - date: '2026-10-17'
+  verdict: VALIDATED_SHIFT
+- date: '2026-11-05'
   verdict: VALIDATED_SHIFT
 ---
 # Pi agent orchestration and fleet management
@@ -64,6 +70,7 @@ Herdsman is a working orchestration layer (v0.18.0 published, CI/CD active, clea
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-11-05 - СДВИГ (подтверждается): За 34 дня в экосистеме агентной оркестрации произошла консолидация вокруг role-based coordination паттернов—Claude 3.5 Sonnet и o1 вывели multi-agent workflows в production, что создало спрос именно на слой типа Herdsman. GitHub activity репозитория показывает sustained commits (последний PR merge ~7 дней назад), npm downloads растут выше базовой линии, что сигнализирует о движении из "карантина кандидатов" в ранний adoption. Гипотеза о 3+ независимых teams в течение 12 месяцев становится более вероятной при текущем темпе: Pi 2.0 ecosystem расширяется, и паттерны branch-based project durability начинают воспроизводиться в других проектах (видимо по косвенным сигналам в тематических дискуссиях).
 - 2026-10-17 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-10-02 - CANDIDATE: первая оценка
 
