@@ -1,6 +1,6 @@
 ---
 id: ADR-0025
-status: Proposed
+status: Accepted
 supersedes: null
 superseded_by: null
 source_type: verbatim
@@ -10,7 +10,7 @@ source_type: verbatim
 
 ## Status
 
-Proposed (2026-10-20).
+Accepted (2026-11-06). Proposed 2026-10-20.
 
 ## Context & Constraints
 
@@ -24,9 +24,10 @@ Nothing compared the file's bytes with the lock. On 2026-09-18 the lock was
 repinned to commit `0df1b05` and its `sha256` changed to the hash of that
 commit's file, while the file on disk kept the bytes of the earlier pin
 (`d35ff68`). The lock was honest; the file was not what the lock said. The
-mismatch was found by hand on 2026-10-20. The existing pre-push check compares
-the pinned commit with ToolTempest's `main`; that is a different property, and
-its natural remedy (edit the lock) is exactly how the mismatch arose.
+mismatch was found by hand on 2026-10-20. When this record was proposed, the
+pre-push check compared the pinned commit with ToolTempest's `main` (the check
+is removed; see the dated notes in Consequences); that was a different property,
+and its natural remedy (edit the lock) was exactly how the mismatch arose.
 
 Three properties are easy to confuse:
 
@@ -35,7 +36,7 @@ Three properties are easy to confuse:
 | P1 | ToolTempest's manifest equals ToolTempest's own tree | ToolTempest's `check_manifest.py`, on ToolTempest only |
 | P2 | The file's bytes in this working tree equal `lock.sha256` | this decision |
 | P2′ | `lock.sha256` equals the upstream file's hash at `lock.commit` | not automated (see Consequences) |
-| P3 | The pin is current relative to ToolTempest's `main` | the existing pre-push warning (advisory, unchanged) |
+| P3 | The pin is current relative to ToolTempest's `main` | `scripts/tooling.py` (materialize dry run, `verify`; needs a source checkout that has the pin), outside the hooks; the advisory pre-push warning is removed (see the dated note in Consequences) |
 
 Constraints: pip-installable only, standard library, no network for ordinary
 verification; Git does not clone hooks; the vendored file does not exist in a
@@ -119,7 +120,11 @@ applicable.
   whose lock differs from the one the local file was materialized for is
   blocked until the matching file is materialized.
 - `pre-push` changes from always exiting 0 to blocking on this one offline
-  invariant. The ToolTempest freshness warning is unchanged and still advisory.
+  invariant. The advisory ToolTempest freshness warning, which ran
+  `git ls-remote`, is removed from `pre-push`: the hook scripts make no
+  network call. Pin freshness is checked outside the hook, by
+  `scripts/tooling.py` (materialize dry run or `verify`), with `--source` set to
+  a ToolTempest checkout that contains the pinned commit.
 - Deliberately removing the lock (leaving ToolTempest) is blocked and needs an
   explicit owner decision.
 - The history test needs complete local history. In a shallow clone a lock that
@@ -134,6 +139,21 @@ applicable.
 - Worktrees share hooks: a commit that changes the lock in a worktree where the
   file is not materialized is blocked. The `vault` branch is reported as not
   applicable and pushes normally.
+
+_Dated note (2026-11-05, hook network calls): the advisory freshness warning
+of P3, the `git ls-remote` comparison of the pin with ToolTempest's `main` in
+`pre-push`, is removed, because the hook scripts make no network call
+(ToolTempest ADR-0017). Pin freshness is checked outside the hook by
+`scripts/tooling.py`, with `--source` set to a ToolTempest checkout that
+contains the pinned commit. The P3 row of the Context & Constraints table and the
+matching Consequences bullet are updated to match; the lock-guard decision
+(P2) is unchanged._
+
+_Dated note (2026-11-06, DocOps checker): the shared DocOps checker is added to
+both hooks after this guard by ADR-0026. The decisions above are unchanged;
+"blocking on this one offline invariant" describes the hook as decided here. A
+clone that activates the hooks also needs the ToolTempest core component
+materialized; the procedure below materializes only the vendored file._
 
 ## Materialization procedure
 
@@ -209,7 +229,7 @@ working-tree lock, lock taken from the pushed commit, removed lock versus
 the data-only branch, and the materialization blocks) and
 `tests/test_install_hooks.py` (installer preflight, idempotence, backups,
 rollback). The results of the run that preceded the implementation commit are
-recorded in that commit's report, not in this record.
+not recorded in this record.
 
 Revisit if: the vendored file becomes tracked (the checker can then read it
 from the same commit as the lock and CI can enforce it); the lock schema covers
