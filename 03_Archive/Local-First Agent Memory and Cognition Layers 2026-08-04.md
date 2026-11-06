@@ -3,7 +3,8 @@
 **Первый сигнал:** 2026-07-23
 **Подтверждающие оценки:** [[Local_Episodic_Memory_for_Agents 2026-08-01]], [[Persistent_Cognition_Sidecar_Architecture 2026-08-02]], [[Гибридный_агент_с_локальной_памятью_и_self-hosted_ 2026-07-25]], [[Локальная_плоскость_контроля_агентских_DAG 2026-07-23]]
 **Создан:** 2026-08-04 (автоматически, patterns.py)
-**Статус:** АКТИВНЫЙ
+**Статус:** АРХИВ
+**Архивирован:** 2026-11-06 - нет новых сигналов 90+ дней
 
 ## Summary
 Agent memory and cognitive continuity are being rearchitected as independent, local/client-side infrastructure layers decoupled from cloud LLM processing.

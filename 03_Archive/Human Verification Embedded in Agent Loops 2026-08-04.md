@@ -3,7 +3,8 @@
 **Первый сигнал:** 2026-07-29
 **Подтверждающие оценки:** [[Human-in-Loop_Agent_Verification_Loop 2026-07-29]]
 **Создан:** 2026-08-04 (автоматически, patterns.py)
-**Статус:** АКТИВНЫЙ
+**Статус:** АРХИВ
+**Архивирован:** 2026-11-06 - нет новых сигналов 90+ дней
 
 ## Summary
 Human review is being restructured from an external post-hoc process into a native, gating component inside the agent's execution loop.

@@ -3,7 +3,8 @@
 **Первый сигнал:** 2026-07-25
 **Подтверждающие оценки:** [[Sovereign_Execution_Kernel_for_Agents 2026-07-31]], [[Verifiable_AI_Agent_Identity_Standard 2026-07-28]], [[Верифицируемый_харнес_для_свопаемых_моделей 2026-07-27]], [[Верифицированная_мультиагентная_торговая_система_с 2026-07-25]]
 **Создан:** 2026-08-04 (автоматически, patterns.py)
-**Статус:** АКТИВНЫЙ
+**Статус:** АРХИВ
+**Архивирован:** 2026-11-06 - нет новых сигналов 90+ дней
 
 ## Summary
 Agent systems are embedding cryptographic verification, identity proofs, and audit receipts as core architectural primitives rather than post-hoc audit layers.
