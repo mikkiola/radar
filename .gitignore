@@ -3,3 +3,16 @@ __pycache__/
 [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].md
 radar/
 .obsidian/plugins/obsidian-git/.git_credentials_input
+# ToolTempest core component, materialized from the commit in .tooltempest.lock
+# (python3 <tooltempest-checkout>/scripts/tooling.py materialize --root '<this repository>' --source <tooltempest-checkout> --apply);
+# not distributed by this repository.
+/.tooltempest.receipt.json
+/docs/tooltempest/
+/schemas/
+/scripts/check_manifest.py
+/scripts/doc_sync.py
+/scripts/doc_sync_tier2.py
+/scripts/docops.py
+/scripts/docops_core/
+/scripts/tooling.py
+/scripts/tooling_core/
