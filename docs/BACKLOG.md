@@ -410,6 +410,21 @@ decision D4: not automated). The guard never executes `doc_sync.py`, so wiring
 `doc_sync.py` into hooks remains the open task of this entry. Not decided here:
 whether `scripts/doc_sync.py` belongs in `.gitignore` (it shows as untracked).
 
+**Progress, 2026-11-05 (DocOps Stage 7).** Radar now consumes ToolTempest's
+core component at `1dc54c3`, alongside the lock guard (ADR-0026 records the
+adoption; ADR-0025 is accepted). The lock was repinned from `de4436a`;
+`scripts/tooling.py materialize --apply` created 24 files and recorded
+`scripts/doc_sync.py` unchanged (SHA-256 `663f019d…`), and
+`scripts/tooling.py verify` exited 0. The materialized files are untracked and
+listed in `.gitignore`, which settles the open question above: `doc_sync.py`
+is now ignored. `scripts/hooks/pre-commit` and `pre-push` run the shared
+checker (`docops.py check --tree index` and `--push-stdin`); `SPEC.md` declares
+`spec-state: idle`; the `git ls-remote` freshness warning is removed from
+`pre-push`. Still open in this entry: `doc_sync.py` and `doc_sync_tier2.py` are
+installed with core but invoked by nothing. Whether the shared checker closes
+this entry, or the legacy helper is still to be wired, is an Owner decision;
+this record does not close the entry.
+
 **Source.** Session decision, 2026-09-18, following the
 `.tooltempest.lock` pin bump — connects to the owner's stated
 longer-term goal of matching article-pipeline's DocOps cycle for
@@ -529,3 +544,101 @@ file's `evidence_log`/body has grown by the time it's 30+ days old.
 - [ ] Same `/spec` session as [B-024] — a prompt-size cap here is part
       of the same re-assessment-logic redesign, not a separate fix.
 **Source.** Session 2026-09-23, token-spend spike log recon.
+
+#### [B-027] P3 — scripts/install-hooks.sh cannot upgrade already-installed hooks
+Found: 2026-11-05, DocOps Stage 7.
+The installer refuses when an installed hook differs from its versioned source
+and a `<hook>.pre-lockguard-backup` already exists that differs from the
+installed hook ("refusing to overwrite it"). A probe run against this
+repository's hooks directory on 2026-11-05 refused for that reason and changed
+no hook. Every later change to `scripts/hooks/` meets the same refusal once a
+first install has left a backup, so installing the Stage 7 hooks needs the
+existing backups moved aside by hand first.
+- [ ] Decide the upgrade rule (for example one backup per replaced version, or
+      keep the first backup and add no second) and cover it in
+      `tests/test_install_hooks.py`. Not fixed in Stage 7: out of its scope.
+**Source.** Session 2026-11-05, observed by running the installer against
+this repository's hooks directory.
+
+#### [B-028] P3 — Hook activation does not check the DocOps checker, and two hook environments are unverified
+Found: 2026-11-05, DocOps Stage 7.
+`scripts/install-hooks.sh` still requires only the lock-guarded vendored file.
+A clone that installs the hooks without materializing core has its commits and
+pushes blocked ("scripts/docops.py not found"). Separately, the shared hooks
+also run for commits made in the `vault` working tree, which may be made by the
+Obsidian Git plugin; the checker accepted the current `vault` index (`N/A`),
+but it is UNKNOWN whether the plugin's environment finds `python3` and the
+main working tree's checker.
+- [ ] Make the installer's preflight require the checker, as it requires the
+      vendored file.
+- [ ] Check a plugin-made commit in the `vault` working tree against the
+      installed hooks.
+**Source.** Session 2026-11-05, hook design review of the Stage 7 change.
+
+#### [B-029] P3 — Pin freshness is no longer surfaced at push time
+Found: 2026-11-05, DocOps Stage 7.
+[B-015] was closed as "resolved by existing pre-push mechanism": the advisory
+`git ls-remote` warning. That warning is removed (consumer hooks make no
+network calls), so nothing now tells the owner at push time that the pin is
+behind ToolTempest. `scripts/tooling.py status` and `verify` report freshness
+when run, but they establish freshness and local integrity only when `--source`
+points at a checkout that contains the pinned commit. Without it they report
+"local integrity: not established", "freshness: unknown" and
+`PIN_OBJECT_MISSING`, and `verify` exits 1.
+- [ ] Decide whether a push-time or periodic freshness signal is wanted and,
+      if so, where it may run without a network call in a hook.
+**Source.** Session 2026-11-05, consequence of removing the hook's network call.
+
+#### [B-030] P3 — The hooks print the checker's full JSON on every commit and push
+Found: 2026-11-05, DocOps Stage 7.
+`docops.py check` writes its complete result document (roughly 80 lines) to the
+terminal on every passing commit and push, which buries the one-line hook
+messages. The Stage 7 hooks run `check` as specified, unchanged.
+- [ ] Decide whether the hooks should show only the summary, or use the
+      checker's `report` command, without hiding a failing verdict.
+**Source.** Session 2026-11-05, end-to-end run of the new hooks in a
+disposable clone.
+
+#### [B-031] P3 — The Constitution section 7 obligation text is untracked
+Found: 2026-11-05, DocOps Stage 7.
+Constitution section 7 now points to `docs/tooltempest/consumer-contract.md`
+instead of repeating the obligation. That file is a materialized ToolTempest
+core file: untracked and git-ignored. A fresh clone, and CI, therefore do not
+have the text of the obligation, including the repin rule, until core has been
+materialized: run ToolTempest's `scripts/tooling.py` from a ToolTempest
+checkout that contains the pinned commit, as `materialize --apply` with
+`--root` set to this repository and `--source` set to that checkout. The
+ToolTempest copy of the contract at the pinned commit is the only source.
+- [ ] Decide whether a fresh clone needs the text without materializing (for
+      example a tracked pointer with the pinned commit, or a note in the
+      README), or whether materializing first is the accepted procedure.
+**Source.** Session 2026-11-05, review of the Stage 7 change.
+
+#### [B-032] P3 — The committed freshness test covers only the warning text and the literal ls-remote
+Found: 2026-11-06, DocOps Stage 7.
+`test_d9_pre_push_makes_no_freshness_check_against_the_upstream` asserts that
+the removed warning text does not appear and that the literal `ls-remote` is
+absent from the hook sources. It does not catch another network-capable git
+subcommand (for example a silent `git fetch --dry-run`). The no-network
+property of the hooks was shown by a one-off run with a logging `git` shim.
+The shim has to be placed through `GIT_EXEC_PATH`, because Git puts its own
+exec path before `PATH` when it runs a hook, and a shim placed on `PATH` is
+bypassed.
+- [ ] Decide whether to keep the one-off evidence or add a committed test that
+      runs the hooks with a logging `git` placed through `GIT_EXEC_PATH` and
+      asserts that no network-capable subcommand is called.
+**Source.** Session 2026-11-06, independent read-only review of the Stage 7
+change.
+
+#### [B-033] P3 — Whether lock verification should move onto the shared ToolTempest mechanism
+Found: 2026-11-06, DocOps Stage 7.
+Open question, not a commitment: is moving the ADR-0025 guard's verification onto
+`scripts/tooling.py` needed at all? The gaps are listed in ADR-0026, Consequences.
+A move can be considered only after a ToolTempest change with its own task and ADR,
+and after these tests exist against the unchanged guard: exit 3 at checker level for
+a revision with no lock in its history; exit 1 for a lock absent from the index and
+for a lock removed at the pushed tip; exit 1 versus 2 asserted at hook level.
+Run evidence: the gaps were reproduced on scratch copies on 2026-11-06.
+- [ ] Decide whether the move is needed at all.
+**Source.** Session 2026-11-06, decision to keep the ADR-0025 guard separate in
+Stage 7.
