@@ -1,3 +1,7 @@
+---
+spec-state: idle
+---
+
 # SPEC.md
 
 No active `/spec` focus right now.

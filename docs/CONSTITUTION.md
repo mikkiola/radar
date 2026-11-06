@@ -330,6 +330,12 @@ specified task. `PLAN.md` and similar transient planning artifacts
 follow the default instead: never archived, deleted after a successful
 commit.
 
+_Dated note (2026-11-05, idle marker): the DocOps checker reads `SPEC.md`
+through its frontmatter. While no task is specified, this file declares
+`spec-state: idle`, which the checker treats as "no active SPEC". The
+exception above is unchanged; this note records how the checker now reads
+it. A `SPEC.md` for active work omits the `spec-state: idle` marker._
+
 ## 14. ADR discipline
 
 **Citation rule.** `docs/ARCHITECTURE.md`, `docs/ROADMAP.md`, and this
