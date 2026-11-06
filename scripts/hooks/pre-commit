@@ -53,4 +53,33 @@ else
   echo "[lock-guard] pre-commit: .tooltempest.lock not staged; nothing to verify."
 fi
 
+# DocOps checker (ADR-0026). Checks the STAGED tree with ToolTempest's shared
+# checker, materialized by scripts/tooling.py (untracked, like the vendored file).
+# Looked up like the lock checker: this worktree first, then the main worktree.
+# A missing checker or any non-zero exit (1 violation, 2 no verdict, 3 not
+# established) blocks the commit; none of them is treated as a pass.
+resolve_docops_checker() {
+  local common candidate
+  common="$(cd "$(git rev-parse --git-common-dir)" && pwd)"
+  for candidate in "$REPO_ROOT/scripts/docops.py" "$(dirname "$common")/scripts/docops.py"; do
+    if [ -f "$candidate" ]; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+if ! DOCOPS_CHECKER="$(resolve_docops_checker)"; then
+  echo "[pre-commit] scripts/docops.py not found in this or the main worktree; commit blocked."
+  echo "[pre-commit] Materialize the ToolTempest core component. From a ToolTempest checkout that contains the commit pinned in .tooltempest.lock, run:"
+  echo "[pre-commit]   python3 <tooltempest-checkout>/scripts/tooling.py materialize --root '$REPO_ROOT' --source <tooltempest-checkout> --apply"
+  echo "[pre-commit] Procedure: docs/tooltempest/consumer-contract.md in mikkiola/tooltempest."
+  exit 1
+fi
+if ! python3 "$DOCOPS_CHECKER" check --repo "$REPO_ROOT" --tree index; then
+  echo "[pre-commit] docops check failed; commit blocked."
+  exit 1
+fi
+
 python3 -m py_compile $(git diff --cached --name-only --diff-filter=ACM -- '*.py') 2>/dev/null || true

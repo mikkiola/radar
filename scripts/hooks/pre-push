@@ -2,6 +2,15 @@
 # ToolTempest-adjacent DocOps hooks (pinned version in .tooltempest.lock)
 set -euo pipefail
 
+# Capture the original stdin once, before anything else reads it. Git hands the
+# ref updates to pre-push on stdin; a stream can be consumed once, and both the
+# lock guard and the DocOps checker below need them (ADR-0026). A push that
+# updates nothing sends zero bytes. If the capture cannot be made, the push is
+# blocked (set -e).
+PUSH_CAPTURE="$(mktemp "${TMPDIR:-/tmp}/radar-pre-push.XXXXXX")"
+trap 'rm -f "$PUSH_CAPTURE"' EXIT
+cat > "$PUSH_CAPTURE"
+
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
@@ -59,24 +68,40 @@ while read -r local_ref local_sha remote_ref remote_sha; do
       lock_guard_failed=1
     fi
   fi
-done
+done < "$PUSH_CAPTURE"
 if [ "$lock_guard_failed" -ne 0 ]; then
   echo "[pre-push] .tooltempest.lock integrity check failed; push blocked."
   exit 1
 fi
 
-echo "[pre-push] Checking ToolTempest drift (.tooltempest.lock vs ToolTempest's main)..."
-if [ -f .tooltempest.lock ]; then
-  pinned_sha="$(grep '"commit"' .tooltempest.lock | sed -E 's/.*"commit"[[:space:]]*:[[:space:]]*"([0-9a-f]+)".*/\1/')"
-  repo_url="$(grep '"repository"' .tooltempest.lock | sed -E 's/.*"repository"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')"
-  if [ -n "$pinned_sha" ] && [ -n "$repo_url" ]; then
-    remote_sha="$(git ls-remote "$repo_url" main 2>/dev/null | cut -f1 || true)"
-    if [ -n "$remote_sha" ] && [ "$remote_sha" != "$pinned_sha" ]; then
-      echo "[pre-push] WARNING: Radar is behind ToolTempest."
-      echo "[pre-push] Pinned: ${pinned_sha:0:7}, latest: ${remote_sha:0:7}."
-      echo "[pre-push] After repinning, materialize the file first (see docs/adr/0025-tooltempest-lock-integrity-guard.md); do not edit the lock to match a stale file."
+# DocOps checker (ADR-0026) over the same captured ref updates. Zero bytes means
+# the push updates nothing: N/A. Any non-empty input needs the checker, and a
+# missing checker or any non-zero exit (1 violation, 2 no verdict, 3 not
+# established) blocks the push. Looked up like the lock checker: this worktree
+# first, then the main worktree. No network call is made by this hook.
+resolve_docops_checker() {
+  local common candidate
+  common="$(cd "$(git rev-parse --git-common-dir)" && pwd)"
+  for candidate in "$REPO_ROOT/scripts/docops.py" "$(dirname "$common")/scripts/docops.py"; do
+    if [ -f "$candidate" ]; then
+      echo "$candidate"
+      return 0
     fi
-  fi
+  done
+  return 1
+}
+
+if [ ! -s "$PUSH_CAPTURE" ]; then
+  echo "[docops] pre-push: no ref updates (zero bytes on stdin); N/A."
+elif ! DOCOPS_CHECKER="$(resolve_docops_checker)"; then
+  echo "[pre-push] scripts/docops.py not found in this or the main worktree; push blocked."
+  echo "[pre-push] Materialize the ToolTempest core component. From a ToolTempest checkout that contains the commit pinned in .tooltempest.lock, run:"
+  echo "[pre-push]   python3 <tooltempest-checkout>/scripts/tooling.py materialize --root '$REPO_ROOT' --source <tooltempest-checkout> --apply"
+  echo "[pre-push] Procedure: docs/tooltempest/consumer-contract.md in mikkiola/tooltempest."
+  exit 1
+elif ! python3 "$DOCOPS_CHECKER" check --repo "$REPO_ROOT" --push-stdin < "$PUSH_CAPTURE"; then
+  echo "[pre-push] docops check failed; push blocked."
+  exit 1
 fi
 
 echo "[pre-push] All checks passed."

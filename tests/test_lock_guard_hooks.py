@@ -1,10 +1,14 @@
-"""Real Git hook-dispatch tests for the .tooltempest.lock integrity guard (ADR-0025).
+"""Real Git hook-dispatch tests for the .tooltempest.lock integrity guard (ADR-0025)
+and for the DocOps checker the same hooks run (ADR-0026).
 
 Every test builds disposable repositories under tmp_path: a fixture "upstream"
 (the source of the vendored file), a bare "remote", and a project that carries
 the real checker, hook sources and installer copied from this repository. The
 hooks are installed with the real installer and exercised through Git itself
 (git commit, git push, git hook run), never by calling the hook file directly.
+The DocOps checker is a stub (STUB_DOCOPS): the real one is untracked and not
+present in CI, and these tests pin what the hooks do with its arguments, its
+stdin and its exit codes, not what the checker decides.
 
 Nothing here touches this repository's .git/hooks, the real lock, the real
 vendored file, or the network: the lock's `repository` is file:///nonexistent
@@ -35,6 +39,17 @@ OTHER = b"# another version of the vendored file\n"
 OTHER_SHA = hashlib.sha256(OTHER).hexdigest()
 EMPTY_INPUT_SHA = hashlib.sha256(b"").hexdigest()
 BAD_SHA = "0" * 64
+DOCOPS_REL = "scripts/docops.py"
+# What the "checker not found" block message must tell the user to run and read.
+MATERIALIZE_HINT = ("tooling.py materialize", "--root", "--source", "--apply", "consumer-contract.md")
+# Records its argv and (for --push-stdin) its stdin as one JSON line, then exits with STUB_DOCOPS_EXIT.
+STUB_DOCOPS = """\
+import json, os, sys
+data = sys.stdin.buffer.read().decode() if "--push-stdin" in sys.argv else None
+with open(os.environ["STUB_DOCOPS_LOG"], "a", encoding="utf-8") as handle:
+    handle.write(json.dumps({"argv": sys.argv[1:], "stdin": data}) + "\\n")
+sys.exit(int(os.environ.get("STUB_DOCOPS_EXIT", "0")))
+"""
 
 
 def text(result):
@@ -73,6 +88,7 @@ class Lab:
             "GIT_TERMINAL_PROMPT": "0",
             "PYTHONDONTWRITEBYTECODE": "1",
             "LC_ALL": "C",
+            "STUB_DOCOPS_LOG": str(self.base / "docops.log"),
             "GIT_AUTHOR_NAME": "t",
             "GIT_AUTHOR_EMAIL": "t@t",
             "GIT_COMMITTER_NAME": "t",
@@ -134,6 +150,8 @@ class Lab:
         info.mkdir(exist_ok=True)
         with open(info / "exclude", "a", encoding="utf-8") as handle:
             handle.write(f"/{REL}\n")  # the vendored file stays untracked, as in Radar
+            handle.write(f"/{DOCOPS_REL}\n")  # so does the materialized DocOps checker
+        self.core(self.proj)
         self.git(self.proj, "add", "-A")
         self.git(self.proj, "commit", "-q", "-m", "init")
         self.git(self.proj, "remote", "add", "origin", str(self.remote))
@@ -150,6 +168,18 @@ class Lab:
         path = Path(cwd) / REL
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
+
+    def core(self, cwd):
+        """Place the (stub) DocOps checker where the materializer would."""
+        path = Path(cwd) / DOCOPS_REL
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(STUB_DOCOPS, encoding="utf-8")
+
+    def docops_calls(self):
+        log = Path(self.env["STUB_DOCOPS_LOG"])
+        if not log.exists():
+            return []
+        return [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
 
     def install(self, cwd):
         return self.run(["bash", "scripts/install-hooks.sh"], cwd)
@@ -235,6 +265,7 @@ def test_f3_materialize_block_then_install_then_git_runs_the_hook(lab):
     c = lab.clone()
     ok(lab.block("materialize", c))
     assert (c / REL).read_bytes() == VENDORED
+    lab.core(c)  # the DocOps checker the hooks also run (ADR-0026)
     ok(lab.install(c))
     assert lab.hook_files(c) == ["pre-commit", "pre-push"]
     result = ok(lab.git(c, "hook", "run", "pre-commit", check=False))
@@ -401,7 +432,7 @@ def test_x7_good_lock_committed_working_lock_corrupted_afterwards_still_pushes(a
     lab, p = active, active.proj
     lab.stage_readme(p, "work\n")
     ok(lab.commit_cmd(p, "work"))
-    # keep the keys the hook's advisory freshness step greps for; only the hash is wrong
+    # only the working-tree hash is wrong; the pushed commit carries the good lock
     (p / LOCK).write_text(lab.lock_text(sha256=BAD_SHA))
     ok(lab.push(p, "main"))
 
@@ -560,6 +591,145 @@ def test_deleting_a_ref_is_not_checked(active):
     result = ok(lab.push(p, ":short-lived"))
     assert "ref deletion" in text(result)
     assert "refs/heads/short-lived" not in lab.remote_heads()
+
+
+# --- 7.3 the DocOps checker in the hooks (ADR-0026) ----------------------------
+
+def push_stdin_calls(lab):
+    return [c for c in lab.docops_calls() if "--push-stdin" in c["argv"]]
+
+
+def test_d1_pre_commit_runs_the_checker_on_the_staged_tree(active):
+    lab, p = active, active.proj
+    lab.stage_readme(p, "doc\n")
+    ok(lab.commit_cmd(p, "doc"))
+    (call,) = lab.docops_calls()
+    assert call["argv"][0] == "check" and call["argv"][-2:] == ["--tree", "index"]
+    assert call["argv"][1] == "--repo" and Path(call["argv"][2]).resolve() == p.resolve()
+
+
+@pytest.mark.parametrize("code", ["1", "2", "3"])
+def test_d2_pre_commit_blocks_on_every_nonzero_checker_exit(active, code):
+    lab, p = active, active.proj
+    head = lab.head(p)
+    lab.stage_readme(p, "doc\n")
+    result = blocked(lab.run(["git", "commit", "-q", "-m", "doc"], p, extra={"STUB_DOCOPS_EXIT": code}))
+    assert "docops check failed; commit blocked" in text(result)
+    assert lab.head(p) == head
+
+
+def test_d3_pre_commit_blocks_when_the_checker_is_missing(active):
+    lab, p = active, active.proj
+    head = lab.head(p)
+    (p / DOCOPS_REL).unlink()
+    lab.stage_readme(p, "doc\n")
+    result = blocked(lab.commit_cmd(p, "doc"))
+    assert "scripts/docops.py not found" in text(result) and "commit blocked" in text(result)
+    for needle in MATERIALIZE_HINT:
+        assert needle in text(result)
+    assert lab.head(p) == head
+
+
+def test_d4_data_only_worktree_uses_the_checker_of_the_main_worktree(active):
+    lab, p = active, active.proj
+    lab.make_orphan(p, "vault", {"d.md": "1\n"})
+    vwt = lab.base / "vwt"
+    lab.git(p, "worktree", "add", "-q", str(vwt), "vault")
+    assert not (vwt / "scripts").exists()
+    (vwt / "d.md").write_text("2\n")
+    lab.git(vwt, "add", "d.md")
+    ok(lab.commit_cmd(vwt, "data"))
+    (call,) = lab.docops_calls()
+    assert Path(call["argv"][2]).resolve() == vwt.resolve()
+
+
+def test_d5_pre_push_gives_the_checker_the_captured_ref_updates_once(active):
+    lab, p = active, active.proj
+    old = lab.git(p, "rev-parse", "origin/main").stdout.strip()
+    lab.stage_readme(p, "work\n")
+    ok(lab.commit_cmd(p, "work"))
+    new = lab.head(p)
+    result = ok(lab.push(p, "main"))
+    assert "All checks passed" in text(result)
+    (call,) = push_stdin_calls(lab)
+    assert call["stdin"] == f"refs/heads/main {new} refs/heads/main {old}\n"
+
+
+def test_d5_two_refs_reach_both_the_lock_guard_and_the_checker_from_one_capture(active):
+    lab, p = active, active.proj
+    lab.git(p, "branch", "second")
+    lab.stage_readme(p, "work\n")
+    ok(lab.commit_cmd(p, "work"))
+    tips = {"main": lab.head(p), "second": lab.git(p, "rev-parse", "second").stdout.strip()}
+    assert tips["main"] != tips["second"]  # two different tips, so each ref has its own observable
+    result = ok(lab.push(p, "main", "second"))
+    assert "All checks passed" in text(result)
+    # the checker received both ref updates, in one call
+    (call,) = push_stdin_calls(lab)
+    lines = call["stdin"].splitlines()
+    assert sorted(line.split()[0] for line in lines) == ["refs/heads/main", "refs/heads/second"]
+    # the lock guard received both refs too: the real lock checker prints one OK line per pushed tip
+    for tip in tips.values():
+        assert f"lock source: rev:{tip[:7]}" in text(result)
+    assert text(result).count("lock source: rev:") == 2
+
+
+def test_d5_a_push_that_updates_nothing_gives_the_checker_no_input(active):
+    lab, p = active, active.proj
+    result = ok(lab.push(p, "main"))
+    assert "Everything up-to-date" in text(result) and "N/A" in text(result)
+    assert push_stdin_calls(lab) == []
+    # nothing to check also means no checker is needed
+    (p / DOCOPS_REL).unlink()
+    ok(lab.push(p, "main"))
+
+
+@pytest.mark.parametrize("code", ["1", "2", "3"])
+def test_d6_pre_push_blocks_on_every_nonzero_checker_exit(active, code):
+    lab, p = active, active.proj
+    lab.stage_readme(p, "work\n")
+    ok(lab.commit_cmd(p, "work"))
+    before = lab.remote_heads()
+    result = blocked(lab.run(["git", "push", "origin", "main"], p, extra={"STUB_DOCOPS_EXIT": code}))
+    assert "docops check failed; push blocked" in text(result)
+    assert lab.remote_heads() == before
+
+
+def test_d7_pre_push_blocks_when_the_checker_is_missing_and_there_are_ref_updates(active):
+    lab, p = active, active.proj
+    lab.stage_readme(p, "work\n")
+    ok(lab.commit_cmd(p, "work"))
+    (p / DOCOPS_REL).unlink()
+    before = lab.remote_heads()
+    result = blocked(lab.push(p, "main"))
+    assert "scripts/docops.py not found" in text(result) and "push blocked" in text(result)
+    for needle in MATERIALIZE_HINT:
+        assert needle in text(result)
+    assert lab.remote_heads() == before
+
+
+def test_d8_a_failing_lock_guard_blocks_before_the_checker_runs(active):
+    lab, p = active, active.proj
+    (p / LOCK).write_text(lab.lock_text(sha256=BAD_SHA))
+    lab.git(p, "add", LOCK)
+    ok(lab.commit_cmd(p, "bad lock", hooks=False))
+    blocked(lab.push(p, "main"))
+    assert push_stdin_calls(lab) == []
+
+
+def test_d9_pre_push_makes_no_freshness_check_against_the_upstream(active):
+    lab, p = active, active.proj
+    # a reachable upstream that has moved past the pin: the removed advisory step would have warned
+    (p / LOCK).write_text(lab.lock_text(repository=str(lab.tt)))
+    lab.git(p, "add", LOCK)
+    ok(lab.commit_cmd(p, "lock names a reachable upstream"))
+    (lab.tt / "later.txt").write_text("later\n")
+    lab.git(lab.tt, "add", "later.txt")
+    lab.git(lab.tt, "commit", "-q", "-m", "upstream moves on")
+    result = ok(lab.push(p, "main"))
+    assert "behind ToolTempest" not in text(result) and "drift" not in text(result)
+    for hook in ("pre-commit", "pre-push"):
+        assert "ls-remote" not in (REPO / "scripts" / "hooks" / hook).read_text(encoding="utf-8")
 
 
 # --- 7.4 the documented recovery blocks (extracted from the ADR) ---------------
