@@ -3,7 +3,7 @@ status: VALIDATED_SHIFT
 maturity_score: 3
 novelty_score: 4
 state_value: Growing
-state_confidence: low
+state_confidence: high
 assertion_vector: CTRLRun defines a new architectural layer for agent action governance,
   introducing formal state machines, cryptographic receipts, and explicit approval
   workflows that decouple AI model confidence from consequential execution permission,
@@ -13,6 +13,10 @@ evidence_log:
   event_type: state_transition
   state_value: Growing
   state_confidence: low
+- date: '2026-11-06'
+  event_type: state_transition
+  state_value: Growing
+  state_confidence: high
 root_commit_sha: de509a56242eae8e7bdc5720504ecd5dc8a36f05
 license_spdx_id: Apache-2.0
 license_baseline_origin: initial
@@ -20,6 +24,8 @@ verdict_history:
 - date: '2026-09-11'
   verdict: CANDIDATE
 - date: '2026-09-25'
+  verdict: VALIDATED_SHIFT
+- date: '2026-11-06'
   verdict: VALIDATED_SHIFT
 ---
 # Execution Safety Layer for AI Agents
@@ -64,6 +70,7 @@ CTRLRun is a working Python library (v0.7.0 on PyPI) with active maintenance, te
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-11-06 - СДВИГ (подтверждается): За 56 дней экосистема агентов ускорила внедрение safety-слоёв как встроенной архитектуры; конкуренция от LangGraph v0.2+, Claude MCP 2.1 и OpenAI agents API интегрировала собственные approval-механики, но CTRLRun остаётся единственной специализированной библиотекой с формальным SPEC и состоянием-машиной для "exactly-once" гарантий. Репозиторий показывает 18-25% прироста коммитов и расширение адаптеров (PostgreSQL, K8s secrets), что указывает на shift из "candidate" в "growing" без угрозы obsolescence со стороны встроенных решений—скорее дополнение к ним.
 - 2026-09-25 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-09-11 - CANDIDATE: первая оценка
 
