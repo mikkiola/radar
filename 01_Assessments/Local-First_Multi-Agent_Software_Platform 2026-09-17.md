@@ -3,7 +3,7 @@ status: VALIDATED_SHIFT
 maturity_score: 3
 novelty_score: 4
 state_value: Growing
-state_confidence: low
+state_confidence: high
 assertion_vector: TaskTrooper is a maturing local-first multi-agent coordination platform
   that introduces board-driven orchestration and role-based agent specialization with
   self-evolution loops, offering heterogeneous runtime support but facing uncertain
@@ -13,6 +13,10 @@ evidence_log:
   event_type: state_transition
   state_value: Growing
   state_confidence: low
+- date: '2026-11-07'
+  event_type: state_transition
+  state_value: Growing
+  state_confidence: high
 root_commit_sha: ee1cdd9649be28cdfff8c98b7b24dce1cd102f60
 license_spdx_id: Apache-2.0
 license_baseline_origin: initial
@@ -20,6 +24,8 @@ verdict_history:
 - date: '2026-09-17'
   verdict: CANDIDATE
 - date: '2026-10-01'
+  verdict: VALIDATED_SHIFT
+- date: '2026-11-07'
   verdict: VALIDATED_SHIFT
 ---
 # Local-First Multi-Agent Software Platform
@@ -64,6 +70,7 @@ TaskTrooper combines existing components (Claude Code, MCP, LLM APIs, embeddings
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-11-07 - СДВИГ (подтверждается): 
 - 2026-10-01 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-09-17 - CANDIDATE: первая оценка
 
