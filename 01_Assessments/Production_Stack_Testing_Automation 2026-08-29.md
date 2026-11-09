@@ -2,8 +2,8 @@
 status: VALIDATED_SHIFT
 maturity_score: 2
 novelty_score: 4
-state_value: Prototype
-state_confidence: low
+state_value: Growing
+state_confidence: high
 assertion_vector: Antifailure is a pre-1.0 testing orchestration layer that combines
   masked Postgres branches, network sandboxing, and agent-driven QA in disposable
   per-PR environments—novel architectural integration but prototype-stage production
@@ -18,6 +18,10 @@ evidence_log:
   event_type: license_changed
   old: NOASSERTION
   new: MIT
+- date: '2026-11-09'
+  event_type: state_transition
+  state_value: Growing
+  state_confidence: high
 root_commit_sha: ca65f7ca7ddeb21dc3b4da24261399ea79b35b49
 license_spdx_id: MIT
 license_baseline_origin: initial
@@ -25,6 +29,8 @@ verdict_history:
 - date: '2026-08-29'
   verdict: CANDIDATE
 - date: '2026-09-12'
+  verdict: VALIDATED_SHIFT
+- date: '2026-11-09'
   verdict: VALIDATED_SHIFT
 ---
 # Production Stack Testing Automation
@@ -69,6 +75,7 @@ Antifailure combines four known technologies (data masking, network namespacing,
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-11-09 - СДВИГ (подтверждается): 
 - 2026-09-12 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-08-29 - CANDIDATE: первая оценка
 
