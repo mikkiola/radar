@@ -384,8 +384,7 @@ and a CHECKPOINT missing required fields: old and canonical helpers both
 returned 0, with zero `reconcile` calls. An initial comparison using the actual
 Radar SPEC staged returned 1 for both (UNKNOWN inline structure), also without
 reconciliation; that initial failure is retained, not reported as PASS. Local
-helper identity and untracked status were checked after alignment. Evidence:
-`/private/tmp/master-plan-closure-f98qgk3h/{radar-comparison.json,radar-comparison-valid-inline.json,preservation/radar/scripts/doc_sync.py}`.
+helper identity and untracked status were checked after alignment. Evidence files of that run: `radar-comparison.json`, `radar-comparison-valid-inline.json`, and `preservation/radar/scripts/doc_sync.py`.
 Hook wiring remains the separate open task above; it is not closed by this
 byte alignment.
 
