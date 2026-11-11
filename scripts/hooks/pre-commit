@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# ToolTempest-adjacent DocOps hooks (pinned version in .tooltempest.lock)
-# Radar does not consume ToolTempest's doc_sync.py — ADR-INDEX
-# regeneration is Radar's own local mechanism.
+# Pre-commit checks: ADR-INDEX freshness, .tooltempest.lock integrity, and the
+# shared DocOps checker (version pinned in .tooltempest.lock).
 set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
