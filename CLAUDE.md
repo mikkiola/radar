@@ -10,12 +10,11 @@ Start with the section "How every repository works" of the
 file that wins on a conflict, how a rule changes, and what each document is for.
 If the file is absent, run the command in
 [.gitignore](.gitignore). If
-`docs/tooltempest/universal-rules.md` is missing: stop and run
-`git -C ~/Dev/github.com/mikkiola/tooltempest worktree add --detach <dir> <commit>`,
-then `python3 <dir>/scripts/tooling.py materialize --root . --source <dir> --apply`.
-`<commit>` is the `commit` field of `.tooltempest.lock`, `<dir>` is a new clean
-checkout path such as `../tooltempest-pin`, and that main clone can be dirty, so
-never modify it.
+`docs/tooltempest/universal-rules.md` is missing: stop and run, from the
+repository root, `D=$(mktemp -d) && git clone -q --no-checkout ~/Dev/github.com/mikkiola/tooltempest "$D" && git -C "$D" checkout -q --detach <commit> && python3 "$D/scripts/tooling.py" materialize --root . --source "$D" --apply; rm -rf "$D"`.
+`<commit>` is the `commit` field of `.tooltempest.lock`.
+`$D` is a new temporary clean checkout that the last command removes; the
+ToolTempest main clone, which can be dirty, is only read.
 Project rules are in
 [CONSTITUTION](docs/CONSTITUTION.md); [SPEC](SPEC.md) holds the bounded
 implementation requirements. This file routes to these sources. The working
