@@ -116,15 +116,14 @@ Universal rule WR-13.
 
 ## 11. Review report format
 
-A Claude Code report is verifiable, not just a success claim, when it
-states the exact commands run and their literal output (not a summary
-of it), the commit SHA if a commit happened, and explicit confirmation
-that anything marked "do not touch" was in fact untouched. Before any
-commit or push: a full diff is shown and the owner's explicit
-confirmation is obtained first — this is the same pattern this file's
-own rewrite followed. Where the repository's visibility allows it, the
-public GitHub API (no token needed) independently confirms the pushed
-commit SHA matches what was reported.
+Universal rule RV-1. In addition:
+
+- A local commit inside the task's scope needs no Owner confirmation, after the
+  full-diff check and the prescribed checks. A commit that contains an edit of
+  a Constitution keeps its explicit question (WR-13). A push needs the Owner's
+  separate permission (WR-14).
+- Where visibility allows, confirm through the public GitHub API that the
+  pushed commit SHA matches the one reported.
 
 ## 12. The `/spec` skill
 
