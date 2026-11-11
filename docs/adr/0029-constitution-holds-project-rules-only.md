@@ -35,7 +35,7 @@ ToolTempest states the universal rules once, in `docs/tooltempest/universal-rule
 
 - Section numbers 1 to 17 are kept. A section whose rules are universal keeps its number and names the universal rule IDs.
 - Until the repin, the universal rules file is absent here (`git ls-tree -r --name-only 7e66e19 docs/tooltempest` prints nothing) and the pointers to it have no target.
-- The same-day naming correction of an Accepted ADR is no longer allowed. An Accepted ADR is not edited.
+- The same-day naming correction of an Accepted ADR is no longer a separate case. An Accepted ADR is edited only as universal rule DR-4 allows.
 - `SPEC.md` staying in the repository is no longer an exception: it declares `spec-state: idle` between tasks, as the universal rules state.
 - Write confirmation follows universal rule WR-13, the Owner's decision of 2026-11-10: the task prompt is the approval, and `[ЗАПРОС]` stays for token revocation, deleting a file another process may depend on, an edit of a Constitution, and an edit of `.tooltempest.lock` under the consumer contract. It loosens the earlier rules that every write, delete, or move needs the Owner's confirmation every time, and that files are read-only by default. `git show 7e66e19:docs/CONSTITUTION.md | grep -n -e "every time" -e "PLAN.md" -e "write a release"` prints them, and `git show 7e66e19:docs/CONSTITUTION.md | sed -n 266,267p` prints the read-only default.
 - The model and login restriction, and the vault rules, stay project rules. Qualifiers that define a condition were restored: the Cowork replacement, the merge-request level, and the channel input language.
