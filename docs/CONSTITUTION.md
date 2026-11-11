@@ -30,7 +30,7 @@ The Owner's values: automation, strict order, zero small talk.
 - Ordinary technical work needs no per-step confirmation: reading, drafting,
   editing, running commands, preparing diffs.
 - Write, delete, move, and local commit follow universal rule WR-13 (§9). Push
-  follows WR-14 (§11).
+  follows universal rule WR-14.
 
 ## 2. Session protocol
 
