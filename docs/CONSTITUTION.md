@@ -118,10 +118,6 @@ Universal rule WR-13.
 
 Universal rule RV-1. In addition:
 
-- A local commit inside the task's scope needs no Owner confirmation, after the
-  full-diff check and the prescribed checks. A commit that contains an edit of
-  a Constitution keeps its explicit question (WR-13). A push needs the Owner's
-  separate permission (WR-14).
 - Where visibility allows, confirm through the public GitHub API that the
   pushed commit SHA matches the one reported.
 
@@ -152,7 +148,7 @@ stale index. No check enforces DR-11 here. Consult `docs/adr/` before you change
 
 ## 15. Claude Code task discipline
 
-Universal rule WR-12. In addition:
+Universal rules WR-12, WR-16, and WR-17. In addition:
 
 - Use `.claude/rules/pipeline.md` for pipeline changes.
 - A neighboring `vault` worktree is not a disposable fixture and is not part of
@@ -165,13 +161,8 @@ Universal rule WR-12. In addition:
 - Commands in `README.md` are not authorized smoke tests.
 - Select an existing test module after you inspect its network and model
   doubles.
-- For an instruction-only edit, check links, path scopes, the exact diff, and
-  `git diff --check`. Do not run pipeline entry points, workflow dispatch,
-  Telegram publication, or live API calls.
 - Preserve the primary code checkout, the existing worktrees, and their
   histories.
-- An instruction-only task changes no settings, permissions, hooks, or MCP
-  configuration.
 
 ## 16. Language
 
