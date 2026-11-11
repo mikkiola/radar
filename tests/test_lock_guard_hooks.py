@@ -32,7 +32,7 @@ import pytest
 REPO = Path(__file__).resolve().parent.parent
 ADR = REPO / "docs" / "adr" / "0025-tooltempest-lock-integrity-guard.md"
 LOCK = ".tooltempest.lock"
-REL = "scripts/doc_sync.py"
+REL = "scripts/pinned_fixture.py"
 VENDORED = b"# fixture vendored file\nprint('vendored')\n"
 VENDORED_SHA = hashlib.sha256(VENDORED).hexdigest()
 OTHER = b"# another version of the vendored file\n"

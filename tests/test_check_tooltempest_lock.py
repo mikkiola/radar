@@ -48,7 +48,7 @@ def lock_text(**overrides):
     data = {
         "repository": "file:///nonexistent",
         "commit": COMMIT,
-        "path": "scripts/doc_sync.py",
+        "path": "scripts/pinned_fixture.py",
         "sha256": VENDORED_SHA,
     }
     data.update(overrides)
@@ -59,7 +59,7 @@ def lock_text(**overrides):
 def project(tmp_path):
     root = tmp_path / "proj"
     (root / "scripts").mkdir(parents=True)
-    (root / "scripts" / "doc_sync.py").write_bytes(VENDORED)
+    (root / "scripts" / "pinned_fixture.py").write_bytes(VENDORED)
     (root / LOCK_NAME).write_text(lock_text())
     return root
 
@@ -91,13 +91,13 @@ def git_project(project, tmp_path):
 def test_synchronized_file_passes(project, tmp_path):
     r = run_checker(project, tmp_path=tmp_path)
     assert r.returncode == 0, r.stderr
-    assert "OK" in r.stdout and "scripts/doc_sync.py" in r.stdout
+    assert "OK" in r.stdout and "scripts/pinned_fixture.py" in r.stdout
 
 
 # --- 2. modified file fails with expected-vs-actual ------------------------
 
 def test_modified_file_fails_with_expected_and_actual(project, tmp_path):
-    (project / "scripts" / "doc_sync.py").write_bytes(VENDORED + b"# drift\n")
+    (project / "scripts" / "pinned_fixture.py").write_bytes(VENDORED + b"# drift\n")
     actual = hashlib.sha256(VENDORED + b"# drift\n").hexdigest()
     r = run_checker(project, tmp_path=tmp_path)
     assert r.returncode == 1
@@ -108,15 +108,15 @@ def test_modified_file_fails_with_expected_and_actual(project, tmp_path):
 # --- 3. missing file fails -------------------------------------------------
 
 def test_missing_file_fails(project, tmp_path):
-    (project / "scripts" / "doc_sync.py").unlink()
+    (project / "scripts" / "pinned_fixture.py").unlink()
     r = run_checker(project, tmp_path=tmp_path)
     assert r.returncode == 1
     assert "not materialized" in r.stderr
 
 
 def test_directory_in_place_of_file_fails(project, tmp_path):
-    (project / "scripts" / "doc_sync.py").unlink()
-    (project / "scripts" / "doc_sync.py").mkdir()
+    (project / "scripts" / "pinned_fixture.py").unlink()
+    (project / "scripts" / "pinned_fixture.py").mkdir()
     r = run_checker(project, tmp_path=tmp_path)
     assert r.returncode == 1
 
@@ -124,8 +124,8 @@ def test_directory_in_place_of_file_fails(project, tmp_path):
 def test_symlinked_parent_directory_pointing_outside_the_root_fails(project, tmp_path):
     outside = tmp_path / "outside"
     outside.mkdir()
-    (outside / "doc_sync.py").write_bytes(VENDORED)  # matching bytes, but outside the repository
-    (project / "scripts" / "doc_sync.py").unlink()
+    (outside / "pinned_fixture.py").write_bytes(VENDORED)  # matching bytes, but outside the repository
+    (project / "scripts" / "pinned_fixture.py").unlink()
     (project / "scripts").rmdir()
     (project / "scripts").symlink_to(outside)
     r = run_checker(project, tmp_path=tmp_path)
@@ -136,8 +136,8 @@ def test_symlinked_parent_directory_pointing_outside_the_root_fails(project, tmp
 def test_symlinked_file_fails(project, tmp_path):
     target = tmp_path / "outside.py"
     target.write_bytes(VENDORED)
-    (project / "scripts" / "doc_sync.py").unlink()
-    (project / "scripts" / "doc_sync.py").symlink_to(target)
+    (project / "scripts" / "pinned_fixture.py").unlink()
+    (project / "scripts" / "pinned_fixture.py").symlink_to(target)
     r = run_checker(project, tmp_path=tmp_path)
     assert r.returncode == 1
     assert "symlink" in r.stderr
@@ -154,8 +154,8 @@ def test_symlinked_file_fails(project, tmp_path):
     (lock_text(path=None), "path"),
     (lock_text(path=""), "path"),
     (lock_text(path="../escape.py"), "path"),
-    (lock_text(path="/abs/doc_sync.py"), "path"),
-    (lock_text(path="scripts\\doc_sync.py"), "path"),
+    (lock_text(path="/abs/pinned_fixture.py"), "path"),
+    (lock_text(path="scripts\\pinned_fixture.py"), "path"),
     (lock_text(commit="abc"), "commit"),
     (lock_text(repository=""), "repository"),
     (lock_text(repository=7), "repository"),
@@ -210,7 +210,7 @@ def test_all_entries_are_checked(tmp_path):
 def test_lock_entries_covers_the_declared_path(project):
     module = _load_module()
     lock = module.parse_lock(lock_text())
-    assert module.lock_entries(lock) == [("scripts/doc_sync.py", VENDORED_SHA)]
+    assert module.lock_entries(lock) == [("scripts/pinned_fixture.py", VENDORED_SHA)]
 
 
 # --- 6. unrelated project-local files cause no false positives -------------

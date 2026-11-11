@@ -10,8 +10,6 @@ radar/
 /docs/tooltempest/
 /schemas/
 /scripts/check_manifest.py
-/scripts/doc_sync.py
-/scripts/doc_sync_tier2.py
 /scripts/docops.py
 /scripts/docops_core/
 /scripts/tooling.py
