@@ -9,7 +9,10 @@ Start with the section "How every repository works" of the
 [universal rules](docs/tooltempest/universal-rules.md): the reading order, the
 file that wins on a conflict, how a rule changes, and what each document is for.
 If the file is absent, run the command in
-[.gitignore](.gitignore). Project rules are in
+[.gitignore](.gitignore). If
+`docs/tooltempest/universal-rules.md` is missing: stop and run
+`python3 <ToolTempest checkout>/scripts/tooling.py materialize --root . --source <ToolTempest checkout> --apply`.
+Project rules are in
 [CONSTITUTION](docs/CONSTITUTION.md); [SPEC](SPEC.md) holds the bounded
 implementation requirements. This file routes to these sources. The working
 rules for code and tests are in Constitution sections 5 and 6; for task
