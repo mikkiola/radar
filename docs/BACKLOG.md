@@ -424,6 +424,12 @@ installed with core but invoked by nothing. Whether the shared checker closes
 this entry, or the legacy helper is still to be wired, is an Owner decision;
 this record does not close the entry.
 
+**Progress, 2026-11-11 (DocOps Stage 8).** The ToolTempest pin is `d2172e7`.
+Its manifest ships neither `scripts/doc_sync.py` nor `scripts/doc_sync_tier2.py`,
+and `.gitignore` lists neither file. `.tooltempest.lock` declares
+`scripts/docops.py`, and `scripts/hooks/pre-commit` and `pre-push` call it.
+This entry stays open; this record does not close it.
+
 **Source.** Session decision, 2026-09-18, following the
 `.tooltempest.lock` pin bump — connects to the owner's stated
 longer-term goal of matching article-pipeline's DocOps cycle for
