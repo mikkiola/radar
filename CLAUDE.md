@@ -8,9 +8,7 @@ logic. Its separate `vault` branch holds pipeline data.
 Start with the section "How every repository works" of the
 [universal rules](docs/tooltempest/universal-rules.md): the reading order, the
 file that wins on a conflict, how a rule changes, and what each document is for.
-If the file is absent, run the command in
-[.gitignore](.gitignore). If
-`docs/tooltempest/universal-rules.md` is missing: stop and run, from the
+If `docs/tooltempest/universal-rules.md` is missing: stop and run, from the
 repository root:
 
 ```bash
