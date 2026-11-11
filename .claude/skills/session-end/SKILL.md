@@ -9,8 +9,7 @@ allowed-tools: Read, Edit, Bash
 # /session-end
 
 Explicit, human-triggered BACKLOG.md closure for Radar, per the
-`Closes: B-NNN` convention documented in tooltempest's
-`docs/reference/documentation-rules.md`. The owner types
+`Closes: B-NNN` convention documented in the universal rules (CT-1 and BL-5). The owner types
 `/session-end`; invoking it *is* the signal this command acts on —
 it does not try to infer whether a session is "done."
 
@@ -43,9 +42,11 @@ under any circumstance.
 3. **Zero candidates found:** say so plainly (e.g. "No `Closes:`
    trailers found in this session's commits — nothing to close.").
 4. **Exactly one candidate:** write the `docs/BACKLOG.md` edit and
-   commit/push it directly. Invoking `/session-end` already is the
-   owner's "close now" signal — no separate per-item confirmation
-   prompt needed on top of that.
+   make a local commit. Invoking `/session-end` already is the owner's
+   "close now" signal — no separate per-item confirmation prompt is
+   needed on top of that. Do not push: a push needs the Owner's separate
+   permission (WR-14 of the universal rules), requested only after the
+   mandatory checks pass.
 5. **More than one candidate:** present them as a numbered list,
    verbatim titles, and ask which one(s) to mark done, if any. No
    git/implementation jargon in that question (no "trailer,"

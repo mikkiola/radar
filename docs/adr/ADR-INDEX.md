@@ -32,4 +32,5 @@ re-run after adding or editing an ADR in this session.
 | [ADR-0024](0024-scope-boundaries-non-goals.md) | Scope Boundaries: Non-Goals | Accepted | null | null |
 | [ADR-0025](0025-tooltempest-lock-integrity-guard.md) | Integrity Guard for the ToolTempest Lock and Its Materialized File | Accepted | null | null |
 | [ADR-0026](0026-adopt-tooltempest-core-checker.md) | Adopt the Shared ToolTempest DocOps Checker (Core Component) | Accepted | null | null |
+| [ADR-0029](0029-constitution-holds-project-rules-only.md) | The Constitution Holds Project Rules Only; Universal Rules Come from the Pinned ToolTempest File | Accepted | ADR-0026 | null |
 
