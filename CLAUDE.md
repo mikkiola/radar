@@ -11,7 +11,11 @@ file that wins on a conflict, how a rule changes, and what each document is for.
 If the file is absent, run the command in
 [.gitignore](.gitignore). If
 `docs/tooltempest/universal-rules.md` is missing: stop and run
-`python3 <ToolTempest checkout>/scripts/tooling.py materialize --root . --source <ToolTempest checkout> --apply`.
+`git -C ~/Dev/github.com/mikkiola/tooltempest worktree add --detach <dir> <commit>`,
+then `python3 <dir>/scripts/tooling.py materialize --root . --source <dir> --apply`.
+`<commit>` is the `commit` field of `.tooltempest.lock`, `<dir>` is a new clean
+checkout path such as `../tooltempest-pin`, and that main clone can be dirty, so
+never modify it.
 Project rules are in
 [CONSTITUTION](docs/CONSTITUTION.md); [SPEC](SPEC.md) holds the bounded
 implementation requirements. This file routes to these sources. The working
