@@ -11,10 +11,15 @@ file that wins on a conflict, how a rule changes, and what each document is for.
 If the file is absent, run the command in
 [.gitignore](.gitignore). If
 `docs/tooltempest/universal-rules.md` is missing: stop and run, from the
-repository root, `D=$(mktemp -d) && git clone -q --no-checkout ~/Dev/github.com/mikkiola/tooltempest "$D" && git -C "$D" checkout -q --detach <commit> && python3 "$D/scripts/tooling.py" materialize --root . --source "$D" --apply; rm -rf "$D"`.
-`<commit>` is the `commit` field of `.tooltempest.lock`.
-`$D` is a new temporary clean checkout that the last command removes; the
-ToolTempest main clone, which can be dirty, is only read.
+repository root:
+
+```bash
+( set -eu; D=$(mktemp -d "${TMPDIR:-/tmp}/tooltempest.XXXXXX"); trap 'rm -rf "$D"' EXIT; R=$(python3 -c 'import json; print(json.load(open(".tooltempest.lock"))["repository"])'); C=$(python3 -c 'import json; print(json.load(open(".tooltempest.lock"))["commit"])'); git clone -q --no-checkout "$R" "$D"; git -C "$D" checkout -q --detach "$C"; python3 "$D/scripts/tooling.py" materialize --root . --source "$D" --apply )
+```
+
+The command reads `repository` and `commit` from `.tooltempest.lock`, uses a new
+temporary clean checkout that it removes on exit, and does not touch any other
+ToolTempest clone.
 Project rules are in
 [CONSTITUTION](docs/CONSTITUTION.md); [SPEC](SPEC.md) holds the bounded
 implementation requirements. This file routes to these sources. The working
