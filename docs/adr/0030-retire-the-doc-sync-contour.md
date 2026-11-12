@@ -1,6 +1,6 @@
 ---
 id: ADR-0030
-status: Proposed
+status: Accepted
 supersedes: ADR-0026
 superseded_by: null
 source_type: inferred
@@ -10,7 +10,7 @@ source_type: inferred
 
 ## Status
 
-Proposed (2026-11-12); it stays Proposed until the Owner accepts it. Supersedes ADR-0026 on one point: what ADR-0026 Consequences state about the retired scripts and the checker's hash verification, which are the statements named in this record's Decision item 3. ADR-0026 stays unedited, its `superseded_by` stays null and it stays Accepted (universal rule DR-6; the same point-level form as ADR-0029).
+Accepted by the Owner, 2026-11-12. Supersedes ADR-0026 on one point: what ADR-0026 Consequences state about the retired scripts and the checker's hash verification, which are the statements named in this record's Decision item 3. ADR-0026 stays unedited, its `superseded_by` stays null and it stays Accepted (universal rule DR-6; the same point-level form as ADR-0029).
 
 ## Context & Constraints
 
@@ -63,4 +63,4 @@ Revisit if a consumer needs a Tier 2 style snapshot-and-apply flow again, or if 
 
 ## Source
 
-The Owner's reply of 2026-11-12 choosing to close B-019 and record the retirement in an ADR. Claude Code drafted the wording from repository evidence, so `source_type` is `inferred`. The Owner's earlier decision to repin across the removal is not recorded in the repository (see Context & Constraints). No external AI cross-check was made.
+The Owner's reply of 2026-11-12 choosing to close B-019 and record the retirement in an ADR. Claude Code drafted the wording from repository evidence, so `source_type` is `inferred`. The Owner's earlier decision to repin across the removal is not recorded in the repository (see Context & Constraints). No external AI cross-check was made. The Owner accepted this record on 2026-11-12.
