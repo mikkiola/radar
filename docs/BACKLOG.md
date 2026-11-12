@@ -342,7 +342,7 @@ later — not a priority this session.
 **Source.** Session decision, 2026-09-18, publishing-gap investigation
 (`daily-run.yml`/`publish.yml`/`weekly-patterns.yml` log review).
 
-#### [B-019] P3 — Wire scripts/doc_sync.py into hooks, matching article-pipeline's DocOps setup
+#### [B-019] P3 — Wire scripts/doc_sync.py into hooks, matching article-pipeline's DocOps setup — RESOLVED
 `scripts/doc_sync.py` has sat vendored on disk, untracked by git,
 since commit `11e3305` (2026-09-11), which explicitly deferred
 hook-wiring as a separate decision. Owner confirmed 2026-09-18 this
@@ -429,6 +429,20 @@ Its manifest ships neither `scripts/doc_sync.py` nor `scripts/doc_sync_tier2.py`
 and `.gitignore` lists neither file. `.tooltempest.lock` declares
 `scripts/docops.py`, and `scripts/hooks/pre-commit` and `pre-push` call it.
 This entry stays open; this record does not close it.
+
+**Resolution, 2026-11-12 (closed as obsolete; Owner decision; ADR-0030).** The
+task as titled, wiring `scripts/doc_sync.py` into hooks, no longer exists: the
+pinned ToolTempest manifest installs neither `scripts/doc_sync.py` nor
+`scripts/doc_sync_tier2.py`, and `.tooltempest.lock` declares `scripts/docops.py`
+instead. The entry's purpose, shared ToolTempest DocOps hooks as in
+article-pipeline, is met by the tracked hook sources `scripts/hooks/pre-commit`
+and `pre-push`, which run `docops.py`. That check runs only in clones that
+installed the hooks with `scripts/install-hooks.sh`; no workflow runs it.
+ADR-0030 (Proposed) records the retirement and supersedes two ADR-0026
+statements about the retired scripts. The original text and the checkboxes
+above stay as written. The "stays open" sentences above are superseded by this
+block. The Owner's decision to repin across the removal is not recorded in a
+repository file.
 
 **Source.** Session decision, 2026-09-18, following the
 `.tooltempest.lock` pin bump — connects to the owner's stated
