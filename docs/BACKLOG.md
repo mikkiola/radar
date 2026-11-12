@@ -438,7 +438,7 @@ instead. The entry's purpose, shared ToolTempest DocOps hooks as in
 article-pipeline, is met by the tracked hook sources `scripts/hooks/pre-commit`
 and `pre-push`, which run `docops.py`. That check runs only in clones that
 installed the hooks with `scripts/install-hooks.sh`; no workflow runs it.
-ADR-0030 (Proposed) records the retirement and supersedes two ADR-0026
+ADR-0030 (Proposed) records the retirement and supersedes three ADR-0026
 statements about the retired scripts. The original text and the checkboxes
 above stay as written. The "stays open" sentences above are superseded by this
 block. The Owner's decision to repin across the removal is not recorded in a

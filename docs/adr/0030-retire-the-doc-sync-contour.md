@@ -10,7 +10,7 @@ source_type: inferred
 
 ## Status
 
-Proposed (2026-11-12); it stays Proposed until the Owner accepts it. Supersedes ADR-0026 on one point: what ADR-0026 Consequences state about the retired scripts, which are the statements named in this record's Decision item 3. ADR-0026 stays unedited, its `superseded_by` stays null and it stays Accepted (universal rule DR-6; the same point-level form as ADR-0029).
+Proposed (2026-11-12); it stays Proposed until the Owner accepts it. Supersedes ADR-0026 on one point: what ADR-0026 Consequences state about the retired scripts and the checker's hash verification, which are the statements named in this record's Decision item 3. ADR-0026 stays unedited, its `superseded_by` stays null and it stays Accepted (universal rule DR-6; the same point-level form as ADR-0029).
 
 ## Context & Constraints
 
@@ -31,8 +31,8 @@ Observations, taken at commit `b73971c` of this repository unless a ToolTempest 
 ## Decision
 
 1. The doc_sync contour (`scripts/doc_sync.py`, `scripts/doc_sync_tier2.py`, the execution-record schema, Tier 2) is retired in Radar. The tracked repository keeps no copy, hook, workflow or check for it.
-2. The DocOps check that Radar's hooks run is the ToolTempest checker `docops.py`, at the commit pinned in `.tooltempest.lock`. The lock declares that script and its sha256, which the lock guard compares with the materialized file. The check is local to clones that installed the hooks.
-3. One point of ADR-0026, its Consequences about the retired scripts, is superseded in three statements; the rest of ADR-0026, including its Decision, stays in force. The Consequences statement that no hook runs `scripts/tooling.py verify` is not among them and still holds:
+2. The DocOps check that Radar's hooks run is the ToolTempest checker `docops.py`, at the commit pinned in `.tooltempest.lock`. The lock declares that script and its sha256, which the lock guard compares with the materialized file when the lock is staged in a commit and for each pushed revision, not before every checker run. The check is local to clones that installed the hooks.
+3. One point of ADR-0026, its Consequences about the retired scripts and the checker's hash verification, is superseded in three statements; the rest of ADR-0026, including its Decision, stays in force. The Consequences statement that no hook runs `scripts/tooling.py verify` is not among them and still holds:
    - the Consequences statement that the hooks execute the materialized checker without a hash check;
    - the Consequences statement that the lock covers only `scripts/doc_sync.py`;
    - the Consequences statement that `doc_sync.py` and `doc_sync_tier2.py` are installed with core but wired into nothing, and that hook wiring of the legacy helper remains open in the backlog.
@@ -45,7 +45,7 @@ Observations, taken at commit `b73971c` of this repository unless a ToolTempest 
 | Wire `doc_sync.py` into the hooks, as B-019 asks | Rejected | The pinned manifest does not install it, and a lock that declares a removed path fails closed. |
 | Keep B-019 open | Rejected | Its subject no longer exists in the pinned core; an open entry would keep naming a tool that cannot be wired. |
 | Edit ADR-0026 in place | Rejected | These statements were true when written. Changing them is not a correction of the record (universal rule DR-4); DR-6 supersedes a point without an edit. |
-| Mark ADR-0026 Superseded in full | Rejected | Its Decision (consume the core checker through the hooks) still holds; only statements about the retired scripts changed. |
+| Mark ADR-0026 Superseded in full | Rejected | Its Decision (consume the core checker through the hooks) still holds; only statements about the retired scripts and the checker's hash verification changed. |
 | Delete the leftover local copies in this change | Not done | Outside this record's scope; deletion is a per-clone action (see Consequences). |
 
 ## Consequences
