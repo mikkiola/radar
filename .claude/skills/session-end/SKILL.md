@@ -1,6 +1,6 @@
 ---
 name: session-end
-description: "Explicit, owner-triggered BACKLOG.md closure for Radar: reviews this session's commits for Closes: B-NNN trailers and presents/writes matching docs/BACKLOG.md closures per the confirmation rules below. Triggers on: /session-end only — never invoked by the model on its own judgment. Generic Closes: mechanism only, adapted from article-pipeline's session-end skill (its Syncs:/M1-M6 half is article-pipeline-specific and not included here)."
+description: "Explicit, owner-triggered BACKLOG.md closure for Radar: reviews this session's commits for Closes: B-NNN trailers and presents/writes matching docs/BACKLOG.md closures per the confirmation rules below. Triggers on: /session-end only — never invoked by the model on its own judgment. Generic Closes: mechanism only, adapted from article-pipeline's session-end skill."
 user-invocable: true
 disable-model-invocation: true
 allowed-tools: Read, Edit, Bash
@@ -56,9 +56,7 @@ under any circumstance.
    edit/commit fixes it — no supersession ritual.
 7. Never touches `docs/CONSTITUTION.md`, `docs/ARCHITECTURE.md`, or
    `docs/ROADMAP.md` — this skill only handles `docs/BACKLOG.md`
-   closure. Radar has no `Syncs:`/structural-fact-sync mechanism
-   (that's an article-pipeline-specific invention, not part of
-   tooltempest's shared convention) — do not attempt it.
+   closure.
 
 **Source.** Adapted 2026-08-27 from article-pipeline's
 `.claude/skills/session-end/SKILL.md`, generic `Closes:` half only.
