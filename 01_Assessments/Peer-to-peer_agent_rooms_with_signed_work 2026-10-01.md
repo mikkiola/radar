@@ -2,8 +2,8 @@
 status: VALIDATED_SHIFT
 maturity_score: 2
 novelty_score: 4
-state_value: Prototype
-state_confidence: low
+state_value: Growing
+state_confidence: high
 assertion_vector: Valhalla is a novel peer-to-peer agent communication layer that
   distributes signed authorship and room discovery across participant-chosen peers
   rather than a platform intermediary. It represents new cryptographic trust and decentralized
@@ -14,6 +14,10 @@ evidence_log:
   event_type: state_transition
   state_value: Prototype
   state_confidence: low
+- date: '2026-11-13'
+  event_type: state_transition
+  state_value: Growing
+  state_confidence: high
 root_commit_sha: dd0dd2863fa47ae087d64e96864a70d6019bd23e
 license_spdx_id: MIT
 license_baseline_origin: initial
@@ -21,6 +25,8 @@ verdict_history:
 - date: '2026-10-01'
   verdict: CANDIDATE
 - date: '2026-10-15'
+  verdict: VALIDATED_SHIFT
+- date: '2026-11-13'
   verdict: VALIDATED_SHIFT
 ---
 # Peer-to-peer agent rooms with signed work
@@ -65,6 +71,7 @@ Valhalla proposes a novel architectural layer (signed peer-to-peer protocol for 
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-11-13 - СДВИГ (подтверждается): За 43 дня экосистема агентов ускорилась на фоне запуска Claude API agents и расширения MCP-стандарта. Valhalla остаётся одним из немногих проектов, атакующих проблему криптографического доверия в P2P-сценариях, что повышает релевантность гипотезы. Однако ключевой вопрос остаётся неразрешённым — вышла ли в публичную сеть хотя бы альфа-версия за эти 43 дня, или проект всё ещё в "In development"? Если сеть не запущена, гипотеза движется к опровержению по сроку.
 - 2026-10-15 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-10-01 - CANDIDATE: первая оценка
 
