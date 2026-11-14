@@ -1,9 +1,9 @@
 ---
-status: VALIDATED_SHIFT
+status: CANDIDATE_LOW_CONFIDENCE
 maturity_score: 2
 novelty_score: 4
-state_value: Growing
-state_confidence: low
+state_value: Declining
+state_confidence: high
 assertion_vector: omabox implements a novel agent-scoped virtual desktop isolation
   layer atop Omarchy/Hyprland, enabling parallel UI testing without host interference;
   early adoption, high specialization, architectural innovation within niche ecosystem,
@@ -15,6 +15,10 @@ evidence_log:
   state_confidence: low
 - date: '2026-11-01'
   event_type: ci_broken
+- date: '2026-11-14'
+  event_type: state_transition
+  state_value: Declining
+  state_confidence: high
 root_commit_sha: 62c9a1c1dd0988d20517e6d904bd81609c592f80
 license_spdx_id: MIT
 license_baseline_origin: initial
@@ -23,6 +27,8 @@ verdict_history:
   verdict: CANDIDATE
 - date: '2026-10-18'
   verdict: VALIDATED_SHIFT
+- date: '2026-11-14'
+  verdict: CANDIDATE_LOW_CONFIDENCE
 ---
 # Hidden execution environment for AI agents
 
@@ -66,6 +72,7 @@ omabox is a novel architectural layer providing isolated virtual desktops for ag
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-11-14 - ШУМ (опровергается): За 41 день гипотеза о широком принятии omabox коммерческими платформами не подтвердилась — проект остаётся привязан к экосистеме Omarchy без официальной интеграции в Claude Code, Codex или конкурентные решения. Отсутствие видимого прогресса за две контрольные точки (2026-10-18 validation и текущий момент) при сохранении ранней зрелости (2/5) указывает на стагнацию в роли узкоспециализированного инструмента, а не на перспективу расширения рынка. Hypothetical falsification path (exclusive к Omarchy) становится всё более вероятной, что переводит оценку из CANDIDATE в низкоприоритетный ШУМ для широкого ИИ-агентского рынка.
 - 2026-10-18 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-10-04 - CANDIDATE: первая оценка
 
