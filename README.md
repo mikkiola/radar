@@ -23,7 +23,8 @@ radar/
 │                                 ROADMAP/BACKLOG/CONSTITUTION.md, adr/)
 ├── scripts/                    verify.py, generate_adr_index.py,
 │                                 check_tooltempest_lock.py, install-hooks.sh, hooks/
-│                                 (git hooks: lock guard + DocOps checker);
+│                                 (git hooks, in this order: pin check, lock guard,
+│                                 DocOps checker);
 │                                 docops.py, tooling.py and the rest of ToolTempest's
 │                                 core are materialized here, untracked
 ├── schemas/, docs/tooltempest/ materialized ToolTempest core files, untracked

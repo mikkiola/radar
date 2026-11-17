@@ -3,8 +3,8 @@
 set -euo pipefail
 
 # Capture the original stdin once, before anything else reads it. Git hands the
-# ref updates to pre-push on stdin; a stream can be consumed once, and both the
-# lock guard and the DocOps checker below need them (ADR-0026). A push that
+# ref updates to pre-push on stdin; a stream can be consumed once, and the pin
+# check, the lock guard and the DocOps checker below need them (ADR-0026, ADR-0031). A push that
 # updates nothing sends zero bytes. If the capture cannot be made, the push is
 # blocked (set -e).
 PUSH_CAPTURE="$(mktemp "${TMPDIR:-/tmp}/radar-pre-push.XXXXXX")"
@@ -13,6 +13,47 @@ cat > "$PUSH_CAPTURE"
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
+
+# ToolTempest pin check (ADR-0031), the first step after the capture above: no
+# other step runs unless the lock of every pushed tip, the installed files and the
+# install receipt agree with the pinned commit. Zero bytes means the push updates
+# nothing: nothing to check. The script is looked up in this worktree only, with
+# no fallback to another worktree or clone. Any non-zero exit (1 blocked, 2 usage
+# or internal failure) ends the hook with the same exit code. A tip without
+# .tooltempest.lock is skipped by the script itself (exit 0). Without the script, a
+# push whose pushed refs ever held the lock is blocked (same history test as the
+# lock guard below), and any other push is skipped with a message.
+if [ -s "$PUSH_CAPTURE" ]; then
+  PIN_CHECK="$REPO_ROOT/scripts/tt_pin_check.py"
+  if [ -f "$PIN_CHECK" ]; then
+    pin_rc=0
+    python3 "$PIN_CHECK" push --root "$REPO_ROOT" < "$PUSH_CAPTURE" || pin_rc=$?
+    if [ "$pin_rc" -ne 0 ]; then
+      echo "[pre-push] ToolTempest pin check failed (exit $pin_rc); push blocked."
+      exit "$pin_rc"
+    fi
+  else
+    pin_lock_seen=0
+    while read -r _pin_local_ref pin_local_sha _pin_remote_ref _pin_remote_sha; do
+      case "$pin_local_sha" in
+        *[!0]*) ;;
+        *) continue ;;
+      esac
+      history_rc=0
+      lock_history="$(git log -1 --format=%H --full-history "$pin_local_sha" -- .tooltempest.lock < /dev/null)" || history_rc=$?
+      if [ "$history_rc" -ne 0 ] || [ -n "$lock_history" ]; then
+        pin_lock_seen=1
+      fi
+    done < "$PUSH_CAPTURE"
+    if [ "$pin_lock_seen" -ne 0 ]; then
+      echo "[pre-push] scripts/tt_pin_check.py not found in this worktree and a pushed ref holds .tooltempest.lock; push blocked."
+      echo "[pre-push] Materialize the ToolTempest core component. From a ToolTempest checkout that contains the commit pinned in .tooltempest.lock, run:"
+      echo "[pre-push]   python3 <tooltempest-checkout>/scripts/tooling.py materialize --root '$REPO_ROOT' --source <tooltempest-checkout> --apply"
+      exit 1
+    fi
+    echo "[tt-pin] pre-push: scripts/tt_pin_check.py not found and no pushed ref holds .tooltempest.lock; skipped."
+  fi
+fi
 
 # Lock integrity guard (ADR-0025). For every pushed ref, verify the
 # .tooltempest.lock as it exists in the pushed tip (not the working-tree copy)

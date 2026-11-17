@@ -34,5 +34,5 @@ re-run after adding or editing an ADR in this session.
 | [ADR-0026](0026-adopt-tooltempest-core-checker.md) | Adopt the Shared ToolTempest DocOps Checker (Core Component) | Accepted | null | null |
 | [ADR-0029](0029-constitution-holds-project-rules-only.md) | The Constitution Holds Project Rules Only; Universal Rules Come from the Pinned ToolTempest File | Accepted | ADR-0026 | null |
 | [ADR-0030](0030-retire-the-doc-sync-contour.md) | Retire the doc_sync Contour in Radar | Accepted | ADR-0026 | null |
-| [ADR-0031](0031-run-the-tooltempest-pin-check-in-the-hooks.md) | Run the ToolTempest Pin Check Before the DocOps Checker in Radar's Hooks | Accepted | ADR-0026 | null |
+| [ADR-0031](0031-run-the-tooltempest-pin-check-in-the-hooks.md) | Run the ToolTempest Pin Check as the First Step of Radar's Hooks | Accepted | ADR-0026 | null |
 

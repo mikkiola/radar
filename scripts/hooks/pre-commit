@@ -1,10 +1,35 @@
 #!/usr/bin/env bash
-# Pre-commit checks: ADR-INDEX freshness, .tooltempest.lock integrity, and the
-# shared DocOps checker (version pinned in .tooltempest.lock).
+# Pre-commit checks: the ToolTempest pin check (first step), ADR-INDEX freshness,
+# .tooltempest.lock integrity, and the shared DocOps checker (version pinned in
+# .tooltempest.lock).
 set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
+
+# ToolTempest pin check (ADR-0031), the first step of this hook: no other step
+# runs unless the lock, the installed files and the install receipt agree with the
+# pinned commit. The script is looked up in this worktree only, with no fallback to
+# another worktree or clone. Any non-zero exit (1 blocked, 2 usage or internal
+# failure) ends the hook with the same exit code. A tree without .tooltempest.lock
+# is skipped by the script itself (exit 0). Without the script, a commit whose
+# index holds the lock is blocked, and any other commit is skipped with a message.
+PIN_CHECK="$REPO_ROOT/scripts/tt_pin_check.py"
+if [ -f "$PIN_CHECK" ]; then
+  pin_rc=0
+  python3 "$PIN_CHECK" commit --root "$REPO_ROOT" || pin_rc=$?
+  if [ "$pin_rc" -ne 0 ]; then
+    echo "[pre-commit] ToolTempest pin check failed (exit $pin_rc); commit blocked."
+    exit "$pin_rc"
+  fi
+elif git cat-file -e ":.tooltempest.lock" 2>/dev/null; then
+  echo "[pre-commit] scripts/tt_pin_check.py not found in this worktree and the index holds .tooltempest.lock; commit blocked."
+  echo "[pre-commit] Materialize the ToolTempest core component. From a ToolTempest checkout that contains the commit pinned in .tooltempest.lock, run:"
+  echo "[pre-commit]   python3 <tooltempest-checkout>/scripts/tooling.py materialize --root '$REPO_ROOT' --source <tooltempest-checkout> --apply"
+  exit 1
+else
+  echo "[tt-pin] pre-commit: scripts/tt_pin_check.py not found and the index holds no .tooltempest.lock; skipped."
+fi
 
 # Regenerate docs/adr/ADR-INDEX.md if any ADR file is staged, and
 # fail the commit if it's out of date (forgot to re-run the generator).

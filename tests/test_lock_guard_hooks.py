@@ -1,14 +1,16 @@
 """Real Git hook-dispatch tests for the .tooltempest.lock integrity guard (ADR-0025)
-and for the DocOps checker the same hooks run (ADR-0026).
+for the DocOps checker the same hooks run (ADR-0026) and for the ToolTempest pin
+check that is their first step (ADR-0031).
 
 Every test builds disposable repositories under tmp_path: a fixture "upstream"
 (the source of the vendored file), a bare "remote", and a project that carries
 the real checker, hook sources and installer copied from this repository. The
 hooks are installed with the real installer and exercised through Git itself
-(git commit, git push, git hook run), never by calling the hook file directly.
-The DocOps checker is a stub (STUB_DOCOPS): the real one is untracked and not
-present in CI, and these tests pin what the hooks do with its arguments, its
-stdin and its exit codes, not what the checker decides.
+(git commit, git push, git hook run); a hook file is called directly only to read
+its own exit code (test_p4).
+The DocOps checker (STUB_DOCOPS) and the pin check (STUB_PIN) are stubs: the real
+ones are untracked and not present in CI, and these tests pin what the hooks do
+with their arguments, their stdin and their exit codes, not what they decide.
 
 Nothing here touches this repository's .git/hooks, the real lock, the real
 vendored file, or the network: the lock's `repository` is file:///nonexistent
@@ -40,6 +42,7 @@ OTHER_SHA = hashlib.sha256(OTHER).hexdigest()
 EMPTY_INPUT_SHA = hashlib.sha256(b"").hexdigest()
 BAD_SHA = "0" * 64
 DOCOPS_REL = "scripts/docops.py"
+PIN_REL = "scripts/tt_pin_check.py"
 # What the "checker not found" block message must tell the user to run and read.
 MATERIALIZE_HINT = ("tooling.py materialize", "--root", "--source", "--apply", "consumer-contract.md")
 # Records its argv and (for --push-stdin) its stdin as one JSON line, then exits with STUB_DOCOPS_EXIT.
@@ -49,6 +52,14 @@ data = sys.stdin.buffer.read().decode() if "--push-stdin" in sys.argv else None
 with open(os.environ["STUB_DOCOPS_LOG"], "a", encoding="utf-8") as handle:
     handle.write(json.dumps({"argv": sys.argv[1:], "stdin": data}) + "\\n")
 sys.exit(int(os.environ.get("STUB_DOCOPS_EXIT", "0")))
+"""
+# Records its argv and (for `push`) its stdin as one JSON line, then exits with STUB_PIN_EXIT.
+STUB_PIN = """\
+import json, os, sys
+data = sys.stdin.buffer.read().decode() if sys.argv[1:2] == ["push"] else None
+with open(os.environ["STUB_PIN_LOG"], "a", encoding="utf-8") as handle:
+    handle.write(json.dumps({"argv": sys.argv[1:], "stdin": data}) + "\\n")
+sys.exit(int(os.environ.get("STUB_PIN_EXIT", "0")))
 """
 
 
@@ -89,6 +100,7 @@ class Lab:
             "PYTHONDONTWRITEBYTECODE": "1",
             "LC_ALL": "C",
             "STUB_DOCOPS_LOG": str(self.base / "docops.log"),
+            "STUB_PIN_LOG": str(self.base / "pin.log"),
             "GIT_AUTHOR_NAME": "t",
             "GIT_AUTHOR_EMAIL": "t@t",
             "GIT_COMMITTER_NAME": "t",
@@ -151,6 +163,7 @@ class Lab:
         with open(info / "exclude", "a", encoding="utf-8") as handle:
             handle.write(f"/{REL}\n")  # the vendored file stays untracked, as in Radar
             handle.write(f"/{DOCOPS_REL}\n")  # so does the materialized DocOps checker
+            handle.write(f"/{PIN_REL}\n")  # and the materialized pin check
         self.core(self.proj)
         self.git(self.proj, "add", "-A")
         self.git(self.proj, "commit", "-q", "-m", "init")
@@ -170,13 +183,20 @@ class Lab:
         path.write_bytes(data)
 
     def core(self, cwd):
-        """Place the (stub) DocOps checker where the materializer would."""
-        path = Path(cwd) / DOCOPS_REL
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(STUB_DOCOPS, encoding="utf-8")
+        """Place the (stub) DocOps checker and pin check where the materializer would."""
+        for rel, body in ((DOCOPS_REL, STUB_DOCOPS), (PIN_REL, STUB_PIN)):
+            path = Path(cwd) / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(body, encoding="utf-8")
 
     def docops_calls(self):
         log = Path(self.env["STUB_DOCOPS_LOG"])
+        if not log.exists():
+            return []
+        return [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+
+    def pin_calls(self):
+        log = Path(self.env["STUB_PIN_LOG"])
         if not log.exists():
             return []
         return [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
@@ -302,6 +322,10 @@ def test_f6_linked_worktree_shares_the_hooks_and_checks_its_own_file(active):
     lab.git(p, "worktree", "add", "-q", "-b", "wtb", str(wt))
     assert not (wt / REL).exists()  # an untracked file does not follow into a new worktree
     lab.stage_readme(wt, "worktree\n")
+    # the pin check is looked up in this worktree only (ADR-0031): the core must be materialized here too
+    result = blocked(lab.commit_cmd(wt, "core not materialized in this worktree"))
+    assert "scripts/tt_pin_check.py not found" in text(result)
+    lab.core(wt)
     ok(lab.commit_cmd(wt, "no lock in this commit"))
     (wt / LOCK).write_text(lab.lock_text(repository="file:///other"))
     lab.git(wt, "add", LOCK)
@@ -730,6 +754,115 @@ def test_d9_pre_push_makes_no_freshness_check_against_the_upstream(active):
     assert "behind ToolTempest" not in text(result) and "drift" not in text(result)
     for hook in ("pre-commit", "pre-push"):
         assert "ls-remote" not in (REPO / "scripts" / "hooks" / hook).read_text(encoding="utf-8")
+
+
+# --- 7.3b the pin check is the first step of both hooks (ADR-0031) ------------
+
+def test_p1_pre_commit_runs_the_pin_check_in_commit_mode_for_this_tree(active):
+    lab, p = active, active.proj
+    lab.stage_readme(p, "doc\n")
+    ok(lab.commit_cmd(p, "doc"))
+    (call,) = lab.pin_calls()
+    assert call["argv"][0] == "commit" and call["argv"][1] == "--root"
+    assert Path(call["argv"][2]).resolve() == p.resolve()
+    assert len(lab.docops_calls()) == 1  # a passing pin check lets the later steps run
+
+
+def test_p2_pre_push_gives_the_pin_check_the_captured_ref_updates_once(active):
+    lab, p = active, active.proj
+    old = lab.git(p, "rev-parse", "origin/main").stdout.strip()
+    lab.stage_readme(p, "work\n")
+    ok(lab.commit_cmd(p, "work"))
+    new = lab.head(p)
+    lab.run(["rm", "-f", str(lab.base / "pin.log")], p)  # only the push is observed
+    ok(lab.push(p, "main"))
+    (call,) = lab.pin_calls()
+    assert call["argv"][:2] == ["push", "--root"] and Path(call["argv"][2]).resolve() == p.resolve()
+    assert call["stdin"] == f"refs/heads/main {new} refs/heads/main {old}\n"
+    assert len(push_stdin_calls(lab)) == 1  # the checker still gets the same input
+
+
+@pytest.mark.parametrize("code", ["1", "2"])
+def test_p3_pre_commit_ends_with_the_pin_check_exit_code_and_runs_nothing_after_it(active, code):
+    lab, p = active, active.proj
+    head = lab.head(p)
+    (p / LOCK).write_text(lab.lock_text(sha256=BAD_SHA))  # the lock guard would fail on this
+    lab.git(p, "add", LOCK)
+    result = lab.run(["git", "hook", "run", "pre-commit"], p, extra={"STUB_PIN_EXIT": code})
+    assert result.returncode == int(code), text(result)
+    assert f"pin check failed (exit {code}); commit blocked" in text(result)
+    assert "integrity check failed" not in text(result) and "lock-guard" not in text(result)
+    assert lab.docops_calls() == []
+    blocked(lab.run(["git", "commit", "-q", "-m", "doc"], p, extra={"STUB_PIN_EXIT": code}))
+    assert lab.head(p) == head
+
+
+@pytest.mark.parametrize("code", ["1", "2"])
+def test_p4_pre_push_ends_with_the_pin_check_exit_code_and_runs_nothing_after_it(active, code):
+    lab, p = active, active.proj
+    (p / LOCK).write_text(lab.lock_text(sha256=BAD_SHA))  # the lock guard would fail on this
+    lab.git(p, "add", LOCK)
+    ok(lab.commit_cmd(p, "bad lock", hooks=False))
+    tip = lab.head(p)
+    stdin = f"refs/heads/main {tip} refs/heads/main {'0' * 40}\n"
+    # git push reports 1 for any failing hook; the hook file is called once, only to read its own exit code
+    result = lab.run(["bash", str(p / ".git" / "hooks" / "pre-push"), "origin", str(lab.remote)], p, extra={"STUB_PIN_EXIT": code}, data=stdin)
+    assert result.returncode == int(code), text(result)
+    assert f"pin check failed (exit {code}); push blocked" in text(result)
+    assert "integrity check failed" not in text(result) and "lock source" not in text(result)
+    assert push_stdin_calls(lab) == []
+    before = lab.remote_heads()
+    blocked(lab.run(["git", "push", "origin", "main"], p, extra={"STUB_PIN_EXIT": code}))
+    assert lab.remote_heads() == before
+
+
+def test_p5_pre_commit_blocks_when_the_pin_check_is_missing_and_the_index_holds_the_lock(active):
+    lab, p = active, active.proj
+    head = lab.head(p)
+    (p / PIN_REL).unlink()
+    lab.stage_readme(p, "doc\n")
+    result = blocked(lab.commit_cmd(p, "doc"))
+    assert "scripts/tt_pin_check.py not found" in text(result) and "commit blocked" in text(result)
+    for needle in MATERIALIZE_HINT[:4]:
+        assert needle in text(result)
+    assert lab.head(p) == head
+    assert lab.docops_calls() == []
+
+
+def test_p6_pre_push_blocks_when_the_pin_check_is_missing_and_a_pushed_ref_holds_the_lock(active):
+    lab, p = active, active.proj
+    lab.stage_readme(p, "work\n")
+    ok(lab.commit_cmd(p, "work"))
+    (p / PIN_REL).unlink()
+    before = lab.remote_heads()
+    result = blocked(lab.push(p, "main"))
+    assert "scripts/tt_pin_check.py not found" in text(result) and "push blocked" in text(result)
+    assert lab.remote_heads() == before
+    assert push_stdin_calls(lab) == []
+
+
+def test_p7_a_tree_without_the_lock_and_without_the_script_is_skipped_with_a_message(active):
+    lab, p = active, active.proj
+    lab.make_orphan(p, "vault", {"d.md": "1\n"})
+    vwt = lab.base / "vwt"
+    lab.git(p, "worktree", "add", "-q", str(vwt), "vault")
+    assert not (vwt / "scripts").exists()  # a data-only worktree has no scripts/ of its own
+    (vwt / "d.md").write_text("2\n")
+    lab.git(vwt, "add", "d.md")
+    result = ok(lab.commit_cmd(vwt, "data"))
+    assert "tt-pin" in text(result) and "skipped" in text(result)
+    result = ok(lab.push(vwt, "vault"))
+    assert "tt-pin" in text(result) and "skipped" in text(result)
+    assert lab.pin_calls() == []  # the stub of the main worktree is never borrowed
+
+
+def test_p8_a_push_that_updates_nothing_does_not_run_or_need_the_pin_check(active):
+    lab, p = active, active.proj
+    ok(lab.push(p, "main"))
+    assert lab.pin_calls() == []
+    (p / PIN_REL).unlink()
+    result = ok(lab.push(p, "main"))
+    assert "N/A" in text(result)
 
 
 # --- 7.4 the documented recovery blocks (extracted from the ADR) ---------------
