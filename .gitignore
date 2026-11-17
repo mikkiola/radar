@@ -10,7 +10,10 @@ radar/
 /docs/tooltempest/
 /schemas/
 /scripts/check_manifest.py
+/scripts/check_mutable_reads.py
 /scripts/docops.py
 /scripts/docops_core/
 /scripts/tooling.py
 /scripts/tooling_core/
+/scripts/tt_pin_check.py
+/scripts/worktree_cleanup.sh
