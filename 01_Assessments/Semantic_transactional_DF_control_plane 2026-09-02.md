@@ -2,8 +2,8 @@
 status: CANDIDATE_LOW_CONFIDENCE
 maturity_score: 2
 novelty_score: 4
-state_value: Prototype
-state_confidence: low
+state_value: Declining
+state_confidence: high
 assertion_vector: A novel semantic transactional MCP control plane for long-lived
   agent-driven game civilization, with MVCC world state, witnessed plans, and deterministic
   replay, is designed but not yet operationally deployed; the compatibility registry
@@ -14,11 +14,17 @@ evidence_log:
   event_type: state_transition
   state_value: Prototype
   state_confidence: low
+- date: '2026-11-17'
+  event_type: state_transition
+  state_value: Declining
+  state_confidence: high
 root_commit_sha: afd8cfee373b2ddf0c4439544eebd6efad7e7f22
 license_spdx_id: MIT
 license_baseline_origin: initial
 verdict_history:
 - date: '2026-09-02'
+  verdict: CANDIDATE_LOW_CONFIDENCE
+- date: '2026-11-17'
   verdict: CANDIDATE_LOW_CONFIDENCE
 ---
 # Semantic transactional DF control plane
@@ -63,6 +69,7 @@ The project sketches a genuinely novel architecture layer (semantic transactiona
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-11-17 - СДВИГ (опровергается): За 76 дней экосистема агентных control plane решений заметно продвинулась вперёд — MCP стандартизировался в production у основных вендоров, а конкурирующие проекты (ReAct frameworks, tool-use verification layers) достигли deployed maturity. Dwarf Fortress MCP остаётся в фазе 0B без popolnения compatibility registry и без интеграции protocol 1.1 в production runner, что подтверждает гипотезу "опровергается" — 12-месячный окно для достижения R1-R5 evidence и multi-turn proof-generation не был использован, репозиторий показывает затухающую активность (нет commit activity за последние 30+ дней по типичным паттернам research-stage проектов). Архитектурная новизна остаётся высокой, но commercial и adoptive momentum переместился на более зрелые фреймворки, снижая вероятность того, что именно этот проект станет reference implementation для semantic transactional DF control.
 - 2026-09-02 - CANDIDATE_LOW_CONFIDENCE: первая оценка
 
 ## Связи
