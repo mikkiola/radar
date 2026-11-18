@@ -18,7 +18,7 @@ Observations at commit `f1ddea9` of this repository unless stated otherwise:
 
 - The hooks run no secret scan: `git grep -n -i -E 'betterleaks|gitleaks|trufflehog' f1ddea9 -- scripts/hooks` prints nothing and exits 1.
 - The CI job `security_secrets` scans after the fact. `grep -n -E '^on:|schedule|workflow_dispatch|pull_request|^  push' .github/workflows/security.yml` lists only `schedule` and `workflow_dispatch`, so a secret reaches the remote before the job can see it. The job runs `./betterleaks git . --no-banner` with v1.7.3, pinned by sha256 in that file.
-- Betterleaks is the one scanner Radar permits (ADR-0010; the Compactness row of `docs/CONSTITUTION.md` names it as an exception to the pip-only rule).
+- The Compactness row of `docs/CONSTITUTION.md` excepts Betterleaks and TruffleHog from the pip-only rule, and ADR-0010 chose Betterleaks as the secret scanner.
 - The hook scripts make no network call (ADR-0026, Decision 4). Betterleaks validates findings against live APIs only with `--validation` (`betterleaks git --help`).
 - The local scanner differs from the CI one. `betterleaks version` printed `1.10.1` on 2026-11-18, and the CI job pins v1.7.3. The CI invocation, run with 1.10.1 in a scratch repository holding one synthetic token-shaped value, exited 1 and logged `leaks found: 1`; the same invocation over a clean range exited 0. It was not run with v1.7.3: not verified.
 - `.github/actions/vault-write/action.yml` runs `git push origin vault` from a fresh checkout in a workflow. A fresh checkout holds no installed hook, so that push is not scanned (ADR-0031 Consequences: hooks protect only a clone that ran the installer).
@@ -39,7 +39,7 @@ Observations at commit `f1ddea9` of this repository unless stated otherwise:
 |---|---|---|
 | Scan the working tree (`--no-git`), as `article-pipeline` and `brain` do | Rejected | A push publishes commits. A secret that an earlier pushed commit holds and the tip no longer holds would pass. |
 | Warn and continue when the scanner is missing, as `article-pipeline` and `brain` do | Rejected | The Owner ordered a block. A silent pass leaves the push unscanned. |
-| Use `gitleaks`, which is installed | Rejected | ADR-0010 chose Betterleaks and the Constitution permits no other scanner. |
+| Use `gitleaks`, which is installed | Rejected | ADR-0010 chose Betterleaks over Gitleaks, and the Compactness row names no Gitleaks exception. |
 | Run the CI job on `push` | Rejected | It runs after the push, and the secret has already reached the remote. The Owner scoped the CI workflow out. |
 | Run the scan before the DocOps checker | Rejected | Every step blocks the push on its own, so the position adds no protection. The last position leaves every existing step where ADR-0031 Decision 1 put it. |
 
@@ -49,7 +49,7 @@ Observations at commit `f1ddea9` of this repository unless stated otherwise:
 - The hook runs the installed version, not v1.7.3. Detection can differ between the hook and the CI job until the installed version and the pin are brought together. The hook does not compare versions.
 - For a new ref the exclusion uses the clone's remote-tracking refs. A commit that a stale tracking ref still reaches, and that the remote no longer holds, is not scanned.
 - Enforcement stays local: `--no-verify`, a removed or uninstalled hook, and the workflow push of `vault` bypass it (same limit as ADR-0031).
-- A new ref with no tracking ref in the clone is scanned from its whole history. With 1.10.1, the full history of the current branch took 1.78 s and the full history of `origin/vault` took 3.99 s (`/usr/bin/time -p betterleaks git . --no-banner --log-opts <ref>`, 2026-11-18, one run each).
+- A new ref with no tracking ref in the clone is scanned from its whole history, so the scan time grows with that history.
 - Installing the changed hook meets BACKLOG B-027: the installer refuses while an older `.pre-lockguard-backup` differs from the installed hook.
 
 ## Confirmation & Revisit
