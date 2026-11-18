@@ -31,6 +31,7 @@ the 6 named files); `docs/BACKLOG.md`'s [B-025] is closed.
 ## IN SCOPE
 - Usage/token logging additions at the 7 named call sites
 - Any shared code path touched solely to add that logging
+- The pre-push secret scan, authorized by the Owner on 2026-11-18, a separate task from B-025
 
 ## OUT OF SCOPE
 - Redesigning `update_assessments.py`'s 30-day recheck logic or adding a
