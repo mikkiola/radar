@@ -35,4 +35,5 @@ re-run after adding or editing an ADR in this session.
 | [ADR-0029](0029-constitution-holds-project-rules-only.md) | The Constitution Holds Project Rules Only; Universal Rules Come from the Pinned ToolTempest File | Accepted | ADR-0026 | null |
 | [ADR-0030](0030-retire-the-doc-sync-contour.md) | Retire the doc_sync Contour in Radar | Accepted | ADR-0026 | null |
 | [ADR-0031](0031-run-the-tooltempest-pin-check-in-the-hooks.md) | Run the ToolTempest Pin Check as the First Step of Radar's Hooks | Accepted | ADR-0026 | null |
+| [ADR-0032](0032-scan-pushed-commits-for-secrets-in-pre-push.md) | Scan the Commits of a Push for Secrets in Radar's pre-push Hook | Accepted | null | null |
 

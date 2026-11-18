@@ -145,5 +145,79 @@ elif ! python3 "$DOCOPS_CHECKER" check --repo "$REPO_ROOT" --push-stdin < "$PUSH
   exit 1
 fi
 
+# Secret scan (ADR-0032), the last step: Betterleaks, the scanner of the CI job
+# security_secrets, scans the commits this push would publish, never the working
+# tree. Zero bytes means the push updates nothing: N/A. A ref deletion publishes no
+# commit. A missing scanner, a finding, and any scanner failure block the push (fail
+# closed). The output names rule, file, line and commit of a finding and never its
+# value: --redact keeps the value out of the report, and only those four fields are
+# printed. Scanner configuration variables are removed from the environment so that
+# the default rules apply, as in the CI job. No network call is made (no --validation).
+# It runs in every worktree, the data-only vault one included, because it needs
+# nothing from scripts/.
+scan_failed=0
+if [ ! -s "$PUSH_CAPTURE" ]; then
+  echo "[secret-scan] pre-push: no ref updates (zero bytes on stdin); N/A."
+elif ! command -v betterleaks >/dev/null 2>&1; then
+  echo "[pre-push] betterleaks not found on PATH; the push cannot be scanned for secrets; push blocked."
+  echo "[pre-push] Install it: brew install betterleaks (macOS), or a release from https://github.com/betterleaks/betterleaks/releases (the CI job pins v1.7.3, see .github/workflows/security.yml)."
+  exit 1
+else
+  scan_remotes="--remotes"
+  if [ -n "${1:-}" ]; then
+    scan_remotes="--remotes=$1"
+  fi
+  while read -r scan_local_ref scan_local_sha scan_remote_ref scan_remote_sha; do
+    case "$scan_local_sha" in
+      *[!0]*) ;;
+      *)
+        echo "[secret-scan] pre-push: $scan_remote_ref is a ref deletion; nothing to scan."
+        continue ;;
+    esac
+    # An existing remote ref: the commits between its old tip and the new tip. A new
+    # ref, or an old tip this clone does not hold: everything the remote does not have.
+    scan_range="$scan_local_sha --not $scan_remotes"
+    case "$scan_remote_sha" in
+      *[!0]*)
+        if git cat-file -e "$scan_remote_sha^{commit}" < /dev/null 2>/dev/null; then
+          scan_range="$scan_remote_sha..$scan_local_sha"
+        fi ;;
+    esac
+    scan_rc=0
+    scan_report="$(env -u BETTERLEAKS_CONFIG -u GITLEAKS_CONFIG -u BETTERLEAKS_CONFIG_TOML -u GITLEAKS_CONFIG_TOML \
+      betterleaks git "$REPO_ROOT" --no-banner --no-color --redact -f json -r - --log-opts "$scan_range" < /dev/null)" || scan_rc=$?
+    # Exit 0 of the parser: no finding. 1: findings, one location per line. 2: no usable report.
+    parse_rc=0
+    scan_locations="$(printf '%s' "$scan_report" | python3 -c '
+import json, sys
+try:
+    raw = sys.stdin.read()
+    findings = json.loads(raw) if raw.strip() else []
+    if not isinstance(findings, list):
+        raise ValueError("not a list")
+    lines = ["[secret-scan]   {} {}:{} commit {}".format(item.get("RuleID", "?"), item.get("File", "?"), item.get("StartLine", "?"), str(item.get("Commit", ""))[:12]) for item in findings]
+except Exception:
+    sys.exit(2)
+for line in lines:
+    print(line)
+sys.exit(1 if findings else 0)
+')" || parse_rc=$?
+    if [ "$parse_rc" -eq 1 ]; then
+      echo "[secret-scan] $scan_remote_ref: the commits to push contain a potential secret (the value is not printed):"
+      echo "$scan_locations"
+      scan_failed=1
+    elif [ "$parse_rc" -ne 0 ] || [ "$scan_rc" -ne 0 ]; then
+      echo "[secret-scan] $scan_remote_ref: scanner exited $scan_rc without a usable report; the commits cannot be verified."
+      scan_failed=1
+    else
+      echo "[secret-scan] pre-push: $scan_remote_ref scanned ($scan_range); no findings."
+    fi
+  done < "$PUSH_CAPTURE"
+fi
+if [ "$scan_failed" -ne 0 ]; then
+  echo "[pre-push] secret scan failed; push blocked."
+  exit 1
+fi
+
 echo "[pre-push] All checks passed."
 exit 0

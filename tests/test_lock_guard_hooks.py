@@ -1,6 +1,7 @@
 """Real Git hook-dispatch tests for the .tooltempest.lock integrity guard (ADR-0025)
 for the DocOps checker the same hooks run (ADR-0026) and for the ToolTempest pin
-check that is their first step (ADR-0031).
+check that is their first step (ADR-0031), and for the secret scan that is the
+last step of pre-push (ADR-0032).
 
 Every test builds disposable repositories under tmp_path: a fixture "upstream"
 (the source of the vendored file), a bare "remote", and a project that carries
@@ -8,9 +9,11 @@ the real checker, hook sources and installer copied from this repository. The
 hooks are installed with the real installer and exercised through Git itself
 (git commit, git push, git hook run); a hook file is called directly only to read
 its own exit code (test_p4).
-The DocOps checker (STUB_DOCOPS) and the pin check (STUB_PIN) are stubs: the real
-ones are untracked and not present in CI, and these tests pin what the hooks do
-with their arguments, their stdin and their exit codes, not what they decide.
+The DocOps checker (STUB_DOCOPS), the pin check (STUB_PIN) and the secret scanner
+(STUB_SCANNER, a `betterleaks` on the lab's PATH) are stubs: the real ones are
+untracked or not installed in CI, and these tests pin what the hooks do with their
+arguments, their stdin and their exit codes, not what they decide. Only the tests
+that use the `real_scanner` fixture run the installed Betterleaks, and they skip without it.
 
 Nothing here touches this repository's .git/hooks, the real lock, the real
 vendored file, or the network: the lock's `repository` is file:///nonexistent
@@ -25,7 +28,9 @@ import hashlib
 import json
 import os
 import re
+import random
 import shutil
+import string
 import subprocess
 from pathlib import Path
 
@@ -83,15 +88,34 @@ def adr_block(name):
     return match.group(1)
 
 
+# Records its argv, its working directory and the scanner configuration variables it
+# inherited as one JSON line, prints STUB_SCAN_REPORT, then exits with STUB_SCAN_EXIT.
+STUB_SCANNER = """\
+#!/usr/bin/env python3
+import json, os, sys
+with open(os.environ["STUB_SCAN_LOG"], "a", encoding="utf-8") as handle:
+    config = {k: v for k, v in os.environ.items() if k.startswith(("BETTERLEAKS_", "GITLEAKS_"))}
+    handle.write(json.dumps({"argv": sys.argv[1:], "cwd": os.getcwd(), "config": config}) + "\\n")
+sys.stdout.write(os.environ.get("STUB_SCAN_REPORT", ""))
+sys.exit(int(os.environ.get("STUB_SCAN_EXIT", "0")))
+"""
+SCAN_REL = "cfg.txt"
+
+
 class Lab:
     def __init__(self, base):
         self.base = Path(base)
         self.home = self.base / "home"
         self.tmp = self.base / "tmp"
+        self.bin = self.base / "bin"
         self.home.mkdir()
         self.tmp.mkdir()
+        self.bin.mkdir()
+        scanner = self.bin / "betterleaks"
+        scanner.write_text(STUB_SCANNER, encoding="utf-8")
+        scanner.chmod(0o755)
         self.env = {
-            "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+            "PATH": f"{self.bin}{os.pathsep}{os.environ.get('PATH', '/usr/bin:/bin')}",
             "HOME": str(self.home),
             "TMPDIR": str(self.tmp),
             "GIT_CONFIG_NOSYSTEM": "1",
@@ -101,6 +125,7 @@ class Lab:
             "LC_ALL": "C",
             "STUB_DOCOPS_LOG": str(self.base / "docops.log"),
             "STUB_PIN_LOG": str(self.base / "pin.log"),
+            "STUB_SCAN_LOG": str(self.base / "scan.log"),
             "GIT_AUTHOR_NAME": "t",
             "GIT_AUTHOR_EMAIL": "t@t",
             "GIT_COMMITTER_NAME": "t",
@@ -197,6 +222,12 @@ class Lab:
 
     def pin_calls(self):
         log = Path(self.env["STUB_PIN_LOG"])
+        if not log.exists():
+            return []
+        return [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+
+    def scan_calls(self):
+        log = Path(self.env["STUB_SCAN_LOG"])
         if not log.exists():
             return []
         return [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
@@ -863,6 +894,232 @@ def test_p8_a_push_that_updates_nothing_does_not_run_or_need_the_pin_check(activ
     (p / PIN_REL).unlink()
     result = ok(lab.push(p, "main"))
     assert "N/A" in text(result)
+
+
+# --- 7.3c the secret scan is the last step of pre-push (ADR-0032) ------------------
+
+# What a finding looks like in the scanner's JSON report. The value fields carry a marker
+# that must never reach the hook's output; the marker is not a secret.
+MARKER = "VALUE-MARKER-MUST-NOT-BE-PRINTED"
+
+
+def finding(rule, path, line, commit="c" * 40):
+    return {"RuleID": rule, "File": path, "StartLine": line, "Commit": commit,
+            "Secret": MARKER, "Match": MARKER, "Message": MARKER}
+
+
+def report(*findings):
+    return json.dumps(list(findings))
+
+
+def commit_work(lab, p, content="work\n"):
+    lab.stage_readme(p, content)
+    ok(lab.commit_cmd(p, "work"))
+    return lab.head(p)
+
+
+def log_opts(call):
+    return call["argv"][call["argv"].index("--log-opts") + 1]
+
+
+def system_path_without_scanner():
+    """A PATH of system directories that holds the tools the hook needs and no Betterleaks."""
+    dirs = []
+    for tool in ("git", "python3", "bash", "mktemp", "cat", "rm", "dirname", "env"):
+        found = next((d for d in ("/usr/bin", "/bin") if os.access(f"{d}/{tool}", os.X_OK)), None)
+        if found is None and shutil.which(tool):
+            found = os.path.dirname(shutil.which(tool))
+        if found is None:
+            pytest.skip(f"{tool} not found")
+        if found not in dirs:
+            dirs.append(found)
+    path = os.pathsep.join(dirs)
+    if shutil.which("betterleaks", path=path):
+        pytest.skip("Betterleaks is installed in a system directory the hook needs")
+    return path
+
+
+def test_s1_a_clean_push_runs_the_scanner_once_over_the_pushed_range_and_passes(active):
+    lab, p = active, active.proj
+    old = lab.git(p, "rev-parse", "origin/main").stdout.strip()
+    new = commit_work(lab, p)
+    ok(lab.push(p, "main"))
+    (call,) = lab.scan_calls()
+    argv = call["argv"]
+    assert argv[0] == "git" and Path(argv[1]).resolve() == p.resolve()
+    assert Path(call["cwd"]).resolve() == p.resolve()
+    for flag in ("--no-banner", "--no-color", "--redact"):
+        assert flag in argv
+    assert argv[argv.index("-f") + 1] == "json" and argv[argv.index("-r") + 1] == "-"
+    assert log_opts(call) == f"{old}..{new}"
+    assert "--validation" not in argv  # validation calls live APIs; the hook makes no network call
+    assert lab.git(p, "rev-parse", "origin/main").stdout.strip() == new
+
+
+def test_s2_a_new_branch_is_scanned_from_what_the_remote_does_not_have(active):
+    lab, p = active, active.proj
+    lab.git(p, "checkout", "-q", "-b", "feature")
+    new = commit_work(lab, p)
+    ok(lab.push(p, "feature"))
+    (call,) = lab.scan_calls()
+    assert log_opts(call) == f"{new} --not --remotes=origin"
+
+
+def test_s3_a_remote_sha_missing_locally_is_scanned_like_a_new_branch(active):
+    lab, p = active, active.proj
+    new = commit_work(lab, p)
+    stdin = f"refs/heads/main {new} refs/heads/main {'1' * 40}\n"
+    ok(lab.run(["bash", str(p / ".git" / "hooks" / "pre-push"), "origin", str(lab.remote)], p, data=stdin))
+    (call,) = lab.scan_calls()
+    assert log_opts(call) == f"{new} --not --remotes=origin"
+
+
+def test_s4_a_ref_deletion_is_not_scanned(active):
+    lab, p = active, active.proj
+    lab.git(p, "checkout", "-q", "-b", "gone")
+    commit_work(lab, p)
+    ok(lab.push(p, "gone"))
+    lab.run(["rm", "-f", str(lab.base / "scan.log")], p)
+    result = ok(lab.run(["git", "push", "origin", ":refs/heads/gone"], p))
+    assert "secret-scan" in text(result) and "ref deletion" in text(result)
+    assert lab.scan_calls() == []
+    assert "refs/heads/gone" not in lab.remote_heads()
+
+
+def test_s5_a_push_that_updates_nothing_does_not_run_or_need_the_scanner(active):
+    lab, p = active, active.proj
+    ok(lab.push(p, "main"))
+    assert lab.scan_calls() == []
+    (lab.bin / "betterleaks").unlink()
+    result = ok(lab.push(p, "main"))
+    assert "[secret-scan] pre-push: no ref updates" in text(result)
+
+
+def test_s6_findings_block_the_push_name_their_locations_and_never_print_the_value(active):
+    lab, p = active, active.proj
+    commit_work(lab, p)
+    before = lab.remote_heads()
+    extra = {"STUB_SCAN_EXIT": "1",
+             "STUB_SCAN_REPORT": report(finding("github-pat", "cfg.txt", 7, "a" * 40), finding("aws-access-token", "src/x.py", 12, "b" * 40))}
+    result = blocked(lab.run(["git", "push", "origin", "main"], p, extra=extra))
+    out = text(result)
+    assert "cfg.txt:7" in out and "github-pat" in out and "src/x.py:12" in out and "aws-access-token" in out
+    assert "a" * 12 in out and "push blocked" in out
+    assert MARKER not in out
+    assert lab.remote_heads() == before
+
+
+@pytest.mark.parametrize("code,stdout", [("2", ""), ("1", "not json"), ("1", '{"not": "a list"}'), ("1", "[1]")])
+def test_s7_a_scanner_failure_without_a_usable_report_blocks_the_push(active, code, stdout):
+    lab, p = active, active.proj
+    commit_work(lab, p)
+    before = lab.remote_heads()
+    result = blocked(lab.run(["git", "push", "origin", "main"], p, extra={"STUB_SCAN_EXIT": code, "STUB_SCAN_REPORT": stdout}))
+    assert f"scanner exited {code}" in text(result) and "push blocked" in text(result)
+    assert lab.remote_heads() == before
+
+
+def test_s8_a_report_with_findings_blocks_even_when_the_scanner_exits_zero(active):
+    lab, p = active, active.proj
+    commit_work(lab, p)
+    before = lab.remote_heads()
+    result = blocked(lab.run(["git", "push", "origin", "main"], p, extra={"STUB_SCAN_EXIT": "0", "STUB_SCAN_REPORT": report(finding("github-pat", "cfg.txt", 3))}))
+    assert "cfg.txt:3" in text(result) and MARKER not in text(result)
+    assert lab.remote_heads() == before
+
+
+def test_s9_a_missing_scanner_blocks_the_push_and_says_how_to_install_it(active):
+    lab, p = active, active.proj
+    commit_work(lab, p)
+    before = lab.remote_heads()
+    lab.env["PATH"] = system_path_without_scanner()
+    result = blocked(lab.push(p, "main"))
+    out = text(result)
+    assert "betterleaks not found" in out and "push blocked" in out
+    assert "brew install betterleaks" in out and "github.com/betterleaks/betterleaks/releases" in out
+    assert lab.scan_calls() == []
+    assert lab.remote_heads() == before
+
+
+@pytest.mark.parametrize("failing", ["pin", "lock-guard", "docops"])
+def test_s10_the_scan_runs_after_the_pin_check_the_lock_guard_and_the_docops_checker(active, failing):
+    lab, p = active, active.proj
+    extra = {}
+    if failing == "pin":
+        extra["STUB_PIN_EXIT"] = "1"
+    elif failing == "docops":
+        extra["STUB_DOCOPS_EXIT"] = "1"
+    else:
+        (p / LOCK).write_text(lab.lock_text(sha256=BAD_SHA))
+        lab.git(p, "add", LOCK)
+        ok(lab.commit_cmd(p, "bad lock", hooks=False))
+    if failing != "lock-guard":
+        commit_work(lab, p)
+    blocked(lab.run(["git", "push", "origin", "main"], p, extra=extra))
+    assert lab.scan_calls() == []
+
+
+def test_s11_the_scanner_ignores_configuration_from_the_environment(active):
+    lab, p = active, active.proj
+    commit_work(lab, p)
+    extra = {"BETTERLEAKS_CONFIG": "/nonexistent.toml", "GITLEAKS_CONFIG": "/nonexistent.toml",
+             "BETTERLEAKS_CONFIG_TOML": "x", "GITLEAKS_CONFIG_TOML": "x"}
+    ok(lab.run(["git", "push", "origin", "main"], p, extra=extra))
+    (call,) = lab.scan_calls()
+    assert call["config"] == {}  # the default rules apply, as in the CI job
+
+
+def test_s12_a_branch_without_the_lock_in_a_data_only_worktree_is_scanned(active):
+    lab, p = active, active.proj
+    lab.make_orphan(p, "vault", {"d.md": "1\n"})
+    vwt = lab.base / "vwt"
+    lab.git(p, "worktree", "add", "-q", str(vwt), "vault")
+    (vwt / "d.md").write_text("2\n")
+    lab.git(vwt, "add", "d.md")
+    ok(lab.commit_cmd(vwt, "data"))
+    ok(lab.push(vwt, "vault"))
+    (call,) = lab.scan_calls()
+    assert Path(call["argv"][1]).resolve() == vwt.resolve()
+    assert log_opts(call).endswith(" --not --remotes=origin")
+
+
+def synthetic_token():
+    """A token-shaped value built at run time; it is never written to a tracked file."""
+    alphabet = string.ascii_letters + string.digits
+    return "gh" + "p_" + "".join(random.SystemRandom().choice(alphabet) for _ in range(36))
+
+
+@pytest.fixture
+def real_scanner(active):
+    """The lab with the installed Betterleaks instead of the stub."""
+    found = shutil.which("betterleaks")
+    if found is None:
+        pytest.skip("Betterleaks is not installed")
+    active.env["PATH"] = f"{Path(found).parent}{os.pathsep}{os.environ.get('PATH', '')}"
+    (active.bin / "betterleaks").unlink()
+    return active
+
+
+def test_s13_real_scanner_lets_a_clean_push_through(real_scanner):
+    lab, p = real_scanner, real_scanner.proj
+    new = commit_work(lab, p)
+    result = ok(lab.push(p, "main"))
+    assert "secret-scan" in text(result)
+    assert lab.git(p, "rev-parse", "origin/main").stdout.strip() == new
+
+
+def test_s14_real_scanner_blocks_a_synthetic_secret_and_names_only_its_location(real_scanner):
+    lab, p = real_scanner, real_scanner.proj
+    token = synthetic_token()
+    (p / SCAN_REL).write_text(f"token = {token}\n")
+    lab.git(p, "add", SCAN_REL)
+    ok(lab.commit_cmd(p, "add a file"))
+    before = lab.remote_heads()
+    result = blocked(lab.push(p, "main"))
+    out = text(result)
+    assert f"{SCAN_REL}:1" in out and "push blocked" in out
+    assert token not in out and token[4:] not in out
+    assert lab.remote_heads() == before
 
 
 # --- 7.4 the documented recovery blocks (extracted from the ADR) ---------------
