@@ -1,5 +1,5 @@
 ---
-status: CANDIDATE
+status: VALIDATED_SHIFT
 maturity_score: 2
 novelty_score: 4
 state_value: Prototype
@@ -19,6 +19,8 @@ license_baseline_origin: initial
 verdict_history:
 - date: '2026-11-05'
   verdict: CANDIDATE
+- date: '2026-11-19'
+  verdict: VALIDATED_SHIFT
 ---
 # Server-centric Version Control for Monorepos
 
@@ -62,6 +64,7 @@ openscion is an alpha-stage (0.x) independent implementation of a published arch
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-11-19 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-11-05 - CANDIDATE: первая оценка
 
 ## Связи
