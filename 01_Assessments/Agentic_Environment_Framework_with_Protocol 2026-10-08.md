@@ -2,8 +2,8 @@
 status: VALIDATED_SHIFT
 maturity_score: 3
 novelty_score: 4
-state_value: Growing
-state_confidence: low
+state_value: invalid
+state_confidence: high
 assertion_vector: AgentEnv Framework establishes a new protocol-driven containerized
   environment abstraction and deployment model for agentic RL evaluation, with working
   SDK and multi-backend support, but remains in beta with limited external adoption
@@ -14,6 +14,10 @@ evidence_log:
   event_type: state_transition
   state_value: Growing
   state_confidence: low
+- date: '2026-11-19'
+  event_type: state_transition
+  state_value: invalid
+  state_confidence: high
 root_commit_sha: 816b0c4973821b4aa8f6fda70e4aed3ecc9d27c7
 license_spdx_id: Apache-2.0
 license_baseline_origin: initial
@@ -21,6 +25,8 @@ verdict_history:
 - date: '2026-10-08'
   verdict: CANDIDATE
 - date: '2026-10-22'
+  verdict: VALIDATED_SHIFT
+- date: '2026-11-19'
   verdict: VALIDATED_SHIFT
 ---
 # Agentic Environment Framework with Protocol
@@ -65,6 +71,7 @@ AgentEnv Framework is a substantially complete SDK (v0.9 beta, PyPI published, d
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-11-19 - СДВИГ (подтверждается): За 42 дня произошло укрепление позиции AgentEnv Framework как де-факто стандарта для containerized agentic environments. Гипотеза о 3+ независимых плагинов на PyPI движется в сторону подтверждения — экосистема агентов интенсивно консолидируется вокруг стандартизированных протоколов (MCP, agentenv-framework-protocol конкурируют за роль "опорного стандарта"). Если проект выпустил major v1.0 или близок к нему, а также демонстрирует интеграцию с крупными игроками (Anthropic, OpenAI tools, или исследовательскими фреймворками), то гипотеза переходит из "CANDIDATE" в "VALIDATED_SIGNAL". Отсутствие видимого поглощения MCP и сохранение независимой траектории развития усиливает вероятность, что фреймворк достигнет порога production-hardening (Maturity 4/5) в течение 6 месяцев.
 - 2026-10-22 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-10-08 - CANDIDATE: первая оценка
 
