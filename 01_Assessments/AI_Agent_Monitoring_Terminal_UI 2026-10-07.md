@@ -2,8 +2,8 @@
 status: CANDIDATE_LOW_CONFIDENCE
 maturity_score: 2
 novelty_score: 4
-state_value: Prototype
-state_confidence: low
+state_value: Declining
+state_confidence: high
 assertion_vector: GhosttyEXTREME introduces a new observability and interactive coordination
   layer for managing multiple concurrent AI coding agents in real-time, transforming
   agent work from invisible background processes into visible, reviewable, and controllable
@@ -13,11 +13,17 @@ evidence_log:
   event_type: state_transition
   state_value: Prototype
   state_confidence: low
+- date: '2026-11-22'
+  event_type: state_transition
+  state_value: Declining
+  state_confidence: high
 root_commit_sha: 9ee6ee960231b792b00a48863b924453e96410dc
 license_spdx_id: AGPL-3.0
 license_baseline_origin: initial
 verdict_history:
 - date: '2026-10-07'
+  verdict: CANDIDATE_LOW_CONFIDENCE
+- date: '2026-11-22'
   verdict: CANDIDATE_LOW_CONFIDENCE
 ---
 # AI Agent Monitoring Terminal UI
@@ -62,6 +68,7 @@ GhosttyEXTREME introduces a novel architectural layer for real-time agent visibi
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-11-22 - СДВИГ (подтверждается): 
 - 2026-10-07 - CANDIDATE_LOW_CONFIDENCE: первая оценка
 
 ## Связи
