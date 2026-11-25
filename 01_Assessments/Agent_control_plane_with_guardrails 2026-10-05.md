@@ -3,7 +3,7 @@ status: VALIDATED_SHIFT
 maturity_score: 2
 novelty_score: 4
 state_value: Growing
-state_confidence: low
+state_confidence: high
 assertion_vector: Model Citizen is an early-stage governance layer that decouples
   agent rules (guardrails, cost, roles) from runtime implementations via a synced
   control plane, enabling portable agent policies across Claude Code and Codex without
@@ -15,6 +15,10 @@ evidence_log:
   state_confidence: low
 - date: '2026-11-01'
   event_type: ci_broken
+- date: '2026-11-25'
+  event_type: state_transition
+  state_value: Growing
+  state_confidence: high
 root_commit_sha: 974e47a92b3eae473826f273e6a6b1bd0b0608eb
 license_spdx_id: MIT
 license_baseline_origin: initial
@@ -22,6 +26,8 @@ verdict_history:
 - date: '2026-10-05'
   verdict: CANDIDATE
 - date: '2026-10-20'
+  verdict: VALIDATED_SHIFT
+- date: '2026-11-25'
   verdict: VALIDATED_SHIFT
 ---
 # Agent control plane with guardrails
@@ -66,6 +72,7 @@ The project presents early-stage but functionally coherent architecture for agen
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-11-25 - СДВИГ (подтверждается): 
 - 2026-10-20 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-10-05 - CANDIDATE: первая оценка
 
