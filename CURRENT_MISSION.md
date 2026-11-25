@@ -4,7 +4,7 @@
 ID: G041, G005
 Title: Detect technology shifts; result observability
 Source: ../SYSTEM_GOALS.md
-Goals version: 2026-09-30.v1
+Goals commit: f1c91037291c0eb8514017e74a00d5c59de1644d
 Reference: docs/PROJECT.md
 
 ## NOW
