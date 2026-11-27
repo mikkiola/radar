@@ -1,5 +1,5 @@
 ---
-status: CANDIDATE
+status: VALIDATED_SHIFT
 maturity_score: 3
 novelty_score: 4
 state_value: Growing
@@ -19,6 +19,8 @@ license_baseline_origin: initial
 verdict_history:
 - date: '2026-11-13'
   verdict: CANDIDATE
+- date: '2026-11-27'
+  verdict: VALIDATED_SHIFT
 ---
 # Multi-Agent Context & Coordination Hub
 
@@ -62,6 +64,7 @@ aisync is a working proof-of-concept with early adoption signals (6,700+ real jo
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-11-27 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-11-13 - CANDIDATE: первая оценка
 
 ## Связи
