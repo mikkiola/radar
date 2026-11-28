@@ -1,5 +1,5 @@
 ---
-status: CANDIDATE
+status: VALIDATED_SHIFT
 maturity_score: 2
 novelty_score: 4
 state_value: Growing
@@ -19,6 +19,8 @@ license_baseline_origin: initial
 verdict_history:
 - date: '2026-11-14'
   verdict: CANDIDATE
+- date: '2026-11-28'
+  verdict: VALIDATED_SHIFT
 ---
 # Multi-vendor agent coordination hub
 
@@ -62,6 +64,7 @@ Maity represents a novel control-plane architecture for multi-vendor agent coord
 <!-- Свободная рефлексия: контекст, ощущение, аналогии. Читается Claude при следующей переоценке. -->
 
 ## История оценок
+- 2026-11-28 - VALIDATED_SHIFT: карантин пройден (14+ дней), репозиторий активен - promote_candidates
 - 2026-11-14 - CANDIDATE: первая оценка
 
 ## Связи
